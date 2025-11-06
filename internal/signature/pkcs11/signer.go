@@ -5,6 +5,7 @@ import (
 	"crypto/rsa"
 	"crypto/sha256"
 	"crypto/x509"
+	"encoding/asn1"
 	"fmt"
 	"io"
 	"strings"
@@ -12,7 +13,6 @@ import (
 	"github.com/miekg/pkcs11"
 )
 
-// Signer implements crypto.Signer using PKCS#11
 type Signer struct {
 	cert       *x509.Certificate
 	keyHandle  pkcs11.ObjectHandle
@@ -26,13 +26,35 @@ func (ps *Signer) Public() crypto.PublicKey {
 }
 
 func (ps *Signer) Sign(rand io.Reader, digest []byte, opts crypto.SignerOpts) ([]byte, error) {
-	mechanism := []*pkcs11.Mechanism{
-		pkcs11.NewMechanism(pkcs11.CKM_SHA256_RSA_PKCS, nil),
-	}
+	var mechanism []*pkcs11.Mechanism
+	var dataToSign []byte
 
 	if _, ok := ps.cert.PublicKey.(*rsa.PublicKey); ok {
+		var digestInfo struct {
+			AlgorithmIdentifier struct {
+				Algorithm  asn1.ObjectIdentifier
+				Parameters asn1.RawValue
+			}
+			Digest []byte
+		}
+
+		digestInfo.AlgorithmIdentifier.Algorithm = asn1.ObjectIdentifier{2, 16, 840, 1, 101, 3, 4, 2, 1}
+		digestInfo.AlgorithmIdentifier.Parameters = asn1.RawValue{Tag: 5}
+		digestInfo.Digest = digest
+
+		var err error
+		dataToSign, err = asn1.Marshal(digestInfo)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create DigestInfo: %w", err)
+		}
+
 		mechanism = []*pkcs11.Mechanism{
 			pkcs11.NewMechanism(pkcs11.CKM_RSA_PKCS, nil),
+		}
+	} else {
+		dataToSign = digest
+		mechanism = []*pkcs11.Mechanism{
+			pkcs11.NewMechanism(pkcs11.CKM_SHA256_RSA_PKCS, nil),
 		}
 	}
 
@@ -41,7 +63,7 @@ func (ps *Signer) Sign(rand io.Reader, digest []byte, opts crypto.SignerOpts) ([
 		return nil, fmt.Errorf("SignInit failed: %w", err)
 	}
 
-	signature, err := ps.p.Sign(ps.session, digest)
+	signature, err := ps.p.Sign(ps.session, dataToSign)
 	if err != nil {
 		return nil, fmt.Errorf("Sign failed: %w", err)
 	}
@@ -169,11 +191,9 @@ func GetSignerFromCertificate(modulePath, fingerprint string, pin string) (*Sign
 			}
 		}
 
-		// Try to find private key by ID first (more reliable), then by label
 		var keyObjs []pkcs11.ObjectHandle
 
 		if len(certID) > 0 {
-			// Try finding by CKA_ID (most reliable)
 			if err := p.FindObjectsInit(session, []*pkcs11.Attribute{
 				pkcs11.NewAttribute(pkcs11.CKA_CLASS, pkcs11.CKO_PRIVATE_KEY),
 				pkcs11.NewAttribute(pkcs11.CKA_ID, certID),
@@ -192,7 +212,6 @@ func GetSignerFromCertificate(modulePath, fingerprint string, pin string) (*Sign
 			}
 		}
 
-		// Fallback: try finding by label
 		if certLabel != "" {
 			if err := p.FindObjectsInit(session, []*pkcs11.Attribute{
 				pkcs11.NewAttribute(pkcs11.CKA_CLASS, pkcs11.CKO_PRIVATE_KEY),

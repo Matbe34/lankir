@@ -156,7 +156,6 @@ export async function loadSignatureInfo(pdfPath) {
             const statusText = sig.isValid ? 'Valid' : 'Invalid';
             const statusIcon = sig.isValid ? '✓' : '✗';
             
-            // Certificate validation warning
             const certWarning = !sig.certificateValid && sig.isValid;
             
             html += `
@@ -167,6 +166,15 @@ export async function loadSignatureInfo(pdfPath) {
                         </span>
                     </div>
             `;
+            
+            if (!sig.isValid && sig.validationMessage) {
+                html += `
+                    <div class="signature-detail" style="color: #ef4444; margin-bottom: 0.75rem; padding: 0.75rem; background-color: rgba(239, 68, 68, 0.1); border-radius: 0.25rem; border-left: 3px solid #ef4444;">
+                        <div style="font-weight: 600; margin-bottom: 0.25rem;">✗ Signature Validation Failed</div>
+                        <div style="font-size: 0.8125rem;">${escapeHtml(sig.validationMessage)}</div>
+                    </div>
+                `;
+            }
             
             if (certWarning) {
                 // Provide more context based on the validation message
@@ -190,6 +198,15 @@ export async function loadSignatureInfo(pdfPath) {
                         <div style="font-weight: 600; margin-bottom: 0.25rem;">⚠ Certificate Validation Issue</div>
                         <div style="font-size: 0.8125rem; margin-bottom: 0.25rem;">${escapeHtml(validationMsg)}</div>
                         ${explanation}
+                    </div>
+                `;
+            }
+            
+            if (!sig.certificateValid && sig.certificateValidationMessage) {
+                html += `
+                    <div class="signature-detail" style="color: #f59e0b; margin-bottom: 0.75rem; padding: 0.75rem; background-color: rgba(245, 158, 11, 0.1); border-radius: 0.25rem; border-left: 3px solid #f59e0b;">
+                        <div style="font-weight: 600; margin-bottom: 0.25rem;">⚠ Certificate Issue</div>
+                        <div style="font-size: 0.8125rem;">${escapeHtml(sig.certificateValidationMessage)}</div>
                     </div>
                 `;
             }

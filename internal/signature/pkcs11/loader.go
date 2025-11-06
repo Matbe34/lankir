@@ -13,7 +13,6 @@ import (
 	"github.com/miekg/pkcs11"
 )
 
-// Certificate represents a digital certificate with metadata
 type Certificate struct {
 	Name         string   `json:"name"`
 	Issuer       string   `json:"issuer"`
@@ -33,6 +32,7 @@ func LoadCertificates() ([]Certificate, error) {
 	var certs []Certificate
 
 	modules := []string{
+		"/usr/lib/libpkcs11-dnie.so",
 		"/usr/lib/libbit4xpki.so",
 		"/usr/lib/libbit4ipki.so",
 		"/usr/lib/x86_64-linux-gnu/opensc-pkcs11.so",
@@ -105,7 +105,6 @@ func loadCertificatesFromModule(modulePath string) ([]Certificate, error) {
 		}
 		p.FindObjectsFinal(session)
 
-		// Process each certificate
 		for _, obj := range objs {
 			attrs, err := p.GetAttributeValue(session, obj, []*pkcs11.Attribute{
 				pkcs11.NewAttribute(pkcs11.CKA_VALUE, nil),
@@ -130,14 +129,12 @@ func loadCertificatesFromModule(modulePath string) ([]Certificate, error) {
 				continue
 			}
 
-			// Parse the certificate
 			cert, err := x509.ParseCertificate(certDER)
 			if err != nil {
 				continue
 			}
 
 			if isCertificateValidForSigning(cert) {
-				// Clean up label (remove null bytes)
 				label := strings.TrimRight(string(labelBytes), "\x00")
 
 				c := convertX509Certificate(cert, "pkcs11", label)
@@ -156,12 +153,10 @@ func loadCertificatesFromModule(modulePath string) ([]Certificate, error) {
 
 // isCertificateValidForSigning checks if a certificate can be used for signing
 func isCertificateValidForSigning(cert *x509.Certificate) bool {
-	// Check if certificate has digital signature key usage
 	if cert.KeyUsage&x509.KeyUsageDigitalSignature == 0 {
 		return false
 	}
 
-	// Optionally filter out CA certificates
 	if cert.IsCA {
 		return false
 	}
@@ -182,7 +177,6 @@ func convertX509Certificate(cert *x509.Certificate, source string, filename stri
 		keyUsage = append(keyUsage, "Key Encipherment")
 	}
 
-	// Get certificate name (CN from subject)
 	name := cert.Subject.CommonName
 	if name == "" && filename != "" {
 		name = filepath.Base(filename)
@@ -191,11 +185,9 @@ func convertX509Certificate(cert *x509.Certificate, source string, filename stri
 		name = "Unknown Certificate"
 	}
 
-	// Calculate SHA-256 fingerprint
 	hash := sha256.Sum256(cert.Raw)
 	fingerprint := hex.EncodeToString(hash[:])
 
-	// Check if certificate is currently valid
 	now := time.Now()
 	isValid := now.After(cert.NotBefore) && now.Before(cert.NotAfter)
 
@@ -224,7 +216,6 @@ func loadNSSCertificates() ([]Certificate, error) {
 
 	nssDBPath := filepath.Join(homeDir, ".pki", "nssdb")
 
-	// Check if NSS database exists
 	if _, err := os.Stat(nssDBPath); os.IsNotExist(err) {
 		return certs, nil // NSS database doesn't exist, not an error
 	}
@@ -306,7 +297,6 @@ func loadNSSCertificatesFromModule(modulePath string, nssDBPath string) ([]Certi
 			p.FindObjectsFinal(session)
 		}
 
-		// Now find all certificate objects
 		if err := p.FindObjectsInit(session, []*pkcs11.Attribute{
 			pkcs11.NewAttribute(pkcs11.CKA_CLASS, pkcs11.CKO_CERTIFICATE),
 		}); err != nil {
@@ -314,7 +304,6 @@ func loadNSSCertificatesFromModule(modulePath string, nssDBPath string) ([]Certi
 			continue
 		}
 
-		// Get certificate objects
 		objs, _, err := p.FindObjects(session, 100)
 		if err != nil {
 			p.FindObjectsFinal(session)
@@ -323,7 +312,6 @@ func loadNSSCertificatesFromModule(modulePath string, nssDBPath string) ([]Certi
 		}
 		p.FindObjectsFinal(session)
 
-		// Process each certificate
 		for _, obj := range objs {
 			attrs, err := p.GetAttributeValue(session, obj, []*pkcs11.Attribute{
 				pkcs11.NewAttribute(pkcs11.CKA_VALUE, nil),
@@ -352,7 +340,6 @@ func loadNSSCertificatesFromModule(modulePath string, nssDBPath string) ([]Certi
 				continue
 			}
 
-			// Parse the certificate
 			cert, err := x509.ParseCertificate(certDER)
 			if err != nil {
 				continue

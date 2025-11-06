@@ -10,6 +10,7 @@ package nss
 #include <secitem.h>
 #include <seccomon.h>
 #include <ssl.h>
+#include <cryptohi.h>
 #include <string.h>
 
 static SECStatus nss_init(const char *configdir) {
@@ -30,27 +31,29 @@ static SECKEYPrivateKey* find_private_key(CERTCertificate *cert) {
 }
 
 static SECStatus sign_digest(SECKEYPrivateKey *key, unsigned char *digest, int digest_len, unsigned char *sig, int *sig_len) {
-    SECItem digest_item;
-    SECItem sig_item = {0};
-    
-    digest_item.type = siBuffer;
-    digest_item.data = digest;
-    digest_item.len = digest_len;
-    
-    sig_item.type = siBuffer;
-    sig_item.data = NULL;
-    sig_item.len = 0;
-    
-    SECStatus rv = PK11_Sign(key, &sig_item, &digest_item);
-    if (rv == SECSuccess && sig_item.data != NULL) {
-        if (sig_item.len <= 512) {
-            memcpy(sig, sig_item.data, sig_item.len);
-            *sig_len = sig_item.len;
+    SECItem sigItem;
+    sigItem.type = siBuffer;
+    sigItem.data = NULL;
+    sigItem.len = 0;
+
+    SECItem digestItem;
+    digestItem.type = siBuffer;
+    digestItem.data = digest;
+    digestItem.len = digest_len;
+
+    SECOidTag hashAlg = SEC_OID_SHA256;
+    SECStatus rv = SGN_Digest(key, hashAlg, &sigItem, &digestItem);
+
+    if (rv == SECSuccess && sigItem.data != NULL) {
+        if (sigItem.len <= 512) {
+            memcpy(sig, sigItem.data, sigItem.len);
+            *sig_len = sigItem.len;
         } else {
             rv = SECFailure;
         }
-        SECITEM_FreeItem(&sig_item, PR_FALSE);
+        SECITEM_FreeItem(&sigItem, PR_FALSE);
     }
+
     return rv;
 }
 */
@@ -129,7 +132,6 @@ func GetNSSSigner(nickname, pin string) (*NSSSigner, error) {
 		return nil, fmt.Errorf("certificate not found")
 	}
 
-	// Authenticate with PIN if needed
 	if pin != "" {
 		slot := C.PK11_GetInternalKeySlot()
 		if slot != nil {
@@ -146,7 +148,6 @@ func GetNSSSigner(nickname, pin string) (*NSSSigner, error) {
 		return nil, fmt.Errorf("private key not found")
 	}
 
-	// Convert NSS cert to x509
 	certDER := C.GoBytes(unsafe.Pointer(cert.derCert.data), C.int(cert.derCert.len))
 	x509Cert, err := x509.ParseCertificate(certDER)
 	if err != nil {
