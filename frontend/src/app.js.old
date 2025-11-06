@@ -1,0 +1,1312 @@
+// This file will be populated by Wails runtime
+// The runtime provides window.go namespace for calling Go functions
+
+// PDF Document management
+let openPDFs = new Map(); // Map of tabId -> PDF data
+let activeTabId = null;
+let nextTabId = 1;
+
+// Current view state
+let zoomLevel = 1.0;
+let viewMode = 'scroll'; // 'single' or 'scroll'
+
+// Initialize app when DOM is ready
+document.addEventListener('DOMContentLoaded', () => {
+    setupEventListeners();
+    setupTabs();
+    setupHomeTab();
+    updateStatus('Ready');
+    loadRecentFilesWelcome();
+    
+    // Hide sidebars on initial load (home screen)
+    const leftSidebar = document.getElementById('leftSidebar');
+    const rightSidebar = document.getElementById('rightSidebar');
+    const expandLeft = document.getElementById('expandLeft');
+    const expandRight = document.getElementById('expandRight');
+    
+    if (leftSidebar) leftSidebar.style.display = 'none';
+    if (rightSidebar) rightSidebar.style.display = 'none';
+    if (expandLeft) expandLeft.style.display = 'none';
+    if (expandRight) expandRight.style.display = 'none';
+});
+
+function setupHomeTab() {
+    const homeTab = document.getElementById('homeTab');
+    if (homeTab) {
+        homeTab.addEventListener('click', () => {
+            switchToHome();
+        });
+    }
+}
+
+function switchToHome() {
+    // Deactivate all PDF tabs
+    document.querySelectorAll('.pdf-tab').forEach(tab => {
+        tab.classList.remove('active');
+    });
+    
+    // Activate home tab
+    const homeTab = document.getElementById('homeTab');
+    if (homeTab) {
+        homeTab.classList.add('active');
+    }
+    
+    activeTabId = null;
+    showWelcomeScreen();
+    
+    // Disable PDF-specific buttons
+    const signBtn = document.getElementById('signBtn');
+    if (signBtn) signBtn.disabled = true;
+    
+    // Hide sidebars on home screen
+    const leftSidebar = document.getElementById('leftSidebar');
+    const rightSidebar = document.getElementById('rightSidebar');
+    const expandLeft = document.getElementById('expandLeft');
+    const expandRight = document.getElementById('expandRight');
+    
+    if (leftSidebar) leftSidebar.style.display = 'none';
+    if (rightSidebar) rightSidebar.style.display = 'none';
+    if (expandLeft) expandLeft.style.display = 'none';
+    if (expandRight) expandRight.style.display = 'none';
+}
+
+function setupEventListeners() {
+    const openBtn = document.getElementById('openBtn');
+    const welcomeOpenBtn = document.getElementById('welcomeOpenBtn');
+    const signBtn = document.getElementById('signBtn');
+    const zoomInBtn = document.getElementById('zoomInBtn');
+    const zoomOutBtn = document.getElementById('zoomOutBtn');
+    const collapseLeft = document.getElementById('collapseLeft');
+    const expandLeft = document.getElementById('expandLeft');
+    const collapseRight = document.getElementById('collapseRight');
+    const expandRight = document.getElementById('expandRight');
+    
+    // Certificate dialog buttons
+    const certDialogClose = document.getElementById('certDialogClose');
+    const certDialogCancel = document.getElementById('certDialogCancel');
+    const certDialogSign = document.getElementById('certDialogSign');
+    
+    if (openBtn) {
+        openBtn.addEventListener('click', openPDFFile);
+    }
+    
+    if (welcomeOpenBtn) {
+        welcomeOpenBtn.addEventListener('click', openPDFFile);
+    }
+    
+    if (signBtn) signBtn.addEventListener('click', signPDF);
+    
+    if (zoomInBtn) zoomInBtn.addEventListener('click', () => changeZoom(0.1));
+    if (zoomOutBtn) zoomOutBtn.addEventListener('click', () => changeZoom(-0.1));
+    if (collapseLeft) collapseLeft.addEventListener('click', () => toggleSidebar('left', false));
+    if (expandLeft) expandLeft.addEventListener('click', () => toggleSidebar('left', true));
+    if (collapseRight) collapseRight.addEventListener('click', () => toggleSidebar('right', false));
+    if (expandRight) expandRight.addEventListener('click', () => toggleSidebar('right', true));
+    
+    // Certificate dialog event listeners
+    if (certDialogClose) certDialogClose.addEventListener('click', closeCertificateDialog);
+    if (certDialogCancel) certDialogCancel.addEventListener('click', closeCertificateDialog);
+    if (certDialogSign) certDialogSign.addEventListener('click', performSigning);
+    
+    // Close dialog on overlay click
+    const certDialog = document.getElementById('certDialog');
+    if (certDialog) {
+        certDialog.addEventListener('click', (e) => {
+            if (e.target === certDialog) {
+                closeCertificateDialog();
+            }
+        });
+    }
+    
+    // Allow Enter key in PIN input to trigger signing
+    const pinInput = document.getElementById('pinInput');
+    if (pinInput) {
+        pinInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !certDialogSign.disabled) {
+                performSigning();
+            }
+        });
+    }
+}
+
+function setupTabs() {
+    const tabBtns = document.querySelectorAll('.tab-btn');
+    tabBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const tabName = btn.dataset.tab;
+            switchTab(tabName);
+        });
+    });
+}
+
+function switchTab(tabName) {
+    // Update button states
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.tab === tabName);
+    });
+    
+    // Update content visibility
+    document.querySelectorAll('.tab-content').forEach(content => {
+        content.classList.remove('active');
+    });
+    
+    const targetTab = document.getElementById(tabName + 'Tab');
+    if (targetTab) {
+        targetTab.classList.add('active');
+    }
+}
+
+function toggleSidebar(side, show) {
+    const sidebar = document.getElementById(side === 'left' ? 'leftSidebar' : 'rightSidebar');
+    const expandBtn = document.getElementById(side === 'left' ? 'expandLeft' : 'expandRight');
+    
+    if (show) {
+        sidebar.classList.remove('collapsed');
+        expandBtn.classList.add('hidden');
+    } else {
+        sidebar.classList.add('collapsed');
+        expandBtn.classList.remove('hidden');
+    }
+}
+
+function setViewMode(mode) {
+    viewMode = mode;
+    
+    // Re-render with new mode
+    const activePDF = getActivePDF();
+    if (activePDF) {
+        if (mode === 'single') {
+            renderPage(activePDF.currentPage);
+        } else {
+            renderScrollMode();
+        }
+    }
+}
+
+function getActivePDF() {
+    return activeTabId ? openPDFs.get(activeTabId) : null;
+}
+
+function createPDFTab(filePath, metadata) {
+    const tabId = nextTabId++;
+    const fileName = filePath.split('/').pop();
+    
+    // Create PDF data object
+    const pdfData = {
+        id: tabId,
+        filePath: filePath,
+        fileName: fileName,
+        metadata: metadata,
+        currentPage: 0,
+        totalPages: metadata.pageCount,
+        renderedPages: new Map(),
+        viewerHTML: null, // Cache the entire viewer HTML
+        pageListHTML: null // Cache the page list HTML
+    };
+    
+    // Add to open PDFs
+    openPDFs.set(tabId, pdfData);
+    
+    // Create tab element
+    const tabsContainer = document.getElementById('pdfTabsContainer');
+    const tab = document.createElement('div');
+    tab.className = 'pdf-tab';
+    tab.dataset.tabId = tabId;
+    
+    tab.innerHTML = `
+        <span class="pdf-tab-name" title="${fileName}">${fileName}</span>
+        <button class="pdf-tab-close" title="Close">×</button>
+    `;
+    
+    // Tab click handler
+    tab.addEventListener('click', (e) => {
+        if (!e.target.classList.contains('pdf-tab-close')) {
+            switchToTab(tabId);
+        }
+    });
+    
+    // Close button handler
+    tab.querySelector('.pdf-tab-close').addEventListener('click', (e) => {
+        e.stopPropagation();
+        closePDFTab(tabId);
+    });
+    
+    tabsContainer.appendChild(tab);
+    tabsContainer.classList.add('has-tabs');
+    
+    return tabId;
+}
+
+function switchToTab(tabId) {
+    // Save current tab state before switching
+    if (activeTabId) {
+        const currentPDF = openPDFs.get(activeTabId);
+        if (currentPDF) {
+            const viewer = document.getElementById('pdfViewer');
+            const pageList = document.getElementById('pageList');
+            currentPDF.viewerHTML = viewer.innerHTML;
+            currentPDF.pageListHTML = pageList.innerHTML;
+            currentPDF.scrollPosition = viewer.scrollTop;
+        }
+    }
+    
+    // Deactivate all tabs
+    document.querySelectorAll('.pdf-tab').forEach(tab => {
+        tab.classList.remove('active');
+    });
+    
+    // Activate selected tab
+    const tab = document.querySelector(`[data-tab-id="${tabId}"]`);
+    if (tab) {
+        tab.classList.add('active');
+    }
+    
+    // Show sidebars when switching to PDF tab
+    const leftSidebar = document.getElementById('leftSidebar');
+    const rightSidebar = document.getElementById('rightSidebar');
+    if (leftSidebar) leftSidebar.style.display = '';
+    if (rightSidebar) rightSidebar.style.display = '';
+    
+    activeTabId = tabId;
+    const pdfData = openPDFs.get(tabId);
+    
+    if (pdfData) {
+        // Update UI with this PDF's data immediately
+        updateUIForPDF(pdfData);
+        
+        // Check if we have saved HTML state (fastest)
+        if (pdfData.viewerHTML) {
+            // Instant restore from saved HTML
+            const viewer = document.getElementById('pdfViewer');
+            const pageList = document.getElementById('pageList');
+            viewer.innerHTML = pdfData.viewerHTML;
+            pageList.innerHTML = pdfData.pageListHTML;
+            
+            // Restore scroll position
+            if (pdfData.scrollPosition !== undefined) {
+                viewer.scrollTop = pdfData.scrollPosition;
+            }
+            
+            // Re-attach event listeners
+            viewer.removeEventListener('scroll', updateCurrentPageFromScroll);
+            viewer.addEventListener('scroll', updateCurrentPageFromScroll);
+            viewer.removeEventListener('scroll', lazyLoadVisiblePages);
+            viewer.addEventListener('scroll', lazyLoadVisiblePages);
+            
+            updateStatus(`Viewing: ${pdfData.fileName}`);
+            
+            // Continue loading pages in background if needed
+            if (pdfData.renderedPages.size < pdfData.totalPages) {
+                loadVisiblePages();
+            }
+        }
+        // Check if we have cached pages (build HTML)
+        else if (pdfData.renderedPages.size > 0) {
+            // Use cached pages - render immediately (FAST)
+            renderCachedPDF(pdfData);
+            
+            // Optionally reload backend in background for future renders
+            if (pdfData.renderedPages.size < pdfData.totalPages) {
+                reloadPDFInBackendAsync(pdfData);
+            }
+        } else {
+            // No cache at all, need to load from backend
+            reloadPDFInBackend(pdfData);
+        }
+    }
+}
+
+async function reloadPDFInBackendAsync(pdfData) {
+    // Silent background reload - don't show loading screen
+    try {
+        await window.go.pdf.PDFService.OpenPDFByPath(pdfData.filePath);
+    } catch (error) {
+        console.error('Background PDF reload error:', error);
+    }
+}
+
+function renderCachedPDF(pdfData) {
+    // Update page thumbnails
+    loadPageThumbnailsFromCache(pdfData);
+    
+    // Render the PDF using cached data
+    if (viewMode === 'scroll') {
+        renderScrollModeFromCache(pdfData);
+    } else {
+        renderPageFromCache(pdfData.currentPage, pdfData);
+    }
+    
+    updateStatus(`Viewing: ${pdfData.fileName}`);
+}
+
+function renderPageFromCache(pageNum, pdfData) {
+    const pageInfo = pdfData.renderedPages.get(pageNum);
+    
+    if (pageInfo) {
+        // Update viewer
+        const viewer = document.getElementById('pdfViewer');
+        viewer.className = 'pdf-viewer';
+        viewer.innerHTML = `
+            <div class="pdf-page-container" style="transform: scale(${zoomLevel});">
+                <img src="${pageInfo.imageData}" class="pdf-page" alt="Page ${pageNum + 1}"/>
+            </div>
+        `;
+        
+        // Update controls
+        updatePageControls();
+    }
+}
+
+function renderScrollModeFromCache(pdfData) {
+    const viewer = document.getElementById('pdfViewer');
+    viewer.className = 'pdf-viewer scroll-mode';
+    
+    // Build HTML string for better performance
+    let html = '';
+    for (let i = 0; i < pdfData.totalPages; i++) {
+        const pageInfo = pdfData.renderedPages.get(i);
+        
+        if (pageInfo) {
+            html += `
+                <div class="pdf-page-container" data-page-number="${i}" style="transform: scale(${zoomLevel});">
+                    <img src="${pageInfo.imageData}" class="pdf-page" alt="Page ${i + 1}" data-page="${i}"/>
+                </div>
+            `;
+        } else {
+            html += `
+                <div class="pdf-page-container" data-page-number="${i}" style="transform: scale(${zoomLevel}); min-height: 800px;">
+                    <div class="page-loading">Page ${i + 1}</div>
+                </div>
+            `;
+        }
+    }
+    
+    // Single DOM update (much faster than appendChild in loop)
+    viewer.innerHTML = html;
+    
+    // Add scroll listeners
+    viewer.removeEventListener('scroll', updateCurrentPageFromScroll);
+    viewer.addEventListener('scroll', updateCurrentPageFromScroll);
+    viewer.removeEventListener('scroll', lazyLoadVisiblePages);
+    viewer.addEventListener('scroll', lazyLoadVisiblePages);
+    
+    // Load any missing visible pages
+    loadVisiblePages();
+}
+
+function loadPageThumbnailsFromCache(pdfData) {
+    const pageList = document.getElementById('pageList');
+    pageList.innerHTML = '';
+    
+    for (let i = 0; i < pdfData.totalPages; i++) {
+        const pageItem = document.createElement('div');
+        pageItem.className = 'page-item';
+        if (i === pdfData.currentPage) {
+            pageItem.classList.add('active');
+        }
+        pageItem.innerHTML = `<div class="page-number">Page ${i + 1}</div>`;
+        pageItem.addEventListener('click', () => {
+            document.querySelectorAll('.page-item').forEach(el => el.classList.remove('active'));
+            pageItem.classList.add('active');
+            
+            if (viewMode === 'single') {
+                renderPage(i);
+            } else {
+                scrollToPage(i);
+            }
+        });
+        pageList.appendChild(pageItem);
+    }
+}
+
+async function reloadPDFInBackend(pdfData) {
+    try {
+        // Clear the viewer first
+        const viewer = document.getElementById('pdfViewer');
+        viewer.innerHTML = '<div class="empty-state"><p>Loading PDF...</p></div>';
+        
+        // Open the PDF in the backend
+        const metadata = await window.go.pdf.PDFService.OpenPDFByPath(pdfData.filePath);
+        
+        if (metadata) {
+            // Update the PDF data with fresh metadata
+            pdfData.metadata = metadata;
+            pdfData.totalPages = metadata.pageCount;
+            
+            // Update UI with this PDF's data
+            updateUIForPDF(pdfData);
+            
+            // Load thumbnails and render pages
+            await loadPageThumbnails(metadata.pageCount);
+            
+            // Render the PDF
+            if (viewMode === 'scroll') {
+                await renderScrollMode();
+            } else {
+                await renderPage(pdfData.currentPage);
+            }
+        }
+    } catch (error) {
+        console.error('Error reloading PDF in backend:', error);
+        updateStatus('Error switching to tab: ' + error);
+    }
+}
+
+function updateUIForPDF(pdfData) {
+    // Enable buttons
+    const signBtn = document.getElementById('signBtn');
+    if (signBtn) signBtn.disabled = false;
+    
+    // Update properties panel
+    document.getElementById('fileName').textContent = pdfData.fileName;
+    document.getElementById('pageCount').textContent = pdfData.totalPages;
+    
+    // Load signature information
+    loadSignatureInfo(pdfData.filePath);
+    
+    // Update page navigation
+    updatePageNavigation();
+    
+    // Update status
+    updateStatus(`Opened: ${pdfData.fileName}`);
+}
+
+async function loadSignatureInfo(pdfPath) {
+    const signatureInfoContainer = document.getElementById('signatureInfo');
+    
+    try {
+        // Show loading state
+        signatureInfoContainer.innerHTML = `
+            <div class="empty-state">
+                <div class="loading-spinner"></div>
+                <p>Checking signatures...</p>
+            </div>
+        `;
+        
+        // Call backend to verify signatures
+        const signatures = await window.go.signature.SignatureService.VerifySignature(pdfPath);
+        
+        if (!signatures || signatures.length === 0) {
+            signatureInfoContainer.innerHTML = `
+                <div class="empty-state">
+                    <p>No signatures found</p>
+                </div>
+            `;
+            return;
+        }
+        
+        // Display signatures
+        let html = '';
+        signatures.forEach((sig, index) => {
+            const statusClass = sig.isValid ? 'valid' : 'invalid';
+            const statusText = sig.isValid ? 'Valid' : 'Invalid';
+            const statusIcon = sig.isValid ? '✓' : '✗';
+            
+            // Certificate validation warning
+            const certWarning = !sig.certificateValid && sig.isValid;
+            
+            html += `
+                <div class="signature-item ${statusClass}">
+                    <div class="signature-status">
+                        <span class="signature-status-badge ${statusClass}">
+                            ${statusIcon} ${statusText}
+                        </span>
+                    </div>
+            `;
+            
+            if (certWarning) {
+                // Provide more context based on the validation message
+                let explanation = '';
+                const validationMsg = sig.certificateValidationMessage || 'Certificate validation failed';
+                
+                if (validationMsg.toLowerCase().includes('unknown') || validationMsg.toLowerCase().includes('corrupted')) {
+                    explanation = `
+                        <div style="font-size: 0.75rem; margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid rgba(245, 158, 11, 0.2);">
+                            <strong>What this means:</strong><br>
+                            The signature itself is cryptographically valid, but the certificate's trust chain cannot be fully verified. 
+                            This is common with government-issued certificates (DNIe, eID) that aren't in the system's default trust store.
+                            <br><br>
+                            <strong>The signature is still legally valid</strong> - the document integrity is verified and the signer identity is confirmed.
+                        </div>
+                    `;
+                }
+                
+                html += `
+                    <div class="signature-detail" style="color: #f59e0b; margin-bottom: 0.75rem; padding: 0.75rem; background-color: rgba(245, 158, 11, 0.1); border-radius: 0.25rem; border-left: 3px solid #f59e0b;">
+                        <div style="font-weight: 600; margin-bottom: 0.25rem;">⚠ Certificate Validation Issue</div>
+                        <div style="font-size: 0.8125rem; margin-bottom: 0.25rem;">${escapeHtml(validationMsg)}</div>
+                        ${explanation}
+                    </div>
+                `;
+            }
+            
+            if (sig.signerName) {
+                html += `
+                    <div class="signature-detail">
+                        <span class="signature-detail-label">Signer:</span>
+                        <span class="signature-detail-value">${escapeHtml(sig.signerName)}</span>
+                    </div>
+                `;
+            }
+            
+            if (sig.signingTime) {
+                html += `
+                    <div class="signature-detail">
+                        <span class="signature-detail-label">Date:</span>
+                        <span class="signature-detail-value">${escapeHtml(sig.signingTime)}</span>
+                    </div>
+                `;
+            }
+            
+            if (sig.signingHashAlgorithm) {
+                html += `
+                    <div class="signature-detail">
+                        <span class="signature-detail-label">Algorithm:</span>
+                        <span class="signature-detail-value">${escapeHtml(sig.signingHashAlgorithm)}</span>
+                    </div>
+                `;
+            }
+            
+            if (sig.signatureType) {
+                html += `
+                    <div class="signature-detail">
+                        <span class="signature-detail-label">Type:</span>
+                        <span class="signature-detail-value">${escapeHtml(sig.signatureType)}</span>
+                    </div>
+                `;
+            }
+            
+            if (sig.reason) {
+                html += `
+                    <div class="signature-detail">
+                        <span class="signature-detail-label">Reason:</span>
+                        <span class="signature-detail-value">${escapeHtml(sig.reason)}</span>
+                    </div>
+                `;
+            }
+            
+            if (sig.location) {
+                html += `
+                    <div class="signature-detail">
+                        <span class="signature-detail-label">Location:</span>
+                        <span class="signature-detail-value">${escapeHtml(sig.location)}</span>
+                    </div>
+                `;
+            }
+            
+            html += `</div>`;
+        });
+        
+        signatureInfoContainer.innerHTML = html;
+        
+    } catch (error) {
+        console.error('Error loading signature info:', error);
+        signatureInfoContainer.innerHTML = `
+            <div class="empty-state">
+                <p style="color: #ef4444;">Error checking signatures</p>
+            </div>
+        `;
+    }
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function closePDFTab(tabId) {
+    const tab = document.querySelector(`[data-tab-id="${tabId}"]`);
+    if (tab) {
+        tab.remove();
+    }
+    
+    // Remove from open PDFs
+    openPDFs.delete(tabId);
+    
+    // If this was the active tab, switch to another or show home
+    if (activeTabId === tabId) {
+        if (openPDFs.size > 0) {
+            // Switch to first available tab
+            const firstTabId = openPDFs.keys().next().value;
+            switchToTab(firstTabId);
+        } else {
+            // No PDF tabs left, switch to home
+            switchToHome();
+        }
+    }
+}
+
+function showWelcomeScreen() {
+    const viewer = document.getElementById('pdfViewer');
+    viewer.innerHTML = `
+        <div class="welcome-screen">
+            <div class="welcome-content">
+                <h2>Welcome to PDF Editor Pro</h2>
+                <p>A modern, high-performance PDF editor for Linux</p>
+                <button class="btn btn-large btn-primary" id="welcomeOpenBtn">
+                    📂 Open a PDF File
+                </button>
+                
+                <div class="recent-files-welcome" id="recentFilesWelcome">
+                    <h3>Recent Files</h3>
+                    <div class="recent-files-grid" id="recentFilesGrid">
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Re-attach welcome button handler
+    const welcomeOpenBtn = document.getElementById('welcomeOpenBtn');
+    if (welcomeOpenBtn) {
+        welcomeOpenBtn.addEventListener('click', openPDFFile);
+    }
+    
+    // Reload recent files
+    loadRecentFilesWelcome();
+    
+    // Clear page list
+    const pageList = document.getElementById('pageList');
+    pageList.innerHTML = '<div class="empty-state"><p>No PDF loaded</p></div>';
+    
+    // Reset properties
+    document.getElementById('fileName').textContent = '-';
+    document.getElementById('pageCount').textContent = '-';
+    
+    // Reset signature info
+    const signatureInfo = document.getElementById('signatureInfo');
+    if (signatureInfo) {
+        signatureInfo.innerHTML = '<div class="empty-state"><p>No signature information</p></div>';
+    }
+}
+
+
+async function openPDFFile() {
+    try {
+        updateStatus('Opening PDF...');
+        
+        // Call Go backend to open PDF
+        const metadata = await window.go.pdf.PDFService.OpenPDF();
+        
+        if (metadata) {
+            // Create a new tab for this PDF
+            const tabId = createPDFTab(metadata.filePath, metadata);
+            
+            // Load page thumbnails
+            await loadPageThumbnails(metadata.pageCount);
+            
+            // Switch to the new tab
+            switchToTab(tabId);
+            
+            // Add to recent files
+            await window.go.pdf.RecentFilesService.AddRecent(metadata.filePath, metadata.pageCount);
+        } else {
+            updateStatus('Ready');
+        }
+        
+    } catch (error) {
+        console.error('Error opening PDF:', error);
+        updateStatus('Error opening PDF: ' + error);
+    }
+}
+
+async function renderPage(pageNum) {
+    try {
+        const activePDF = getActivePDF();
+        if (!activePDF) return;
+        
+        updateStatus(`Rendering page ${pageNum + 1}...`);
+        
+        const pageInfo = await window.go.pdf.PDFService.RenderPage(pageNum, 150);
+        
+        if (pageInfo) {
+            activePDF.currentPage = pageNum;
+            activePDF.renderedPages.set(pageNum, pageInfo);
+            
+            // Update viewer
+            const viewer = document.getElementById('pdfViewer');
+            viewer.className = 'pdf-viewer';
+            viewer.innerHTML = `
+                <div class="pdf-page-container" style="transform: scale(${zoomLevel});">
+                    <img src="${pageInfo.imageData}" class="pdf-page" alt="Page ${pageNum + 1}"/>
+                </div>
+            `;
+            
+            // Update controls
+            updatePageControls();
+            updateStatus(`Page ${pageNum + 1} of ${activePDF.totalPages}`);
+        }
+        
+    } catch (error) {
+        console.error('Error rendering page:', error);
+        updateStatus('Error rendering page: ' + error);
+    }
+}
+
+async function renderScrollMode() {
+    try {
+        const activePDF = getActivePDF();
+        if (!activePDF) return;
+        
+        const viewer = document.getElementById('pdfViewer');
+        viewer.className = 'pdf-viewer scroll-mode';
+        viewer.innerHTML = '';
+        
+        // Create placeholder divs for all pages first (instant)
+        for (let i = 0; i < activePDF.totalPages; i++) {
+            const pageDiv = document.createElement('div');
+            pageDiv.className = 'pdf-page-container';
+            pageDiv.dataset.pageNumber = i;
+            pageDiv.style.transform = `scale(${zoomLevel})`;
+            pageDiv.style.minHeight = '800px'; // Estimated page height
+            pageDiv.innerHTML = '<div class="page-loading">Page ' + (i + 1) + '</div>';
+            viewer.appendChild(pageDiv);
+        }
+        
+        // Add scroll listener immediately
+        viewer.removeEventListener('scroll', updateCurrentPageFromScroll);
+        viewer.addEventListener('scroll', updateCurrentPageFromScroll);
+        viewer.addEventListener('scroll', lazyLoadVisiblePages);
+        
+        // Load first few visible pages immediately
+        await loadVisiblePages();
+        
+        // Continue loading remaining pages in background
+        loadRemainingPagesInBackground(activePDF);
+        
+        updateStatus(`PDF loaded - ${activePDF.totalPages} pages`);
+        
+    } catch (error) {
+        console.error('Error rendering scroll mode:', error);
+        updateStatus('Error loading pages: ' + error);
+    }
+}
+
+async function loadRemainingPagesInBackground(activePDF) {
+    const viewer = document.getElementById('pdfViewer');
+    const pageDivs = viewer.querySelectorAll('.pdf-page-container');
+    
+    // Load pages in batches to not block UI
+    for (let i = 0; i < activePDF.totalPages; i++) {
+        if (!activePDF.renderedPages.has(i) && !loadingPages.has(i)) {
+            const pageDiv = pageDivs[i];
+            if (pageDiv) {
+                loadingPages.add(i);
+                // Don't await - let it load in background
+                loadPage(i, pageDiv, activePDF).then(() => {
+                    // Update status occasionally
+                    const loaded = activePDF.renderedPages.size;
+                    if (loaded % 5 === 0) {
+                        updateStatus(`Loaded ${loaded}/${activePDF.totalPages} pages in background`);
+                    }
+                });
+                
+                // Small delay between pages to keep UI responsive
+                if (i % 3 === 0) {
+                    await new Promise(resolve => setTimeout(resolve, 10));
+                }
+            }
+        }
+    }
+}
+
+let loadingPages = new Set(); // Track which pages are currently being loaded
+
+async function loadVisiblePages() {
+    const activePDF = getActivePDF();
+    if (!activePDF) return;
+    
+    const viewer = document.getElementById('pdfViewer');
+    const viewerRect = viewer.getBoundingClientRect();
+    const pageDivs = viewer.querySelectorAll('.pdf-page-container');
+    
+    // Load pages that are visible or near visible
+    const loadPromises = [];
+    pageDivs.forEach((pageDiv, index) => {
+        const rect = pageDiv.getBoundingClientRect();
+        const isVisible = rect.top < viewerRect.bottom + 1000 && rect.bottom > viewerRect.top - 1000;
+        
+        if (isVisible && !activePDF.renderedPages.has(index) && !loadingPages.has(index)) {
+            loadingPages.add(index);
+            loadPromises.push(loadPage(index, pageDiv, activePDF));
+        }
+    });
+    
+    await Promise.all(loadPromises);
+}
+
+async function loadPage(pageNum, pageDiv, activePDF) {
+    try {
+        const pageInfo = await window.go.pdf.PDFService.RenderPage(pageNum, 150);
+        activePDF.renderedPages.set(pageNum, pageInfo);
+        
+        pageDiv.innerHTML = `
+            <img src="${pageInfo.imageData}" class="pdf-page" alt="Page ${pageNum + 1}" data-page="${pageNum}"/>
+        `;
+        
+        // Update actual height
+        pageDiv.style.minHeight = '';
+    } catch (error) {
+        console.error(`Error loading page ${pageNum}:`, error);
+        pageDiv.innerHTML = '<div class="page-error">Error loading page ' + (pageNum + 1) + '</div>';
+    } finally {
+        loadingPages.delete(pageNum);
+    }
+}
+
+// Debounced lazy loading on scroll
+let lazyLoadTimeout = null;
+function lazyLoadVisiblePages() {
+    if (lazyLoadTimeout) clearTimeout(lazyLoadTimeout);
+    lazyLoadTimeout = setTimeout(() => {
+        loadVisiblePages();
+    }, 100);
+}
+
+function updateCurrentPageFromScroll() {
+    const activePDF = getActivePDF();
+    if (!activePDF) return;
+    
+    const viewer = document.getElementById('pdfViewer');
+    const pages = viewer.querySelectorAll('.pdf-page');
+    
+    let closestPage = 0;
+    let minDistance = Infinity;
+    
+    pages.forEach((page, index) => {
+        const rect = page.getBoundingClientRect();
+        const distance = Math.abs(rect.top);
+        
+        if (distance < minDistance) {
+            minDistance = distance;
+            closestPage = index;
+        }
+    });
+    
+    if (activePDF && closestPage !== activePDF.currentPage) {
+        activePDF.currentPage = closestPage;
+        updatePageControls();
+        
+        // Update active page in sidebar
+        document.querySelectorAll('.page-item').forEach((el, idx) => {
+            el.classList.toggle('active', idx === activePDF.currentPage);
+        });
+    }
+}
+
+
+async function loadRecentFilesWelcome() {
+    try {
+        const recentFiles = await window.go.pdf.RecentFilesService.GetRecent();
+        const recentGrid = document.getElementById('recentFilesGrid');
+        
+        if (!recentGrid) {
+            return;
+        }
+        
+        if (!recentFiles || recentFiles.length === 0) {
+            recentGrid.innerHTML = '<div class="empty-state"><p>No recent files</p></div>';
+            return;
+        }
+        
+        recentGrid.innerHTML = '';
+        recentFiles.slice(0, 6).forEach(file => {  // Show max 6 recent files
+            const card = document.createElement('div');
+            card.className = 'recent-file-card';
+            card.innerHTML = `
+                <span class="file-icon">📄</span>
+                <div class="file-name" title="${file.filePath}">${file.fileName}</div>
+                <div class="file-info">${file.pageCount} pages</div>
+            `;
+            card.addEventListener('click', async () => {
+                await openRecentFile(file.filePath);
+            });
+            recentGrid.appendChild(card);
+        });
+        
+    } catch (error) {
+        console.error('Error loading recent files for welcome:', error);
+    }
+}
+
+async function loadPageThumbnails(pageCount) {
+    const pageList = document.getElementById('pageList');
+    pageList.innerHTML = '';
+    
+    for (let i = 0; i < pageCount; i++) {
+        const pageItem = document.createElement('div');
+        pageItem.className = 'page-item';
+        if (i === 0) pageItem.classList.add('active');
+        pageItem.innerHTML = `<div class="page-number">Page ${i + 1}</div>`;
+        pageItem.addEventListener('click', () => {
+            document.querySelectorAll('.page-item').forEach(el => el.classList.remove('active'));
+            pageItem.classList.add('active');
+            
+            if (viewMode === 'single') {
+                renderPage(i);
+            } else {
+                scrollToPage(i);
+            }
+        });
+        pageList.appendChild(pageItem);
+    }
+}
+
+function scrollToPage(pageNum) {
+    const viewer = document.getElementById('pdfViewer');
+    const page = viewer.querySelector(`[data-page="${pageNum}"]`);
+    if (page) {
+        page.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+}
+
+function changePage(newPage) {
+    const activePDF = getActivePDF();
+    if (!activePDF) return;
+    
+    if (newPage >= 0 && newPage < activePDF.totalPages) {
+        renderPage(newPage);
+        
+        // Update active state in sidebar
+        document.querySelectorAll('.page-item').forEach((el, idx) => {
+            el.classList.toggle('active', idx === newPage);
+        });
+    }
+}
+
+function changeZoom(delta) {
+    zoomLevel = Math.max(0.5, Math.min(3.0, zoomLevel + delta));
+    document.getElementById('zoomDisplay').textContent = Math.round(zoomLevel * 100) + '%';
+    document.getElementById('zoomLevel').textContent = Math.round(zoomLevel * 100) + '%';
+    
+    // Re-render current view with new zoom
+    const containers = document.querySelectorAll('.pdf-page-container');
+    if (containers.length > 0) {
+        containers.forEach(container => {
+            container.style.transform = `scale(${zoomLevel})`;
+        });
+    }
+}
+
+function updatePageControls() {
+    // Page controls removed from UI
+}
+
+function updatePageNavigation() {
+    // Page navigation removed from UI
+}
+
+async function openRecentFile(filePath) {
+    try {
+        updateStatus('Opening ' + filePath.split('/').pop() + '...');
+        
+        // Call Go backend to open PDF by path
+        const metadata = await window.go.pdf.PDFService.OpenPDFByPath(filePath);
+        
+        if (metadata) {
+            // Create a new tab for this PDF
+            const tabId = createPDFTab(metadata.filePath, metadata);
+            
+            // Load page thumbnails
+            await loadPageThumbnails(metadata.pageCount);
+            
+            // Switch to the new tab
+            switchToTab(tabId);
+            
+            // Recent files are already tracked by the backend
+        }
+        
+    } catch (error) {
+        console.error('Error opening recent file:', error);
+        updateStatus('Error opening file: ' + error);
+    }
+}
+
+async function signPDF() {
+    try {
+        updateStatus('Preparing to sign PDF...');
+        
+        const activePDF = getActivePDF();
+        if (!activePDF) {
+            updateStatus('No PDF loaded');
+            return;
+        }
+        
+        // Show certificate selection dialog
+        await showCertificateDialog(activePDF.filePath);
+        
+    } catch (error) {
+        console.error('Error signing PDF:', error);
+        updateStatus('Error signing PDF');
+    }
+}
+
+// Certificate selection dialog
+let selectedCertificate = null;
+
+async function showCertificateDialog(pdfPath) {
+    const dialog = document.getElementById('certDialog');
+    const listContainer = document.getElementById('certificateListContainer');
+    const pinSection = document.getElementById('pinInputSection');
+    const pinInput = document.getElementById('pinInput');
+    const signBtn = document.getElementById('certDialogSign');
+    
+    // Reset state
+    selectedCertificate = null;
+    pinInput.value = '';
+    pinSection.classList.add('hidden');
+    signBtn.disabled = true;
+    
+    // Show loading state
+    listContainer.innerHTML = `
+        <div class="empty-state">
+            <div class="loading-spinner"></div>
+            <p>Loading certificates...</p>
+        </div>
+    `;
+    
+    // Show dialog
+    dialog.classList.remove('hidden');
+    
+    try {
+        // Load certificates from backend
+        const certificates = await window.go.signature.SignatureService.ListCertificates();
+        
+        if (!certificates || certificates.length === 0) {
+            listContainer.innerHTML = `
+                <div class="empty-state">
+                    <p>No certificates found</p>
+                    <p style="font-size: 0.875rem; color: var(--text-secondary); margin-top: 0.5rem;">
+                        Please ensure you have a valid certificate installed in your system or connected via smart card.
+                    </p>
+                </div>
+            `;
+            return;
+        }
+        
+        // Filter to show valid certificates, exclude root CAs (self-signed)
+        const signingCerts = certificates.filter(cert => {
+            // Show if valid
+            if (!cert.isValid) return false;
+            
+            // Exclude root CAs (self-signed certificates where issuer == subject)
+            if (cert.issuer === cert.subject) return false;
+            
+            return true;
+        });
+        
+        // Sort to put signing-capable certificates first
+        signingCerts.sort((a, b) => {
+            const aCanSign = a.keyUsage && (a.keyUsage.includes('Digital Signature') || a.keyUsage.includes('Non-Repudiation'));
+            const bCanSign = b.keyUsage && (b.keyUsage.includes('Digital Signature') || b.keyUsage.includes('Non-Repudiation'));
+            if (aCanSign && !bCanSign) return -1;
+            if (!aCanSign && bCanSign) return 1;
+            return 0;
+        });
+        
+        if (signingCerts.length === 0) {
+            listContainer.innerHTML = `
+                <div class="empty-state">
+                    <p>No valid certificates found</p>
+                    <p style="font-size: 0.875rem; color: var(--text-secondary); margin-top: 0.5rem;">
+                        Found ${certificates.length} certificate(s), but none are currently valid for signing.
+                    </p>
+                </div>
+            `;
+            return;
+        }
+        
+        // Render certificate list
+        renderCertificateList(signingCerts, pdfPath);
+        
+    } catch (error) {
+        console.error('Error loading certificates:', error);
+        listContainer.innerHTML = `
+            <div class="empty-state">
+                <p>Error loading certificates</p>
+                <p style="font-size: 0.875rem; color: var(--text-secondary); margin-top: 0.5rem;">
+                    ${error}
+                </p>
+            </div>
+        `;
+    }
+}
+
+function renderCertificateList(certificates, pdfPath) {
+    const listContainer = document.getElementById('certificateListContainer');
+    const pinSection = document.getElementById('pinInputSection');
+    const signBtn = document.getElementById('certDialogSign');
+    
+    const html = `
+        <div class="certificate-list">
+            ${certificates.map(cert => `
+                <div class="certificate-item ${cert.isValid ? '' : 'invalid'}" data-fingerprint="${cert.fingerprint}">
+                    <div class="cert-header">
+                        <div>
+                            <div class="cert-name">${escapeHtml(cert.name)}</div>
+                        </div>
+                        <span class="cert-status ${cert.isValid ? 'valid' : 'invalid'}">
+                            ${cert.isValid ? '✓ Valid' : '✗ Invalid'}
+                        </span>
+                    </div>
+                    <div class="cert-details">
+                        <div class="cert-detail-row">
+                            <span class="cert-detail-label">Subject:</span>
+                            <span>${escapeHtml(cert.subject)}</span>
+                        </div>
+                        <div class="cert-detail-row">
+                            <span class="cert-detail-label">Issuer:</span>
+                            <span>${escapeHtml(cert.issuer)}</span>
+                        </div>
+                        <div class="cert-detail-row">
+                            <span class="cert-detail-label">Valid Until:</span>
+                            <span>${formatDate(cert.validTo)}</span>
+                        </div>
+                        <div class="cert-detail-row">
+                            <span class="cert-detail-label">Source:</span>
+                            <span>${escapeHtml(cert.source)}</span>
+                        </div>
+                        ${cert.keyUsage && cert.keyUsage.length > 0 ? `
+                            <div class="cert-capabilities">
+                                ${cert.keyUsage.map(usage => `<span class="cert-capability">${escapeHtml(usage)}</span>`).join('')}
+                            </div>
+                        ` : ''}
+                    </div>
+                </div>
+            `).join('')}
+        </div>
+    `;
+    
+    listContainer.innerHTML = html;
+    
+    // Add click handlers to certificate items
+    const certItems = listContainer.querySelectorAll('.certificate-item:not(.invalid)');
+    certItems.forEach(item => {
+        item.addEventListener('click', () => {
+            // Deselect all
+            certItems.forEach(i => i.classList.remove('selected'));
+            
+            // Select this one
+            item.classList.add('selected');
+            
+            // Store selected certificate
+            const fingerprint = item.dataset.fingerprint;
+            selectedCertificate = certificates.find(c => c.fingerprint === fingerprint);
+            
+            // Show PIN input and enable sign button
+            pinSection.classList.remove('hidden');
+            signBtn.disabled = false;
+            
+            // Focus PIN input
+            document.getElementById('pinInput').focus();
+        });
+    });
+    
+    // Store pdfPath for signing
+    signBtn.dataset.pdfPath = pdfPath;
+}
+
+function closeCertificateDialog() {
+    const dialog = document.getElementById('certDialog');
+    dialog.classList.add('hidden');
+    selectedCertificate = null;
+    document.getElementById('pinInput').value = '';
+}
+
+async function performSigning() {
+    const signBtn = document.getElementById('certDialogSign');
+    const pdfPath = signBtn.dataset.pdfPath;
+    const pinInput = document.getElementById('pinInput');
+    const pin = pinInput.value;
+    
+    if (!selectedCertificate) {
+        updateStatus('No certificate selected');
+        return;
+    }
+    
+    if (!pin) {
+        alert('Please enter your PIN');
+        pinInput.focus();
+        return;
+    }
+    
+    try {
+        // Disable button and show loading
+        signBtn.disabled = true;
+        signBtn.innerHTML = '<span class="loading-spinner"></span> Signing...';
+        updateStatus('Signing PDF...');
+        
+        // Call backend to sign PDF
+        const signedPath = await window.go.signature.SignatureService.SignPDF(
+            pdfPath,
+            selectedCertificate.fingerprint,
+            pin
+        );
+        
+        // Close dialog
+        closeCertificateDialog();
+        
+        // Show success message
+        updateStatus(`PDF signed successfully: ${signedPath}`);
+        
+        // Optionally open the signed PDF
+        const openSigned = confirm(`PDF signed successfully!\n\nSigned file: ${signedPath}\n\nWould you like to open the signed PDF?`);
+        if (openSigned) {
+            await openSignedPDF(signedPath);
+        }
+        
+    } catch (error) {
+        console.error('Error signing PDF:', error);
+        alert(`Error signing PDF: ${error}`);
+        updateStatus('Error signing PDF');
+        
+        // Re-enable button
+        signBtn.disabled = false;
+        signBtn.innerHTML = 'Sign PDF';
+    }
+}
+
+async function openSignedPDF(filePath) {
+    try {
+        const metadata = await window.go.pdf.PDFService.OpenPDFByPath(filePath);
+        
+        if (metadata) {
+            const tabId = createPDFTab(metadata.filePath, metadata);
+            await loadPageThumbnails(metadata.pageCount);
+            switchToTab(tabId);
+            
+            // Load signature info for the newly opened signed PDF
+            await loadSignatureInfo(metadata.filePath);
+        }
+    } catch (error) {
+        console.error('Error opening signed PDF:', error);
+    }
+}
+
+function formatDate(isoDateString) {
+    try {
+        const date = new Date(isoDateString);
+        return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+    } catch {
+        return isoDateString;
+    }
+}
+
+function updateStatus(message) {
+    document.getElementById('statusText').textContent = message;
+}
+
+// Export for potential use
+window.pdfApp = {
+    openPDFFile,
+    signPDF,
+    updateStatus,
+    renderPage,
+    changePage,
+    changeZoom,
+    loadRecentFilesWelcome,
+    openRecentFile,
+    setViewMode,
+    switchTab
+};

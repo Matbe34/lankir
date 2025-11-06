@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Editor Pro</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="app">
+        <header class="toolbar">
+            <div class="toolbar-left">
+                <button id="openBtn" class="btn btn-primary">
+                    <span>📂</span> Open PDF
+                </button>
+            </div>
+            <div class="toolbar-center">
+                <h1>PDF Editor Pro</h1>
+            </div>
+            <div class="toolbar-right">
+                <button id="signBtn" class="btn btn-accent" disabled>
+                    <span>🔒</span> Sign
+                </button>
+            </div>
+        </header>
+
+        <div class="pdf-tabs-container has-tabs" id="pdfTabsContainer">
+            <div class="pdf-tab active" id="homeTab">
+                <span class="pdf-tab-name">🏠 Home</span>
+            </div>
+            <!-- PDF tabs will be dynamically added here -->
+        </div>
+
+        <main class="main-content">
+            <div class="sidebar left-sidebar" id="leftSidebar">
+                <div class="sidebar-header">
+                    <div class="sidebar-tabs">
+                        <button class="tab-btn active" data-tab="pages">Pages</button>
+                        <button class="tab-btn" data-tab="index">Index</button>
+                        <button class="tab-btn" data-tab="comments">Comments</button>
+                    </div>
+                    <button class="collapse-btn" id="collapseLeft" title="Hide sidebar">&lt;</button>
+                </div>
+                
+                <div class="tab-content active" id="pagesTab">
+                    <div id="pageList" class="page-list">
+                        <div class="empty-state">
+                            <p>No PDF loaded</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="tab-content" id="indexTab">
+                    <div class="index-content">
+                        <div class="empty-state">
+                            <p>No index available</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="tab-content" id="commentsTab">
+                    <div class="comments-content">
+                        <div class="empty-state">
+                            <p>No comments yet</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <button class="expand-btn left-expand-btn hidden" id="expandLeft" title="Show sidebar">&gt;</button>
+
+            <div class="viewer">
+                <div id="pdfViewer" class="pdf-viewer">
+                    <div class="welcome-screen">
+                        <div class="welcome-content">
+                            <h2>Welcome to PDF Editor Pro</h2>
+                            <p>A modern, high-performance PDF editor for Linux</p>
+                            <button class="btn btn-large btn-primary" id="welcomeOpenBtn">
+                                📂 Open a PDF File
+                            </button>
+                            
+                            <div class="recent-files-welcome" id="recentFilesWelcome">
+                                <h3>Recent Files</h3>
+                                <div id="recentFilesGrid" class="recent-files-grid">
+                                    <div class="empty-state">
+                                        <p>No recent files</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <button class="expand-btn right-expand-btn hidden" id="expandRight" title="Show properties">&lt;</button>
+
+            <div class="properties-panel right-sidebar" id="rightSidebar">
+                <div class="properties-header sidebar-header">
+                    <h3>Properties</h3>
+                    <button class="collapse-btn" id="collapseRight" title="Hide properties">&gt;</button>
+                </div>
+                <div id="properties" class="properties-content">
+                    <div class="property-group">
+                        <label>File:</label>
+                        <span id="fileName">-</span>
+                    </div>
+                    <div class="property-group">
+                        <label>Pages:</label>
+                        <span id="pageCount">-</span>
+                    </div>
+                    
+                    <!-- Signature Information -->
+                    <div class="property-section">
+                        <h4 class="property-section-title">Digital Signatures</h4>
+                        <div id="signatureInfo" class="signature-info">
+                            <div class="empty-state">
+                                <p>No signature information</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <footer class="statusbar">
+            <div class="status-left">
+                <span id="statusText">Ready</span>
+            </div>
+            <div class="status-center">
+                <span id="pageIndicator">-</span>
+                <span class="status-separator">•</span>
+                <span id="scrollProgress">-</span>
+            </div>
+            <div class="status-right">
+                <button id="zoomOutBtn" class="btn-zoom" title="Zoom out">-</button>
+                <input type="text" id="zoomInput" class="zoom-input" value="100">
+                <span class="zoom-percent">%</span>
+                <button id="zoomInBtn" class="btn-zoom" title="Zoom in">+</button>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Certificate Selection Dialog -->
+    <div id="certDialog" class="modal-overlay hidden">
+        <div class="modal">
+            <div class="modal-header">
+                <h2>Select Certificate for Signing</h2>
+                <div style="display: flex; gap: 0.5rem; align-items: center;">
+                    <button class="modal-refresh" id="certDialogRefresh" title="Refresh certificate list">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M14 2v4h-4M2 14v-4h4M14.2 6c-.4-1.6-1.4-3-2.8-3.9-1.4-.9-3.1-1.2-4.7-.8C5 1.7 3.5 2.7 2.5 4M1.8 10c.4 1.6 1.4 3 2.8 3.9 1.4.9 3.1 1.2 4.7.8 1.7-.4 3.2-1.4 4.2-2.9"/>
+                        </svg>
+                    </button>
+                    <button class="modal-close" id="certDialogClose">&times;</button>
+                </div>
+            </div>
+            <div class="modal-body">
+                <div id="certificateListContainer">
+                    <div class="empty-state">
+                        <div class="loading-spinner"></div>
+                        <p>Loading certificates...</p>
+                    </div>
+                </div>
+                <div id="pinInputSection" class="pin-input-section hidden">
+                    <label for="pinInput">Enter PIN for the certificate:</label>
+                    <input type="password" id="pinInput" placeholder="Enter PIN" autocomplete="off">
+                    <p style="font-size: 0.875rem; color: var(--text-secondary); margin-top: 0.5rem;">
+                        Your PIN is required to access the private key for signing.
+                    </p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="certDialogCancel" class="btn">Cancel</button>
+                <button id="certDialogSign" class="btn btn-primary" disabled>Sign PDF</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="js/app.js"></script>
+</body>
+</html>
+

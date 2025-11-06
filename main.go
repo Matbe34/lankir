@@ -1,0 +1,67 @@
+package main
+
+import (
+	"context"
+	"embed"
+	"log"
+
+	"github.com/wailsapp/wails/v2"
+	"github.com/wailsapp/wails/v2/pkg/options"
+	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
+	"github.com/wailsapp/wails/v2/pkg/options/linux"
+
+	"github.com/ferran/pdf_app/internal/pdf"
+	"github.com/ferran/pdf_app/internal/signature"
+)
+
+//go:embed all:frontend/dist
+var assets embed.FS
+
+func main() {
+	// Create an instance of the app structure
+	app := NewApp()
+
+	// Create PDF service
+	pdfService := pdf.NewPDFService()
+
+	// Create recent files service
+	recentFilesService := pdf.NewRecentFilesService()
+
+	// Create signature service
+	signatureService := signature.NewSignatureService()
+
+	// Create startup function that initializes all services
+	onStartup := func(ctx context.Context) {
+		app.startup(ctx)
+		pdfService.Startup(ctx)
+		recentFilesService.Startup(ctx)
+		signatureService.Startup(ctx)
+	}
+
+	// Create application with options
+	err := wails.Run(&options.App{
+		Title:  "PDF Editor Pro",
+		Width:  1400,
+		Height: 900,
+		AssetServer: &assetserver.Options{
+			Assets: assets,
+		},
+		BackgroundColour: &options.RGBA{R: 27, G: 38, B: 54, A: 1},
+		OnStartup:        onStartup,
+		Bind: []interface{}{
+			app,
+			pdfService,
+			recentFilesService,
+			signatureService,
+		},
+		Linux: &linux.Options{
+			Icon:                []byte{},
+			WindowIsTranslucent: false,
+			WebviewGpuPolicy:    linux.WebviewGpuPolicyAlways,
+		},
+	})
+
+	if err != nil {
+		log.Fatal("Error:", err.Error())
+	}
+}
