@@ -9,12 +9,14 @@ import { signPDF } from './signature.js';
 import { renderPage, changePage } from './renderer.js';
 import { changeZoom } from './zoom.js';
 import { switchToTab } from './pdfManager.js';
+import { initMessageDialog } from './messageDialog.js';
 
 /**
  * Initialize application when DOM is ready
  */
 document.addEventListener('DOMContentLoaded', () => {
     initializeUI();
+    initMessageDialog();
     updateStatus('Ready');
     loadRecentFilesWelcome();
     

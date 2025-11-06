@@ -96,6 +96,8 @@ export namespace signature {
 	    nssNickname?: string;
 	    pkcs11Url?: string;
 	    pkcs11Module?: string;
+	    filePath?: string;
+	    canSign: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new Certificate(source);
@@ -116,6 +118,28 @@ export namespace signature {
 	        this.nssNickname = source["nssNickname"];
 	        this.pkcs11Url = source["pkcs11Url"];
 	        this.pkcs11Module = source["pkcs11Module"];
+	        this.filePath = source["filePath"];
+	        this.canSign = source["canSign"];
+	    }
+	}
+	export class CertificateFilter {
+	    Source: string;
+	    Search: string;
+	    ValidOnly: boolean;
+	    IncludeCA: boolean;
+	    MinKeyUsage: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new CertificateFilter(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.Source = source["Source"];
+	        this.Search = source["Search"];
+	        this.ValidOnly = source["ValidOnly"];
+	        this.IncludeCA = source["IncludeCA"];
+	        this.MinKeyUsage = source["MinKeyUsage"];
 	    }
 	}
 	export class SignatureInfo {

@@ -6,6 +6,14 @@ export function ListCertificates() {
   return window['go']['signature']['SignatureService']['ListCertificates']();
 }
 
+export function ListCertificatesFiltered(arg1) {
+  return window['go']['signature']['SignatureService']['ListCertificatesFiltered'](arg1);
+}
+
+export function SearchCertificates(arg1) {
+  return window['go']['signature']['SignatureService']['SearchCertificates'](arg1);
+}
+
 export function SignPDF(arg1, arg2, arg3) {
   return window['go']['signature']['SignatureService']['SignPDF'](arg1, arg2, arg3);
 }

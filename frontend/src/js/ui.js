@@ -16,6 +16,7 @@ export function setupEventListeners() {
     
     // Certificate dialog buttons
     const certDialogClose = document.getElementById('certDialogClose');
+    const certDialogRefresh = document.getElementById('certDialogRefresh');
     const certDialogCancel = document.getElementById('certDialogCancel');
     const certDialogSign = document.getElementById('certDialogSign');
     
@@ -78,6 +79,18 @@ export function setupEventListeners() {
         certDialogClose.addEventListener('click', async () => {
             const { closeCertificateDialog } = await import('./signature.js');
             closeCertificateDialog();
+        });
+    }
+    
+    if (certDialogRefresh) {
+        certDialogRefresh.addEventListener('click', async () => {
+            const { showCertificateDialog } = await import('./signature.js');
+            const { getActivePDF } = await import('./state.js');
+            
+            const activePDF = getActivePDF();
+            if (activePDF) {
+                await showCertificateDialog(activePDF.filePath);
+            }
         });
     }
     

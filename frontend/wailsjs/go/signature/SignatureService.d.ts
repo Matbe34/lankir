@@ -5,6 +5,10 @@ import {context} from '../models';
 
 export function ListCertificates():Promise<Array<signature.Certificate>>;
 
+export function ListCertificatesFiltered(arg1:signature.CertificateFilter):Promise<Array<signature.Certificate>>;
+
+export function SearchCertificates(arg1:string):Promise<Array<signature.Certificate>>;
+
 export function SignPDF(arg1:string,arg2:string,arg3:string):Promise<string>;
 
 export function Startup(arg1:context.Context):Promise<void>;

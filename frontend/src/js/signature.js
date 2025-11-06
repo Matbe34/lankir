@@ -5,6 +5,7 @@ import { state, getActivePDF } from './state.js';
 import { updateStatus, escapeHtml, formatDate } from './utils.js';
 import { createPDFTab, switchToTab } from './pdfManager.js';
 import { loadPageThumbnails, loadSignatureInfo } from './pdfOperations.js';
+import { showMessage, showConfirm } from './messageDialog.js';
 
 /**
  * Get friendly name for certificate type
@@ -84,37 +85,49 @@ export async function showCertificateDialog(pdfPath) {
             return;
         }
         
-        // Filter to show valid certificates, exclude root CAs (self-signed)
+        // Filter to show certificates, exclude root CAs (self-signed)
         const signingCerts = certificates.filter(cert => {
-            // Show if valid
-            if (!cert.isValid) return false;
-            
             // Exclude root CAs (self-signed certificates where issuer == subject)
             if (cert.issuer === cert.subject) return false;
             
             return true;
         });
         
-        // Sort to put signing-capable certificates first
+        // Sort: signable certificates first, then by validity
         signingCerts.sort((a, b) => {
-            const aCanSign = a.keyUsage && (a.keyUsage.includes('Digital Signature') || a.keyUsage.includes('Non-Repudiation'));
-            const bCanSign = b.keyUsage && (b.keyUsage.includes('Digital Signature') || b.keyUsage.includes('Non-Repudiation'));
-            if (aCanSign && !bCanSign) return -1;
-            if (!aCanSign && bCanSign) return 1;
+            // First priority: can sign + valid
+            const aCanUse = a.canSign && a.isValid;
+            const bCanUse = b.canSign && b.isValid;
+            if (aCanUse && !bCanUse) return -1;
+            if (!aCanUse && bCanUse) return 1;
+            
+            // Second priority: can sign (even if expired)
+            if (a.canSign && !b.canSign) return -1;
+            if (!a.canSign && b.canSign) return 1;
+            
+            // Third priority: valid (even if can't sign)
+            if (a.isValid && !b.isValid) return -1;
+            if (!a.isValid && b.isValid) return 1;
+            
             return 0;
         });
         
         if (signingCerts.length === 0) {
             listContainer.innerHTML = `
                 <div class="empty-state">
-                    <p>No valid certificates found</p>
+                    <p>No certificates found</p>
                     <p style="font-size: 0.875rem; color: var(--text-secondary); margin-top: 0.5rem;">
-                        Found ${certificates.length} certificate(s), but none are currently valid for signing.
+                        Found ${certificates.length} certificate(s), but they are all root CAs or system certificates.
                     </p>
                 </div>
             `;
             return;
         }
+        
+        // Count usable certificates
+        const usableCerts = signingCerts.filter(c => c.canSign && c.isValid).length;
+        
+        console.log(`Found ${signingCerts.length} certificates, ${usableCerts} can be used for signing`);
         
         // Render certificate list
         renderCertificateList(signingCerts, pdfPath);
@@ -142,12 +155,19 @@ export function renderCertificateList(certificates, pdfPath) {
     
     const html = `
         <div class="certificate-list">
-            ${certificates.map(cert => `
-                <div class="certificate-item ${cert.isValid ? '' : 'invalid'}" data-fingerprint="${cert.fingerprint}">
+            ${certificates.map(cert => {
+                const canUse = cert.isValid && cert.canSign;
+                const disabledClass = !canUse ? 'invalid' : '';
+                const disabledReason = !cert.isValid ? 'Certificate expired or not yet valid' : 
+                                      !cert.canSign ? 'Certificate does not have private key for signing' : '';
+                
+                return `
+                <div class="certificate-item ${disabledClass}" data-fingerprint="${cert.fingerprint}" ${disabledReason ? `title="${disabledReason}"` : ''}>
                     <div class="cert-header">
                         <div>
                             <div class="cert-name">${escapeHtml(cert.name)}</div>
                             <span class="cert-type-badge ${cert.source}">${getCertTypeName(cert.source)}</span>
+                            ${!cert.canSign ? '<span class="cert-warning-badge" title="No private key - cannot sign">⚠ View Only</span>' : ''}
                         </div>
                         <span class="cert-status ${cert.isValid ? 'valid' : 'invalid'}">
                             ${cert.isValid ? '✓ Valid' : '✗ Invalid'}
@@ -173,13 +193,13 @@ export function renderCertificateList(certificates, pdfPath) {
                         ` : ''}
                     </div>
                 </div>
-            `).join('')}
+            `}).join('')}
         </div>
     `;
     
     listContainer.innerHTML = html;
     
-    // Add click handlers to certificate items
+    // Add click handlers to certificate items (only valid ones with private keys)
     const certItems = listContainer.querySelectorAll('.certificate-item:not(.invalid)');
     certItems.forEach(item => {
         item.addEventListener('click', () => {
@@ -231,7 +251,7 @@ export async function performSigning() {
     }
     
     if (!pin) {
-        alert('Please enter your PIN');
+        await showMessage('Please enter your PIN', 'PIN Required', 'warning');
         pinInput.focus();
         return;
     }
@@ -256,14 +276,17 @@ export async function performSigning() {
         updateStatus(`PDF signed successfully: ${signedPath}`);
         
         // Optionally open the signed PDF
-        const openSigned = confirm(`PDF signed successfully!\n\nSigned file: ${signedPath}\n\nWould you like to open the signed PDF?`);
+        const openSigned = await showConfirm(
+            `PDF signed successfully!\n\nSigned file: ${signedPath}\n\nWould you like to open the signed PDF?`,
+            'Success'
+        );
         if (openSigned) {
             await openSignedPDF(signedPath);
         }
         
     } catch (error) {
         console.error('Error signing PDF:', error);
-        alert(`Error signing PDF: ${error}`);
+        await showMessage(`Error signing PDF:\n\n${error}`, 'Signature Error', 'error');
         updateStatus('Error signing PDF');
         
         // Re-enable button
