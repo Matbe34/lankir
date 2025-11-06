@@ -13,11 +13,9 @@ package nss
 #include <string.h>
 
 static SECStatus nss_init(const char *configdir) {
-    // Check if NSS is already initialized
     if (NSS_IsInitialized()) {
         return SECSuccess;
     }
-
     char initstr[1024];
     snprintf(initstr, sizeof(initstr), "sql:%s", configdir);
     return NSS_InitReadWrite(initstr);
@@ -33,19 +31,19 @@ static SECKEYPrivateKey* find_private_key(CERTCertificate *cert) {
 
 static SECStatus sign_digest(SECKEYPrivateKey *key, unsigned char *digest, int digest_len, unsigned char *sig, int *sig_len) {
     SECItem digest_item;
-    SECItem sig_item = {0};  // Initialize properly
-
+    SECItem sig_item = {0};
+    
     digest_item.type = siBuffer;
     digest_item.data = digest;
     digest_item.len = digest_len;
-
+    
     sig_item.type = siBuffer;
     sig_item.data = NULL;
     sig_item.len = 0;
-
+    
     SECStatus rv = PK11_Sign(key, &sig_item, &digest_item);
     if (rv == SECSuccess && sig_item.data != NULL) {
-        if (sig_item.len <= 512) {  // Safety check
+        if (sig_item.len <= 512) {
             memcpy(sig, sig_item.data, sig_item.len);
             *sig_len = sig_item.len;
         } else {

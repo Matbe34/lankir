@@ -108,10 +108,8 @@ func (s *SignatureService) signWithPKCS11(pdfPath string, cert *Certificate, pin
 func (s *SignatureService) signWithNSS(pdfPath string, cert *Certificate, password string) (string, error) {
 	outputPath := strings.TrimSuffix(pdfPath, ".pdf") + "_signed.pdf"
 
-	// Use stored NSS nickname if available
 	nickname := cert.NSSNickname
 	if nickname == "" {
-		// Fallback: try filename without extension
 		if cert.FilePath != "" {
 			base := filepath.Base(cert.FilePath)
 			nickname = strings.TrimSuffix(base, filepath.Ext(base))
@@ -121,18 +119,13 @@ func (s *SignatureService) signWithNSS(pdfPath string, cert *Certificate, passwo
 		nickname = cert.Name
 	}
 
-	fmt.Printf("Using NSS nickname: '%s'\n", nickname)
-
 	signer, err := nss.GetNSSSigner(nickname, password)
 	if err != nil {
-		// Try with "CERTIFICADO " prefix (common pattern)
 		if !strings.HasPrefix(nickname, "CERTIFICADO ") {
-			// Extract just the ID part
 			parts := strings.Fields(nickname)
 			if len(parts) > 0 {
 				lastPart := parts[len(parts)-1]
 				nickname = "CERTIFICADO " + lastPart
-				fmt.Printf("Retrying with nickname: '%s'\n", nickname)
 				signer, err = nss.GetNSSSigner(nickname, password)
 			}
 		}

@@ -29,13 +29,10 @@ type Certificate struct {
 	PKCS11URL    string   `json:"pkcs11Url,omitempty"`
 }
 
-// LoadCertificates loads certificates from PKCS#11 tokens (smart cards, USB tokens)
 func LoadCertificates() ([]Certificate, error) {
 	var certs []Certificate
 
-	// Load from individual modules
 	modules := []string{
-		// Smart cards and tokens (these work directly)
 		"/usr/lib/libbit4xpki.so",
 		"/usr/lib/libbit4ipki.so",
 		"/usr/lib/x86_64-linux-gnu/opensc-pkcs11.so",
@@ -54,13 +51,9 @@ func LoadCertificates() ([]Certificate, error) {
 		}
 	}
 
-	// Add NSS database certificates
 	nssCerts, err := loadNSSCertificates()
 	if err == nil {
-		fmt.Printf("NSS loader found %d certificates\n", len(nssCerts))
 		certs = append(certs, nssCerts...)
-	} else {
-		fmt.Printf("NSS loader error: %v\n", err)
 	}
 
 	return certs, nil
@@ -81,26 +74,22 @@ func loadCertificatesFromModule(modulePath string) ([]Certificate, error) {
 	}
 	defer p.Finalize()
 
-	// Get list of slots
-	slots, err := p.GetSlotList(true) // true = only slots with tokens present
+	slots, err := p.GetSlotList(true)
 	if err != nil {
 		return certs, fmt.Errorf("failed to get slot list: %w", err)
 	}
 
 	for _, slot := range slots {
-		// Get token info
 		tokenInfo, err := p.GetTokenInfo(slot)
 		if err != nil {
 			continue
 		}
 
-		// Open session
 		session, err := p.OpenSession(slot, pkcs11.CKF_SERIAL_SESSION)
 		if err != nil {
 			continue
 		}
 
-		// Find all certificate objects
 		if err := p.FindObjectsInit(session, []*pkcs11.Attribute{
 			pkcs11.NewAttribute(pkcs11.CKA_CLASS, pkcs11.CKO_CERTIFICATE),
 		}); err != nil {
@@ -108,7 +97,6 @@ func loadCertificatesFromModule(modulePath string) ([]Certificate, error) {
 			continue
 		}
 
-		// Get certificate objects
 		objs, _, err := p.FindObjects(session, 100)
 		if err != nil {
 			p.FindObjectsFinal(session)
@@ -241,9 +229,8 @@ func loadNSSCertificates() ([]Certificate, error) {
 		return certs, nil // NSS database doesn't exist, not an error
 	}
 
-	// Try common NSS PKCS#11 module paths
 	nssModulePaths := []string{
-		"/usr/lib/x86_64-linux-gnu/p11-kit-proxy.so", // Use p11-kit which auto-discovers NSS
+		"/usr/lib/x86_64-linux-gnu/p11-kit-proxy.so",
 		"/usr/lib/x86_64-linux-gnu/nss/libsoftokn3.so",
 		"/usr/lib64/libsoftokn3.so",
 		"/usr/lib/libsoftokn3.so",
@@ -255,13 +242,8 @@ func loadNSSCertificates() ([]Certificate, error) {
 			continue
 		}
 
-		fmt.Printf("Trying NSS module: %s\n", modulePath)
 		nssCerts, err := loadNSSCertificatesFromModule(modulePath, nssDBPath)
-		if err != nil {
-			fmt.Printf("Error from %s: %v\n", modulePath, err)
-		}
-		if len(nssCerts) > 0 {
-			fmt.Printf("Found %d certs from %s\n", len(nssCerts), modulePath)
+		if err == nil && len(nssCerts) > 0 {
 			return nssCerts, nil
 		}
 	}
@@ -284,42 +266,33 @@ func loadNSSCertificatesFromModule(modulePath string, nssDBPath string) ([]Certi
 	}
 	defer p.Finalize()
 
-	// Get list of slots
 	slots, err := p.GetSlotList(true)
 	if err != nil {
 		return certs, nil
 	}
 
-	fmt.Printf("Module %s has %d slots\n", modulePath, len(slots))
-
 	for _, slot := range slots {
-		// Get token info
 		tokenInfo, err := p.GetTokenInfo(slot)
 		if err != nil {
 			continue
 		}
 
 		tokenLabel := strings.TrimSpace(tokenInfo.Label)
-		fmt.Printf("Processing token: %s\n", tokenLabel)
 
-		// Open session
 		session, err := p.OpenSession(slot, pkcs11.CKF_SERIAL_SESSION)
 		if err != nil {
 			continue
 		}
 
-		// Try to login with empty password (NSS default)
 		_ = p.Login(session, pkcs11.CKU_USER, "")
 
-		// First, find all private keys to know which certificates are signable
-		privateKeyMap := make(map[string]bool) // maps CKA_ID to true if private key exists
+		privateKeyMap := make(map[string]bool)
 
 		if err := p.FindObjectsInit(session, []*pkcs11.Attribute{
 			pkcs11.NewAttribute(pkcs11.CKA_CLASS, pkcs11.CKO_PRIVATE_KEY),
 		}); err == nil {
 			objs, _, err := p.FindObjects(session, 100)
 			if err == nil {
-				fmt.Printf("Found %d private keys\n", len(objs))
 				for _, obj := range objs {
 					attrs, err := p.GetAttributeValue(session, obj, []*pkcs11.Attribute{
 						pkcs11.NewAttribute(pkcs11.CKA_ID, nil),
@@ -327,7 +300,6 @@ func loadNSSCertificatesFromModule(modulePath string, nssDBPath string) ([]Certi
 					if err == nil && len(attrs) > 0 && len(attrs[0].Value) > 0 {
 						keyID := hex.EncodeToString(attrs[0].Value)
 						privateKeyMap[keyID] = true
-						fmt.Printf("Private key ID: %s\n", keyID)
 					}
 				}
 			}
@@ -386,17 +358,14 @@ func loadNSSCertificatesFromModule(modulePath string, nssDBPath string) ([]Certi
 				continue
 			}
 
-			// Check if this certificate has a corresponding private key
 			keyID := hex.EncodeToString(certID)
 			hasPrivateKey := privateKeyMap[keyID]
 
-			// Only include certificates with private keys
 			if !hasPrivateKey {
 				continue
 			}
 
 			if isCertificateValidForSigning(cert) {
-				// Clean up label (remove null bytes)
 				label := strings.TrimRight(string(labelBytes), "\x00")
 
 				c := convertX509Certificate(cert, "NSS Database", label)

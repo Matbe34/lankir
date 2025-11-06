@@ -1,7 +1,6 @@
 package signature
 
 import (
-	"fmt"
 	"path/filepath"
 	"strings"
 
@@ -27,13 +26,9 @@ func (s *SignatureService) ListCertificatesFiltered(filter CertificateFilter) ([
 	var allCerts []Certificate
 	seenFingerprints := make(map[string]bool)
 
-	// Load system certificates
 	if filter.Source == "" || filter.Source == "system" {
 		systemCerts, err := pkcs12.LoadCertificatesFromSystemStore()
-		if err != nil {
-			fmt.Printf("Error loading system certificates: %v\n", err)
-		} else {
-			// Convert pkcs12.Certificate to signature.Certificate
+		if err == nil {
 			for _, sc := range systemCerts {
 				cert := Certificate{
 					Name:         sc.Name,
@@ -58,17 +53,10 @@ func (s *SignatureService) ListCertificatesFiltered(filter CertificateFilter) ([
 		}
 	}
 
-	// Load user certificates from common locations
 	if filter.Source == "" || filter.Source == "user" {
 		userCerts, err := pkcs12.LoadCertificatesFromUserStore()
-		if err != nil {
-			fmt.Printf("Error loading user certificates: %v\n", err)
-		} else {
-			// Convert pkcs12.Certificate to signature.Certificate
+		if err == nil {
 			for _, uc := range userCerts {
-				// Check if this cert has a private key in NSS database
-				hasNSSKey := s.checkNSSPrivateKey(uc.Fingerprint)
-
 				cert := Certificate{
 					Name:         uc.Name,
 					Issuer:       uc.Issuer,
@@ -83,24 +71,12 @@ func (s *SignatureService) ListCertificatesFiltered(filter CertificateFilter) ([
 					FilePath:     uc.FilePath,
 				}
 
-				// Check if this is a PKCS#12 file (has private key)
 				if uc.FilePath != "" {
 					ext := strings.ToLower(filepath.Ext(uc.FilePath))
-					// Check if it's a PKCS#12 file OR in NSS database directory
 					inNSSDB := strings.Contains(uc.FilePath, ".pki/nssdb")
-					cert.CanSign = (ext == ".p12" || ext == ".pfx") || hasNSSKey || inNSSDB
-					if hasNSSKey {
-						cert.Source = "NSS Database"
-					}
-					if inNSSDB && !hasNSSKey {
-						cert.Source = "NSS Database"
-						// Store NSS nickname from certutil output
-						cert.NSSNickname = s.getNSSNickname(uc.Fingerprint)
-					}
-				} else {
-					cert.CanSign = hasNSSKey
-					if hasNSSKey {
-						cert.Source = "NSS Database"
+					cert.CanSign = (ext == ".p12" || ext == ".pfx") || inNSSDB
+					if inNSSDB {
+						cert.Source = "User NSS DB"
 					}
 				}
 				allCerts = append(allCerts, cert)
@@ -108,13 +84,9 @@ func (s *SignatureService) ListCertificatesFiltered(filter CertificateFilter) ([
 		}
 	}
 
-	// Load PKCS#11 certificates from smart cards/tokens
 	if filter.Source == "" || filter.Source == "pkcs11" {
 		pkcs11Certs, err := pkcs11.LoadCertificates()
-		if err != nil {
-			fmt.Printf("Error loading PKCS#11 certificates: %v\n", err)
-		} else {
-			// Convert pkcs11.Certificate to signature.Certificate
+		if err == nil {
 			for _, pc := range pkcs11Certs {
 				allCerts = append(allCerts, Certificate{
 					Name:         pc.Name,
@@ -135,13 +107,11 @@ func (s *SignatureService) ListCertificatesFiltered(filter CertificateFilter) ([
 		}
 	}
 
-	// Deduplicate certificates by fingerprint
 	var uniqueCerts []Certificate
 	for _, cert := range allCerts {
 		if !seenFingerprints[cert.Fingerprint] {
 			seenFingerprints[cert.Fingerprint] = true
 
-			// Apply filters
 			if s.matchesFilter(cert, filter) {
 				uniqueCerts = append(uniqueCerts, cert)
 			}
@@ -158,14 +128,11 @@ func (s *SignatureService) SearchCertificates(query string) ([]Certificate, erro
 	})
 }
 
-// matchesFilter checks if a certificate matches the filter criteria
 func (s *SignatureService) matchesFilter(cert Certificate, filter CertificateFilter) bool {
-	// Check validity
 	if filter.ValidOnly && !cert.IsValid {
 		return false
 	}
 
-	// Check search query
 	if filter.Search != "" {
 		searchLower := strings.ToLower(filter.Search)
 		if !strings.Contains(strings.ToLower(cert.Name), searchLower) &&
@@ -176,7 +143,6 @@ func (s *SignatureService) matchesFilter(cert Certificate, filter CertificateFil
 		}
 	}
 
-	// Check key usage requirement
 	if filter.MinKeyUsage != "" {
 		hasRequiredUsage := false
 		for _, usage := range cert.KeyUsage {
@@ -191,19 +157,4 @@ func (s *SignatureService) matchesFilter(cert Certificate, filter CertificateFil
 	}
 
 	return true
-}
-
-// checkNSSPrivateKey checks if a certificate has a private key in NSS database
-func (s *SignatureService) checkNSSPrivateKey(fingerprint string) bool {
-	// Always return false - we check this at runtime via PKCS#11
-	// Certificates in .pki/nssdb are marked as NSS Database based on path
-	return false
-}
-
-// getNSSNickname gets the NSS nickname for a certificate by matching serial number
-func (s *SignatureService) getNSSNickname(fingerprint string) string {
-	// For now, try common pattern - extract from cert file
-	// Real implementation would parse NSS database
-	// Return empty to use filename as fallback
-	return ""
 }
