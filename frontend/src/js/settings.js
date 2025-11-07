@@ -26,37 +26,67 @@ let currentSettings = { ...DEFAULT_SETTINGS };
 /**
  * Initialize settings module
  */
-export function initSettings() {
-    loadSettings();
+export async function initSettings() {
+    await loadSettings();
     setupSettingsModal();
 }
 
 /**
- * Load settings from localStorage
+ * Load settings from backend
  */
-function loadSettings() {
+async function loadSettings() {
     try {
-        const stored = localStorage.getItem('pdfEditorSettings');
-        if (stored) {
-            currentSettings = { ...DEFAULT_SETTINGS, ...JSON.parse(stored) };
+        // Try to load from backend first
+        if (window.go && window.go.config && window.go.config.Service) {
+            const backendSettings = await window.go.config.Service.Get();
+            currentSettings = { ...DEFAULT_SETTINGS, ...backendSettings };
+        } else {
+            // Fallback to localStorage for web version
+            const stored = localStorage.getItem('pdfEditorSettings');
+            if (stored) {
+                currentSettings = { ...DEFAULT_SETTINGS, ...JSON.parse(stored) };
+            }
         }
         applySettings();
     } catch (error) {
         console.error('Failed to load settings:', error);
+        // Fallback to localStorage
+        try {
+            const stored = localStorage.getItem('pdfEditorSettings');
+            if (stored) {
+                currentSettings = { ...DEFAULT_SETTINGS, ...JSON.parse(stored) };
+            }
+            applySettings();
+        } catch (e) {
+            console.error('Failed to load from localStorage:', e);
+        }
     }
 }
 
 /**
- * Save settings to localStorage
+ * Save settings to backend and localStorage
  */
-function saveSettings() {
+async function saveSettings() {
     try {
+        // Save to backend if available
+        if (window.go && window.go.config && window.go.config.Service) {
+            await window.go.config.Service.Update(currentSettings);
+        }
+        // Also save to localStorage as backup
         localStorage.setItem('pdfEditorSettings', JSON.stringify(currentSettings));
         applySettings();
         return true;
     } catch (error) {
         console.error('Failed to save settings:', error);
-        return false;
+        // Fallback to localStorage only
+        try {
+            localStorage.setItem('pdfEditorSettings', JSON.stringify(currentSettings));
+            applySettings();
+            return true;
+        } catch (e) {
+            console.error('Failed to save to localStorage:', e);
+            return false;
+        }
     }
 }
 
@@ -179,7 +209,7 @@ function openSettingsModal() {
 /**
  * Save settings from modal form
  */
-function saveSettingsFromModal() {
+async function saveSettingsFromModal() {
     try {
         currentSettings.theme = document.getElementById('settingTheme').value;
         currentSettings.accentColor = document.getElementById('settingAccentColor').value;
@@ -191,7 +221,7 @@ function saveSettingsFromModal() {
         currentSettings.debugMode = document.getElementById('settingDebugMode').checked;
         currentSettings.hardwareAccel = document.getElementById('settingHardwareAccel').checked;
         
-        return saveSettings();
+        return await saveSettings();
     } catch (error) {
         console.error('Error saving settings:', error);
         return false;
@@ -201,7 +231,7 @@ function saveSettingsFromModal() {
 /**
  * Reset settings to defaults
  */
-export function resetSettings() {
+export async function resetSettings() {
     currentSettings = { ...DEFAULT_SETTINGS };
-    saveSettings();
+    await saveSettings();
 }

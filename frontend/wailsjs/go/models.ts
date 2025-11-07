@@ -1,3 +1,42 @@
+export namespace config {
+	
+	export class Config {
+	    theme: string;
+	    accentColor: string;
+	    defaultZoom: number;
+	    showLeftSidebar: boolean;
+	    showRightSidebar: boolean;
+	    defaultViewMode: string;
+	    recentFilesLength: number;
+	    autosaveInterval: number;
+	    certificateStores: string[];
+	    tokenLibraries: string[];
+	    debugMode: boolean;
+	    hardwareAccel: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new Config(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.theme = source["theme"];
+	        this.accentColor = source["accentColor"];
+	        this.defaultZoom = source["defaultZoom"];
+	        this.showLeftSidebar = source["showLeftSidebar"];
+	        this.showRightSidebar = source["showRightSidebar"];
+	        this.defaultViewMode = source["defaultViewMode"];
+	        this.recentFilesLength = source["recentFilesLength"];
+	        this.autosaveInterval = source["autosaveInterval"];
+	        this.certificateStores = source["certificateStores"];
+	        this.tokenLibraries = source["tokenLibraries"];
+	        this.debugMode = source["debugMode"];
+	        this.hardwareAccel = source["hardwareAccel"];
+	    }
+	}
+
+}
+
 export namespace pdf {
 	
 	export class PDFMetadata {

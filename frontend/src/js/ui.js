@@ -169,6 +169,16 @@ export function toggleSidebar(side, show) {
         sidebar.classList.add('collapsed');
         expandBtn.classList.remove('hidden');
     }
+    
+    // Save the state to the active PDF
+    const activePDF = state.openPDFs.get(state.activeTabId);
+    if (activePDF) {
+        if (side === 'left') {
+            activePDF.leftSidebarCollapsed = !show;
+        } else {
+            activePDF.rightSidebarCollapsed = !show;
+        }
+    }
 }
 
 export function setupHomeTab() {
@@ -195,9 +205,54 @@ export function hideSidebars() {
 export function showSidebars() {
     const leftSidebar = document.getElementById('leftSidebar');
     const rightSidebar = document.getElementById('rightSidebar');
+    const expandLeft = document.getElementById('expandLeft');
+    const expandRight = document.getElementById('expandRight');
     
+    // Make sidebars and expand buttons visible
     if (leftSidebar) leftSidebar.style.display = '';
     if (rightSidebar) rightSidebar.style.display = '';
+    if (expandLeft) expandLeft.style.display = '';
+    if (expandRight) expandRight.style.display = '';
+    
+    // Get settings to determine default sidebar state for new PDFs
+    const settings = JSON.parse(localStorage.getItem('pdfEditorSettings') || '{}');
+    const defaultShowLeft = settings.showLeftSidebar !== false; // default true
+    const defaultShowRight = settings.showRightSidebar === true; // default false
+    
+    // Check if there's an active PDF with saved state
+    const activePDF = state.openPDFs.get(state.activeTabId);
+    
+    // Use PDF-specific state if available, otherwise use settings
+    const showLeft = activePDF ? !activePDF.leftSidebarCollapsed : defaultShowLeft;
+    const showRight = activePDF ? !activePDF.rightSidebarCollapsed : defaultShowRight;
+    
+    // Show/collapse left sidebar
+    if (leftSidebar) {
+        if (showLeft) {
+            leftSidebar.classList.remove('collapsed');
+            if (expandLeft) expandLeft.classList.add('hidden');
+        } else {
+            leftSidebar.classList.add('collapsed');
+            if (expandLeft) {
+                expandLeft.classList.remove('hidden');
+                expandLeft.style.display = '';
+            }
+        }
+    }
+    
+    // Show/collapse right sidebar
+    if (rightSidebar) {
+        if (showRight) {
+            rightSidebar.classList.remove('collapsed');
+            if (expandRight) expandRight.classList.add('hidden');
+        } else {
+            rightSidebar.classList.add('collapsed');
+            if (expandRight) {
+                expandRight.classList.remove('hidden');
+                expandRight.style.display = '';
+            }
+        }
+    }
 }
 
 export function initializeUI() {

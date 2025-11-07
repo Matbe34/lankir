@@ -200,22 +200,26 @@ body {
 
 .left-sidebar {
     border-right: 1px solid var(--border-color);
+    transition: all 0.3s ease;
 }
 
 .left-sidebar.collapsed {
     width: 0;
     min-width: 0;
     border-right: none;
+    overflow: hidden;
 }
 
 .right-sidebar {
     border-left: 1px solid var(--border-color);
+    transition: all 0.3s ease;
 }
 
 .right-sidebar.collapsed {
     width: 0;
     min-width: 0;
     border-left: none;
+    overflow: hidden;
 }
 
 .sidebar-header {
@@ -476,6 +480,8 @@ body {
     margin: 0 auto;
     text-align: center;
     min-height: 100px;
+    transform-origin: top center;
+    transition: transform 0.2s;
 }
 
 .page-loading {
@@ -505,6 +511,7 @@ body {
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
     border: 1px solid var(--border-color);
     margin: 0 auto 2rem;
+    width: min(794px, 100%);
 }
 
 .pdf-viewer.scroll-mode .pdf-page-container {

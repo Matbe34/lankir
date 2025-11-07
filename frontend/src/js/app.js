@@ -15,10 +15,10 @@ import { initSettings } from './settings.js';
 /**
  * Initialize application when DOM is ready
  */
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     initializeUI();
     initMessageDialog();
-    initSettings();
+    await initSettings();
     updateStatus('Ready');
     loadRecentFilesWelcome();
     

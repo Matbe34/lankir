@@ -1,7 +1,7 @@
 // Zoom Module
 // Handles zoom functionality for PDF viewing
 
-import { state, setZoomLevel } from './state.js';
+import { state, setZoomLevel, getActivePDF } from './state.js';
 import { updateZoomDisplay } from './utils.js';
 
 /**
@@ -9,10 +9,16 @@ import { updateZoomDisplay } from './utils.js';
  */
 export function changeZoom(delta) {
     const newZoom = Math.max(0.5, Math.min(3.0, state.zoomLevel + delta));
-    setZoomLevel(newZoom);
+    state.zoomLevel = newZoom;
+    
+    // Save zoom to current PDF
+    const activePDF = getActivePDF();
+    if (activePDF) {
+        activePDF.zoomLevel = newZoom;
+    }
+    
     updateZoomDisplay(newZoom);
     
-    // Re-render current view with new zoom
     const containers = document.querySelectorAll('.pdf-page-container');
     if (containers.length > 0) {
         containers.forEach(container => {
@@ -33,7 +39,14 @@ export function setZoomFromInput(value) {
     }
     
     const newZoom = percentage / 100;
-    setZoomLevel(newZoom);
+    state.zoomLevel = newZoom;
+    
+    // Save zoom to current PDF
+    const activePDF = getActivePDF();
+    if (activePDF) {
+        activePDF.zoomLevel = newZoom;
+    }
+    
     updateZoomDisplay(newZoom);
     
     // Re-render current view with new zoom

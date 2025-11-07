@@ -10,6 +10,7 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
 	"github.com/wailsapp/wails/v2/pkg/options/linux"
 
+	"github.com/ferran/pdf_app/internal/config"
 	"github.com/ferran/pdf_app/internal/pdf"
 	"github.com/ferran/pdf_app/internal/signature"
 )
@@ -20,6 +21,12 @@ var assets embed.FS
 func main() {
 	// Create an instance of the app structure
 	app := NewApp()
+
+	// Create config service
+	configService, err := config.NewService()
+	if err != nil {
+		log.Fatal("Failed to create config service:", err)
+	}
 
 	// Create PDF service
 	pdfService := pdf.NewPDFService()
@@ -39,7 +46,7 @@ func main() {
 	}
 
 	// Create application with options
-	err := wails.Run(&options.App{
+	err = wails.Run(&options.App{
 		Title:  "PDF Editor Pro",
 		Width:  1400,
 		Height: 900,
@@ -53,6 +60,7 @@ func main() {
 			pdfService,
 			recentFilesService,
 			signatureService,
+			configService,
 		},
 		Linux: &linux.Options{
 			Icon:                []byte{},

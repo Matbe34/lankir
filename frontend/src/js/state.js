@@ -29,7 +29,10 @@ export function createPDFData(tabId, filePath, metadata) {
         renderedPages: new Map(),
         viewerHTML: null,
         pageListHTML: null,
-        scrollPosition: 0
+        scrollPosition: 0,
+        zoomLevel: getDefaultZoomLevel(),
+        leftSidebarCollapsed: false,
+        rightSidebarCollapsed: true
     };
 }
 
@@ -37,8 +40,19 @@ export function getNextTabId() {
     return state.nextTabId++;
 }
 
+export function getDefaultZoomLevel() {
+    try {
+        const settings = JSON.parse(localStorage.getItem('pdfEditorSettings') || '{}');
+        return (settings.defaultZoom || 100) / 100;
+    } catch {
+        return 1.0;
+    }
+}
+
 export function addOpenPDF(tabId, pdfData) {
     state.openPDFs.set(tabId, pdfData);
+    // Set global zoom to this PDF's zoom
+    state.zoomLevel = pdfData.zoomLevel;
 }
 
 export function removeOpenPDF(tabId) {

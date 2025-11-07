@@ -11,6 +11,11 @@ export function createPDFTab(filePath, metadata) {
     const tabId = getNextTabId();
     const pdfData = createPDFData(tabId, filePath, metadata);
     
+    // Initialize sidebar states from settings
+    const settings = JSON.parse(localStorage.getItem('pdfEditorSettings') || '{}');
+    pdfData.leftSidebarCollapsed = settings.showLeftSidebar === false;
+    pdfData.rightSidebarCollapsed = settings.showRightSidebar !== true;
+    
     // Add to open PDFs
     addOpenPDF(tabId, pdfData);
     
@@ -51,9 +56,15 @@ export function switchToTab(tabId) {
         if (currentPDF) {
             const viewer = document.getElementById('pdfViewer');
             const pageList = document.getElementById('pageList');
+            const leftSidebar = document.getElementById('leftSidebar');
+            const rightSidebar = document.getElementById('rightSidebar');
+            
             currentPDF.viewerHTML = viewer.innerHTML;
             currentPDF.pageListHTML = pageList.innerHTML;
             currentPDF.scrollPosition = viewer.scrollTop;
+            currentPDF.zoomLevel = state.zoomLevel;
+            currentPDF.leftSidebarCollapsed = leftSidebar.classList.contains('collapsed');
+            currentPDF.rightSidebarCollapsed = rightSidebar.classList.contains('collapsed');
         }
     }
     
@@ -68,13 +79,22 @@ export function switchToTab(tabId) {
         tab.classList.add('active');
     }
     
-    // Show sidebars when switching to PDF tab
-    showSidebars();
-    
     setActiveTab(tabId);
     const pdfData = state.openPDFs.get(tabId);
     
     if (pdfData) {
+        // Restore this PDF's zoom level
+        state.zoomLevel = pdfData.zoomLevel;
+        
+        // Restore sidebar states for this PDF
+        restoreSidebarStates(pdfData);
+        
+        // Make sure expand buttons are visible
+        const expandLeft = document.getElementById('expandLeft');
+        const expandRight = document.getElementById('expandRight');
+        if (expandLeft) expandLeft.style.display = '';
+        if (expandRight) expandRight.style.display = '';
+        
         // Update UI with this PDF's data immediately
         updateUIForPDF(pdfData);
         
@@ -116,6 +136,45 @@ export function switchToTab(tabId) {
         } else {
             // No cache at all, need to load from backend
             reloadPDFInBackend(pdfData);
+        }
+    }
+}
+
+function restoreSidebarStates(pdfData) {
+    const leftSidebar = document.getElementById('leftSidebar');
+    const rightSidebar = document.getElementById('rightSidebar');
+    const expandLeft = document.getElementById('expandLeft');
+    const expandRight = document.getElementById('expandRight');
+    
+    // Make sidebars visible first
+    if (leftSidebar) leftSidebar.style.display = '';
+    if (rightSidebar) rightSidebar.style.display = '';
+    
+    // Restore left sidebar
+    if (leftSidebar) {
+        if (pdfData.leftSidebarCollapsed) {
+            leftSidebar.classList.add('collapsed');
+            if (expandLeft) {
+                expandLeft.classList.remove('hidden');
+                expandLeft.style.display = '';
+            }
+        } else {
+            leftSidebar.classList.remove('collapsed');
+            if (expandLeft) expandLeft.classList.add('hidden');
+        }
+    }
+    
+    // Restore right sidebar
+    if (rightSidebar) {
+        if (pdfData.rightSidebarCollapsed) {
+            rightSidebar.classList.add('collapsed');
+            if (expandRight) {
+                expandRight.classList.remove('hidden');
+                expandRight.style.display = '';
+            }
+        } else {
+            rightSidebar.classList.remove('collapsed');
+            if (expandRight) expandRight.classList.add('hidden');
         }
     }
 }
