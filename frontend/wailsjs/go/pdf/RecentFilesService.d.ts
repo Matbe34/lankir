@@ -9,4 +9,6 @@ export function ClearRecent():Promise<void>;
 
 export function GetRecent():Promise<Array<pdf.RecentFile>>;
 
+export function RemoveRecent(arg1:string):Promise<void>;
+
 export function Startup(arg1:context.Context):Promise<void>;

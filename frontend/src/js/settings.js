@@ -12,7 +12,7 @@ const DEFAULT_SETTINGS = {
     defaultZoom: 100,
     showLeftSidebar: true,
     showRightSidebar: false,
-    recentFilesLength: 10,
+    recentFilesLength: 5,
     autosaveInterval: 0,
     debugMode: false,
     hardwareAccel: true

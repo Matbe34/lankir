@@ -95,6 +95,17 @@ func (s *RecentFilesService) ClearRecent() error {
 	return s.save()
 }
 
+// RemoveRecent removes a specific file from recent files list
+func (s *RecentFilesService) RemoveRecent(filePath string) error {
+	for i, f := range s.files {
+		if f.FilePath == filePath {
+			s.files = append(s.files[:i], s.files[i+1:]...)
+			return s.save()
+		}
+	}
+	return nil // File not found, no error
+}
+
 // load reads the recent files from disk
 func (s *RecentFilesService) load() error {
 	data, err := os.ReadFile(s.configPath)

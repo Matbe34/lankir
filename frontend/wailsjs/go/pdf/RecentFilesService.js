@@ -14,6 +14,10 @@ export function GetRecent() {
   return window['go']['pdf']['RecentFilesService']['GetRecent']();
 }
 
+export function RemoveRecent(arg1) {
+  return window['go']['pdf']['RecentFilesService']['RemoveRecent'](arg1);
+}
+
 export function Startup(arg1) {
   return window['go']['pdf']['RecentFilesService']['Startup'](arg1);
 }

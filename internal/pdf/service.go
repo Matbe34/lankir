@@ -1,8 +1,12 @@
 package pdf
 
 import (
+	"bytes"
 	"context"
+	"encoding/base64"
 	"fmt"
+	"image"
+	"image/png"
 	"os"
 	"sync"
 
@@ -210,4 +214,65 @@ func (s *PDFService) GetMetadata() (*PDFMetadata, error) {
 		PageCount: s.pageCount,
 		FilePath:  s.currentFile,
 	}, nil
+}
+
+// GenerateThumbnail generates a thumbnail for the first page of a PDF file
+// This is used for recent files preview without opening the full document
+// The thumbnail is cropped to 16:9 aspect ratio showing the top portion
+func (s *PDFService) GenerateThumbnail(filePath string, maxWidth int) (string, error) {
+	// Verify file exists
+	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+		return "", fmt.Errorf("file does not exist: %s", filePath)
+	}
+
+	// Open the PDF document temporarily
+	doc, err := fitz.New(filePath)
+	if err != nil {
+		return "", fmt.Errorf("failed to open PDF: %w", err)
+	}
+	defer doc.Close()
+
+	// Check if document has pages
+	if doc.NumPage() == 0 {
+		return "", fmt.Errorf("PDF has no pages")
+	}
+
+	// Get first page bounds
+	bounds, err := doc.Bound(0)
+	if err != nil {
+		return "", fmt.Errorf("failed to get page bounds: %w", err)
+	}
+
+	// Calculate DPI to achieve desired width
+	pageWidth := float64(bounds.Dx())
+	dpi := (float64(maxWidth) / pageWidth) * 72.0
+
+	// Render first page with go-fitz (simple rendering, no annotations needed for thumbnail)
+	img, err := doc.ImageDPI(0, dpi)
+	if err != nil {
+		return "", fmt.Errorf("failed to render page: %w", err)
+	}
+
+	// Crop to 16:9 aspect ratio (top portion)
+	imgBounds := img.Bounds()
+	targetWidth := imgBounds.Dx()
+	targetHeight := targetWidth * 9 / 16
+
+	// If the page is shorter than 16:9, use full height
+	if targetHeight > imgBounds.Dy() {
+		targetHeight = imgBounds.Dy()
+	}
+
+	// Create cropped image (top portion only)
+	croppedImg := img.SubImage(image.Rect(0, 0, targetWidth, targetHeight))
+
+	// Convert to PNG bytes
+	var buf bytes.Buffer
+	if err := png.Encode(&buf, croppedImg); err != nil {
+		return "", fmt.Errorf("failed to encode PNG: %w", err)
+	}
+
+	// Convert to base64
+	base64Data := base64.StdEncoding.EncodeToString(buf.Bytes())
+	return "data:image/png;base64," + base64Data, nil
 }

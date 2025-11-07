@@ -6,6 +6,10 @@ export function ClosePDF() {
   return window['go']['pdf']['PDFService']['ClosePDF']();
 }
 
+export function GenerateThumbnail(arg1, arg2) {
+  return window['go']['pdf']['PDFService']['GenerateThumbnail'](arg1, arg2);
+}
+
 export function GetMetadata() {
   return window['go']['pdf']['PDFService']['GetMetadata']();
 }

@@ -74,7 +74,7 @@ func getDefaultConfig() *Config {
 		ShowLeftSidebar:   true,
 		ShowRightSidebar:  false,
 		DefaultViewMode:   "scroll",
-		RecentFilesLength: 10,
+		RecentFilesLength: 5,
 		AutosaveInterval:  0,
 		CertificateStores: []string{},
 		TokenLibraries:    []string{},

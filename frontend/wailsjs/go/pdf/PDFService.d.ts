@@ -5,6 +5,8 @@ import {context} from '../models';
 
 export function ClosePDF():Promise<void>;
 
+export function GenerateThumbnail(arg1:string,arg2:number):Promise<string>;
+
 export function GetMetadata():Promise<pdf.PDFMetadata>;
 
 export function GetPageCount():Promise<number>;
