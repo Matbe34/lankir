@@ -14,6 +14,10 @@ export function GetPageCount() {
   return window['go']['pdf']['PDFService']['GetPageCount']();
 }
 
+export function GetPageDimensions(arg1) {
+  return window['go']['pdf']['PDFService']['GetPageDimensions'](arg1);
+}
+
 export function OpenPDF() {
   return window['go']['pdf']['PDFService']['OpenPDF']();
 }

@@ -13,6 +13,9 @@
                 <button id="openBtn" class="btn btn-primary">
                     <span>📂</span> Open PDF
                 </button>
+                <button id="settingsBtn" class="btn">
+                    <span>⚙️</span> Settings
+                </button>
             </div>
             <div class="toolbar-center">
                 <h1>PDF Editor Pro</h1>
@@ -140,6 +143,29 @@
         </footer>
     </div>
 
+    <!-- Profile Selection Dialog -->
+    <div id="profileDialog" class="modal-overlay hidden">
+        <div class="modal">
+            <div class="modal-header">
+                <h2>Choose Signature Type</h2>
+                <button class="modal-close" id="profileDialogClose">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="profile-selection-section">
+                    <label for="profileSelectMain">Signature Profile:</label>
+                    <select id="profileSelectMain" class="profile-select">
+                        <option value="">Loading...</option>
+                    </select>
+                    <p id="profileDescriptionMain" class="profile-description"></p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="profileDialogCancel" class="btn">Cancel</button>
+                <button id="profileDialogNext" class="btn btn-primary">Next</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Certificate Selection Dialog -->
     <div id="certDialog" class="modal-overlay hidden">
         <div class="modal">
@@ -190,6 +216,161 @@
             </div>
             <div class="modal-footer" id="messageDialogFooter">
                 <button id="messageDialogOk" class="btn btn-primary">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Signature Placement Overlay -->
+    <div id="signaturePlacementOverlay" class="signature-placement-overlay hidden">
+        <div class="placement-header">
+            <div class="placement-info">
+                <h3>Place Your Signature</h3>
+                <p>Click and drag on the PDF to draw where you want your signature to appear</p>
+            </div>
+            <div class="placement-controls">
+                <button id="placementCancel" class="btn">Cancel</button>
+                <button id="placementConfirm" class="btn btn-primary" disabled>Confirm Position</button>
+            </div>
+        </div>
+        <div id="signatureRectangle" class="signature-rectangle hidden"></div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="modal-overlay hidden">
+        <div class="modal settings-modal">
+            <div class="modal-header">
+                <h2>Settings</h2>
+                <button class="modal-close" id="settingsModalClose">&times;</button>
+            </div>
+            <div class="modal-body settings-body">
+                <div class="settings-sidebar">
+                    <button class="settings-tab active" data-section="appearance">🎨 Appearance</button>
+                    <button class="settings-tab" data-section="viewer">📄 Viewer</button>
+                    <button class="settings-tab" data-section="files">📁 Files</button>
+                    <button class="settings-tab" data-section="signatures">✍️ Signatures</button>
+                    <button class="settings-tab" data-section="certificates">🔐 Certificates</button>
+                    <button class="settings-tab" data-section="shortcuts">⌨️ Shortcuts</button>
+                    <button class="settings-tab" data-section="advanced">🔧 Advanced</button>
+                </div>
+                <div class="settings-content">
+                    <!-- Appearance Settings -->
+                    <div class="settings-section active" id="appearanceSection">
+                        <h3>Appearance</h3>
+                        <div class="setting-group">
+                            <label>Theme</label>
+                            <select id="settingTheme" class="setting-input">
+                                <option value="dark">Dark</option>
+                                <option value="light">Light</option>
+                                <option value="auto">Auto</option>
+                            </select>
+                        </div>
+                        <div class="setting-group">
+                            <label>Accent Color</label>
+                            <input type="color" id="settingAccentColor" class="setting-input" value="#007acc">
+                        </div>
+                    </div>
+
+                    <!-- Viewer Settings -->
+                    <div class="settings-section" id="viewerSection">
+                        <h3>Viewer</h3>
+                        <div class="setting-group">
+                            <label>Default Zoom Level</label>
+                            <input type="number" id="settingDefaultZoom" class="setting-input" min="10" max="400" value="100" step="10">
+                            <span class="setting-hint">%</span>
+                        </div>
+                        <div class="setting-group">
+                            <label>Show Left Sidebar by Default</label>
+                            <input type="checkbox" id="settingShowLeftSidebar" class="setting-checkbox" checked>
+                        </div>
+                        <div class="setting-group">
+                            <label>Show Right Sidebar by Default</label>
+                            <input type="checkbox" id="settingShowRightSidebar" class="setting-checkbox">
+                        </div>
+                    </div>
+
+                    <!-- Files Settings -->
+                    <div class="settings-section" id="filesSection">
+                        <h3>Files</h3>
+                        <div class="setting-group">
+                            <label>Recent Files List Length</label>
+                            <input type="number" id="settingRecentFilesLength" class="setting-input" min="0" max="50" value="10">
+                        </div>
+                        <div class="setting-group">
+                            <label>Auto-save Interval</label>
+                            <input type="number" id="settingAutosaveInterval" class="setting-input" min="0" max="600" value="0">
+                            <span class="setting-hint">seconds (0 = disabled)</span>
+                        </div>
+                    </div>
+
+                    <!-- Signatures Settings -->
+                    <div class="settings-section" id="signaturesSection">
+                        <h3>Signatures</h3>
+                        <div class="setting-group">
+                            <p>Manage signature profiles</p>
+                            <button class="btn btn-primary">Manage Profiles</button>
+                        </div>
+                    </div>
+
+                    <!-- Certificates Settings -->
+                    <div class="settings-section" id="certificatesSection">
+                        <h3>Certificates</h3>
+                        <div class="setting-group">
+                            <label>Certificate Stores</label>
+                            <div id="certificateStoresList">
+                                <p class="setting-hint">Configure certificate store locations</p>
+                            </div>
+                        </div>
+                        <div class="setting-group">
+                            <label>PKCS#11 Token Libraries</label>
+                            <div id="tokenLibrariesList">
+                                <p class="setting-hint">Configure PKCS#11 library paths</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Shortcuts Settings -->
+                    <div class="settings-section" id="shortcutsSection">
+                        <h3>Keyboard Shortcuts</h3>
+                        <div class="setting-group">
+                            <p class="setting-hint">Customize keyboard shortcuts</p>
+                            <div class="shortcuts-list">
+                                <div class="shortcut-item">
+                                    <span>Open File</span>
+                                    <kbd>Ctrl+O</kbd>
+                                </div>
+                                <div class="shortcut-item">
+                                    <span>Sign Document</span>
+                                    <kbd>Ctrl+S</kbd>
+                                </div>
+                                <div class="shortcut-item">
+                                    <span>Zoom In</span>
+                                    <kbd>Ctrl++</kbd>
+                                </div>
+                                <div class="shortcut-item">
+                                    <span>Zoom Out</span>
+                                    <kbd>Ctrl+-</kbd>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Advanced Settings -->
+                    <div class="settings-section" id="advancedSection">
+                        <h3>Advanced</h3>
+                        <div class="setting-group">
+                            <label>Enable Debug Mode</label>
+                            <input type="checkbox" id="settingDebugMode" class="setting-checkbox">
+                        </div>
+                        <div class="setting-group">
+                            <label>Hardware Acceleration</label>
+                            <input type="checkbox" id="settingHardwareAccel" class="setting-checkbox" checked>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="settingsCancel" class="btn">Cancel</button>
+                <button id="settingsSave" class="btn btn-primary">Save Settings</button>
             </div>
         </div>
     </div>

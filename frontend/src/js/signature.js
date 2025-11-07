@@ -33,13 +33,333 @@ export async function signPDF() {
             return;
         }
         
-        // Show certificate selection dialog
-        await showCertificateDialog(activePDF.filePath);
+        // Load and show profile selection first
+        await showProfileSelection(activePDF.filePath);
         
     } catch (error) {
         console.error('Error signing PDF:', error);
         updateStatus('Error signing PDF');
     }
+}
+
+/**
+ * Show profile selection step
+ */
+async function showProfileSelection(pdfPath) {
+    const dialog = document.getElementById('profileDialog');
+    const profileSelect = document.getElementById('profileSelectMain');
+    const profileDescription = document.getElementById('profileDescriptionMain');
+    const nextBtn = document.getElementById('profileDialogNext');
+    const cancelBtn = document.getElementById('profileDialogCancel');
+    const closeBtn = document.getElementById('profileDialogClose');
+    
+    try {
+        // Show dialog
+        dialog.classList.remove('hidden');
+        
+        // Load signature profiles
+        const profiles = await window.go.signature.SignatureService.ListSignatureProfiles();
+        
+        // Populate profile select
+        profileSelect.innerHTML = profiles.map(profile => 
+            `<option value="${profile.id}" ${profile.isDefault ? 'selected' : ''}>${profile.name}</option>`
+        ).join('');
+        
+        // Store in state for later use
+        state.availableProfiles = profiles;
+        state.pdfPath = pdfPath;
+        
+        // Select default profile
+        const defaultProfile = profiles.find(p => p.isDefault) || profiles[0];
+        if (defaultProfile) {
+            state.selectedProfile = defaultProfile;
+            profileDescription.textContent = defaultProfile.description;
+        }
+        
+        // Handle profile selection change
+        profileSelect.onchange = (e) => {
+            const profileId = e.target.value;
+            const selectedProfile = profiles.find(p => p.id === profileId);
+            if (selectedProfile) {
+                state.selectedProfile = selectedProfile;
+                profileDescription.textContent = selectedProfile.description;
+            }
+        };
+        
+        // Handle next button
+        nextBtn.onclick = async () => {
+            dialog.classList.add('hidden');
+            
+            if (state.selectedProfile.visibility === 'visible') {
+                await showSignaturePlacement(pdfPath, state.selectedProfile);
+            } else {
+                await showCertificateDialog(pdfPath);
+            }
+        };
+        
+        // Handle cancel/close
+        const closeDialog = () => {
+            dialog.classList.add('hidden');
+            state.selectedProfile = null;
+            state.pdfPath = null;
+        };
+        
+        cancelBtn.onclick = closeDialog;
+        closeBtn.onclick = closeDialog;
+        
+    } catch (error) {
+        console.error('Error loading profiles:', error);
+        await showMessage(`Error loading signature profiles:\n\n${error}`, 'Error', 'error');
+    }
+}
+
+/**
+ * Show signature placement overlay for visible signatures
+ */
+async function showSignaturePlacement(pdfPath, profile) {
+    const overlay = document.getElementById('signaturePlacementOverlay');
+    const rectangle = document.getElementById('signatureRectangle');
+    const confirmBtn = document.getElementById('placementConfirm');
+    const cancelBtn = document.getElementById('placementCancel');
+    const pdfViewer = document.getElementById('pdfViewer');
+    
+    // Show overlay
+    overlay.classList.remove('hidden');
+    
+    // State for signature placement
+    let isDrawing = false;
+    let isDragging = false;
+    let isResizing = false;
+    let startX = 0;
+    let startY = 0;
+    let rectData = null;
+    
+    // Get PDF viewer bounds and current page
+    const viewerRect = pdfViewer.getBoundingClientRect();
+    const activePDF = getActivePDF();
+    
+    // Mouse down - start drawing
+    const onMouseDown = (e) => {
+        if (e.target.closest('.placement-header') || e.target.closest('.btn')) {
+            return;
+        }
+        
+        const rect = rectangle.getBoundingClientRect();
+        const isOnRect = !rectangle.classList.contains('hidden') && 
+                        e.clientX >= rect.left && e.clientX <= rect.right &&
+                        e.clientY >= rect.top && e.clientY <= rect.bottom;
+        
+        // Check if clicking on resize handle
+        const isOnHandle = isOnRect && 
+                          e.clientX >= rect.right - 20 && e.clientY >= rect.bottom - 20;
+        
+        if (isOnHandle) {
+            isResizing = true;
+            startX = e.clientX;
+            startY = e.clientY;
+        } else if (isOnRect) {
+            isDragging = true;
+            startX = e.clientX - rect.left;
+            startY = e.clientY - rect.top;
+        } else {
+            isDrawing = true;
+            startX = e.clientX;
+            startY = e.clientY;
+            rectangle.style.left = startX + 'px';
+            rectangle.style.top = startY + 'px';
+            rectangle.style.width = '0px';
+            rectangle.style.height = '0px';
+            rectangle.classList.remove('hidden');
+        }
+    };
+    
+    // Mouse move - update rectangle
+    const onMouseMove = (e) => {
+        if (isDrawing) {
+            const width = e.clientX - startX;
+            const height = e.clientY - startY;
+            rectangle.style.width = Math.abs(width) + 'px';
+            rectangle.style.height = Math.abs(height) + 'px';
+            rectangle.style.left = (width < 0 ? e.clientX : startX) + 'px';
+            rectangle.style.top = (height < 0 ? e.clientY : startY) + 'px';
+        } else if (isDragging) {
+            rectangle.style.left = (e.clientX - startX) + 'px';
+            rectangle.style.top = (e.clientY - startY) + 'px';
+        } else if (isResizing) {
+            const rect = rectangle.getBoundingClientRect();
+            const newWidth = Math.max(20, rect.width + (e.clientX - startX));
+            const newHeight = Math.max(10, rect.height + (e.clientY - startY));
+            rectangle.style.width = newWidth + 'px';
+            rectangle.style.height = newHeight + 'px';
+            startX = e.clientX;
+            startY = e.clientY;
+        }
+        
+        // Enable confirm button if rectangle has size
+        if (!rectangle.classList.contains('hidden')) {
+            const rect = rectangle.getBoundingClientRect();
+            confirmBtn.disabled = rect.width < 10 || rect.height < 5;
+        }
+    };
+    
+    // Mouse up - finish drawing
+    const onMouseUp = () => {
+        isDrawing = false;
+        isDragging = false;
+        isResizing = false;
+    };
+    
+    // Cleanup function
+    const cleanup = () => {
+        document.removeEventListener('mousedown', onMouseDown);
+        document.removeEventListener('mousemove', onMouseMove);
+        document.removeEventListener('mouseup', onMouseUp);
+        overlay.classList.add('hidden');
+        rectangle.classList.add('hidden');
+    };
+    
+    // Event listeners
+    document.addEventListener('mousedown', onMouseDown);
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+    
+    // Cancel button
+    cancelBtn.onclick = () => {
+        cleanup();
+        updateStatus('Signature placement cancelled');
+    };
+    
+    // Confirm button
+    confirmBtn.onclick = async () => {
+        try {
+            const rect = rectangle.getBoundingClientRect();
+            
+            // Convert screen coordinates to PDF coordinates
+            const pdfCoords = await convertScreenToPDFCoordinates(rect, viewerRect, activePDF);
+            
+            // Store position in state
+            state.signaturePosition = pdfCoords;
+            
+            cleanup();
+            
+            // Continue to certificate selection
+            await showCertificateDialog(pdfPath);
+        } catch (error) {
+            console.error('Error confirming placement:', error);
+            updateStatus('Error: ' + error);
+            cleanup();
+        }
+    };
+}
+
+/**
+ * Convert screen coordinates to PDF coordinates
+ */
+async function convertScreenToPDFCoordinates(rect, viewerRect, activePDF) {
+    try {
+        // Get the current zoom level
+        const zoom = state.zoomLevel || 1.0;
+        
+        // Determine which page - find the page that contains the signature rectangle
+        let targetPage = 1;
+        let targetPageImg = null;
+        
+        // Check all visible pages to find which one contains the signature
+        const allPageImgs = document.querySelectorAll('.pdf-page');
+        for (const pageImg of allPageImgs) {
+            const imgRect = pageImg.getBoundingClientRect();
+            // Check if rectangle center is within this page
+            const rectCenterY = rect.top + rect.height / 2;
+            if (rectCenterY >= imgRect.top && rectCenterY <= imgRect.bottom) {
+                targetPageImg = pageImg;
+                // Get page number from data attribute
+                const pageAttr = pageImg.getAttribute('data-page');
+                if (pageAttr !== null) {
+                    targetPage = parseInt(pageAttr) + 1;
+                }
+                break;
+            }
+        }
+        
+        // If no page found, use current page
+        if (!targetPageImg) {
+            targetPage = activePDF?.currentPage >= 0 ? activePDF.currentPage + 1 : 1;
+            targetPageImg = document.querySelector('.pdf-page');
+        }
+        
+        if (!targetPageImg) {
+            return fallbackCoordinateConversion(rect, viewerRect, zoom, targetPage);
+        }
+        
+        // Get actual page dimensions from backend
+        const dimensions = await window.go.pdf.PDFService.GetPageDimensions(targetPage - 1);
+        const pdfWidth = dimensions.width;
+        const pdfHeight = dimensions.height;
+        
+        const imgRect = targetPageImg.getBoundingClientRect();
+        
+        // Calculate scaling between rendered image and PDF points
+        const scaleX = pdfWidth / imgRect.width;
+        const scaleY = pdfHeight / imgRect.height;
+        
+        // Calculate position relative to the PDF page image
+        const relativeX = rect.left - imgRect.left;
+        const relativeY = rect.top - imgRect.top;
+        
+        // Convert to PDF coordinates (origin at bottom-left)
+        // The Y coordinate must be from the BOTTOM of the page
+        const x = relativeX * scaleX;
+        const y = pdfHeight - (relativeY * scaleY) - (rect.height * scaleY);
+        const width = rect.width * scaleX;
+        const height = rect.height * scaleY;
+        
+        console.log('Coordinate conversion:', {
+            screen: { x: rect.left, y: rect.top, w: rect.width, h: rect.height },
+            img: { x: imgRect.left, y: imgRect.top, w: imgRect.width, h: imgRect.height },
+            relative: { x: relativeX, y: relativeY },
+            scale: { x: scaleX, y: scaleY },
+            pdfDims: { w: pdfWidth, h: pdfHeight },
+            pdf: { x, y, width, height, page: targetPage }
+        });
+        
+        return {
+            page: targetPage,
+            x: Math.max(0, Math.min(x, pdfWidth - width)),
+            y: Math.max(0, Math.min(y, pdfHeight - height)),
+            width: width,
+            height: height
+        };
+    } catch (error) {
+        console.error('Error converting coordinates:', error);
+        // Fallback
+        const zoom = state.zoomLevel || 1.0;
+        const page = activePDF?.currentPage >= 0 ? activePDF.currentPage + 1 : 1;
+        return fallbackCoordinateConversion(rect, viewerRect, zoom, page);
+    }
+}
+
+/**
+ * Fallback coordinate conversion when page image not available
+ */
+function fallbackCoordinateConversion(rect, viewerRect, zoom, page) {
+    const pdfWidth = 595;
+    const pdfHeight = 842;
+    
+    const relativeX = rect.left - viewerRect.left;
+    const relativeY = rect.top - viewerRect.top;
+    
+    const x = (relativeX / zoom);
+    const y = pdfHeight - (relativeY / zoom) - (rect.height / zoom);
+    const width = rect.width / zoom;
+    const height = rect.height / zoom;
+    
+    return {
+        page: page,
+        x: Math.max(0, x),
+        y: Math.max(0, y),
+        width: width,
+        height: height
+    };
 }
 
 /**
@@ -52,7 +372,7 @@ export async function showCertificateDialog(pdfPath) {
     const pinInput = document.getElementById('pinInput');
     const signBtn = document.getElementById('certDialogSign');
     
-    // Reset state
+    // Reset certificate state (keep profile from previous step)
     state.selectedCertificate = null;
     pinInput.value = '';
     pinSection.classList.add('hidden');
@@ -233,6 +553,7 @@ export function closeCertificateDialog() {
     const dialog = document.getElementById('certDialog');
     dialog.classList.add('hidden');
     state.selectedCertificate = null;
+    // Keep selectedProfile and signaturePosition for the signing workflow
     document.getElementById('pinInput').value = '';
 }
 
@@ -250,6 +571,11 @@ export async function performSigning() {
         return;
     }
     
+    if (!state.selectedProfile) {
+        updateStatus('No signature profile selected');
+        return;
+    }
+    
     if (!pin) {
         await showMessage('Please enter your PIN', 'PIN Required', 'warning');
         pinInput.focus();
@@ -262,22 +588,42 @@ export async function performSigning() {
         signBtn.innerHTML = '<span class="loading-spinner"></span> Signing...';
         updateStatus('Signing PDF...');
         
-        // Call backend to sign PDF
-        const signedPath = await window.go.signature.SignatureService.SignPDF(
-            pdfPath,
-            state.selectedCertificate.fingerprint,
-            pin
-        );
+        let signedPath;
+        
+        // Call backend to sign PDF with selected profile and position (if visible)
+        if (state.signaturePosition && state.selectedProfile.visibility === 'visible') {
+            // Sign with custom position
+            signedPath = await window.go.signature.SignatureService.SignPDFWithProfileAndPosition(
+                pdfPath,
+                state.selectedCertificate.fingerprint,
+                pin,
+                state.selectedProfile.id,
+                state.signaturePosition
+            );
+        } else {
+            // Sign with default profile settings
+            signedPath = await window.go.signature.SignatureService.SignPDFWithProfile(
+                pdfPath,
+                state.selectedCertificate.fingerprint,
+                pin,
+                state.selectedProfile.id
+            );
+        }
         
         // Close dialog
         closeCertificateDialog();
         
+        // Clear state
+        state.signaturePosition = null;
+        state.pdfPath = null;
+        
         // Show success message
-        updateStatus(`PDF signed successfully: ${signedPath}`);
+        const profileType = state.selectedProfile.visibility === 'visible' ? 'visible' : 'invisible';
+        updateStatus(`PDF signed successfully with ${profileType} signature: ${signedPath}`);
         
         // Optionally open the signed PDF
         const openSigned = await showConfirm(
-            `PDF signed successfully!\n\nSigned file: ${signedPath}\n\nWould you like to open the signed PDF?`,
+            `PDF signed successfully with ${profileType} signature!\n\nSigned file: ${signedPath}\n\nWould you like to open the signed PDF?`,
             'Success'
         );
         if (openSigned) {

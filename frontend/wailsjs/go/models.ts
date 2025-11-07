@@ -22,6 +22,20 @@ export namespace pdf {
 	        this.filePath = source["filePath"];
 	    }
 	}
+	export class PageDimensions {
+	    width: number;
+	    height: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new PageDimensions(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.width = source["width"];
+	        this.height = source["height"];
+	    }
+	}
 	export class PageInfo {
 	    pageNumber: number;
 	    width: number;
@@ -142,6 +156,38 @@ export namespace signature {
 	        this.MinKeyUsage = source["MinKeyUsage"];
 	    }
 	}
+	export class SignatureAppearance {
+	    showSignerName: boolean;
+	    showSigningTime: boolean;
+	    showReason: boolean;
+	    showLocation: boolean;
+	    showCertificateInfo: boolean;
+	    showLogo: boolean;
+	    logoPath?: string;
+	    customText?: string;
+	    fontSize: number;
+	    backgroundColor?: string;
+	    textColor?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new SignatureAppearance(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.showSignerName = source["showSignerName"];
+	        this.showSigningTime = source["showSigningTime"];
+	        this.showReason = source["showReason"];
+	        this.showLocation = source["showLocation"];
+	        this.showCertificateInfo = source["showCertificateInfo"];
+	        this.showLogo = source["showLogo"];
+	        this.logoPath = source["logoPath"];
+	        this.customText = source["customText"];
+	        this.fontSize = source["fontSize"];
+	        this.backgroundColor = source["backgroundColor"];
+	        this.textColor = source["textColor"];
+	    }
+	}
 	export class SignatureInfo {
 	    signerName: string;
 	    signerDN: string;
@@ -175,6 +221,74 @@ export namespace signature {
 	        this.location = source["location"];
 	        this.contactInfo = source["contactInfo"];
 	    }
+	}
+	export class SignaturePosition {
+	    page: number;
+	    x: number;
+	    y: number;
+	    width: number;
+	    height: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new SignaturePosition(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.page = source["page"];
+	        this.x = source["x"];
+	        this.y = source["y"];
+	        this.width = source["width"];
+	        this.height = source["height"];
+	    }
+	}
+	export class SignatureProfile {
+	    id: string;
+	    name: string;
+	    description: string;
+	    visibility: string;
+	    position: SignaturePosition;
+	    appearance: SignatureAppearance;
+	    reason: string;
+	    location: string;
+	    contactInfo: string;
+	    isDefault: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new SignatureProfile(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	        this.description = source["description"];
+	        this.visibility = source["visibility"];
+	        this.position = this.convertValues(source["position"], SignaturePosition);
+	        this.appearance = this.convertValues(source["appearance"], SignatureAppearance);
+	        this.reason = source["reason"];
+	        this.location = source["location"];
+	        this.contactInfo = source["contactInfo"];
+	        this.isDefault = source["isDefault"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
 	}
 
 }

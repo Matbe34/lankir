@@ -1,11 +1,8 @@
 package pdf
 
 import (
-	"bytes"
 	"context"
-	"encoding/base64"
 	"fmt"
-	"image/png"
 	"os"
 	"sync"
 
@@ -160,7 +157,23 @@ func (s *PDFService) ClosePDF() error {
 
 // RenderPage renders a specific page and returns it as base64-encoded PNG
 func (s *PDFService) RenderPage(pageNum int, dpi float64) (*PageInfo, error) {
-	// Use read lock to allow concurrent rendering but prevent document replacement
+	// Use the new rendering method that includes annotations
+	return s.renderPageWithAnnotations(pageNum, dpi)
+}
+
+// GetPageCount returns the number of pages in the current PDF
+func (s *PDFService) GetPageCount() int {
+	return s.pageCount
+}
+
+// PageDimensions represents the dimensions of a PDF page
+type PageDimensions struct {
+	Width  float64 `json:"width"`
+	Height float64 `json:"height"`
+}
+
+// GetPageDimensions returns the dimensions of a specific page in points
+func (s *PDFService) GetPageDimensions(pageNum int) (*PageDimensions, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -169,36 +182,18 @@ func (s *PDFService) RenderPage(pageNum int, dpi float64) (*PageInfo, error) {
 	}
 
 	if pageNum < 0 || pageNum >= s.pageCount {
-		return nil, fmt.Errorf("invalid page number: %d (document has %d pages)", pageNum, s.pageCount)
+		return nil, fmt.Errorf("invalid page number: %d", pageNum)
 	}
 
-	// Render the page as an image
-	img, err := s.doc.Image(pageNum)
+	bounds, err := s.doc.Bound(pageNum)
 	if err != nil {
-		return nil, fmt.Errorf("failed to render page: %w", err)
+		return nil, fmt.Errorf("failed to get page bounds: %w", err)
 	}
 
-	// Encode to PNG
-	var buf bytes.Buffer
-	if err := png.Encode(&buf, img); err != nil {
-		return nil, fmt.Errorf("failed to encode image: %w", err)
-	}
-
-	// Convert to base64
-	base64Data := base64.StdEncoding.EncodeToString(buf.Bytes())
-
-	bounds := img.Bounds()
-	return &PageInfo{
-		PageNumber: pageNum,
-		Width:      bounds.Dx(),
-		Height:     bounds.Dy(),
-		ImageData:  "data:image/png;base64," + base64Data,
+	return &PageDimensions{
+		Width:  float64(bounds.Dx()),
+		Height: float64(bounds.Dy()),
 	}, nil
-}
-
-// GetPageCount returns the number of pages in the current PDF
-func (s *PDFService) GetPageCount() int {
-	return s.pageCount
 }
 
 // GetMetadata returns metadata for the current PDF

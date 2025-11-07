@@ -1097,6 +1097,44 @@ body {
     color: var(--text-secondary);
 }
 
+/* Profile selection section */
+.profile-selection-section {
+    margin-bottom: 1.5rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.profile-selection-section label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.profile-select {
+    width: 100%;
+    padding: 0.75rem;
+    background-color: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    color: var(--text-primary);
+    font-size: 1rem;
+    cursor: pointer;
+}
+
+.profile-select:focus {
+    outline: none;
+    border-color: var(--accent-blue);
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+
+.profile-description {
+    margin-top: 0.5rem;
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    font-style: italic;
+}
+
 .pin-input-section {
     margin-top: 1.5rem;
     padding-top: 1.5rem;
@@ -1193,4 +1231,222 @@ body {
 .message-icon-info {
     background-color: rgba(59, 130, 246, 0.2);
     color: #3b82f6;
+}
+
+/* Signature Placement Overlay */
+.signature-placement-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 10000;
+    pointer-events: none;
+    display: none;
+}
+
+.signature-placement-overlay:not(.hidden) {
+    pointer-events: all;
+    display: block;
+}
+
+.placement-header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    background-color: var(--bg-secondary);
+    border-bottom: 2px solid var(--accent-blue);
+    padding: 1rem 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    z-index: 10001;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.placement-info h3 {
+    margin: 0 0 0.25rem 0;
+    color: var(--text-primary);
+    font-size: 1.25rem;
+}
+
+.placement-info p {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+}
+
+.placement-controls {
+    display: flex;
+    gap: 0.75rem;
+}
+
+.signature-rectangle {
+    position: absolute;
+    border: 2px dashed var(--accent-blue);
+    background-color: rgba(59, 130, 246, 0.1);
+    cursor: move;
+    z-index: 10000;
+}
+
+.signature-rectangle::before {
+    content: '✎ Signature';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: var(--accent-blue);
+    font-weight: 500;
+    font-size: 0.875rem;
+    pointer-events: none;
+    white-space: nowrap;
+}
+
+.signature-rectangle.hidden {
+    display: none;
+}
+
+/* Resize handles for signature rectangle */
+.signature-rectangle::after {
+    content: '';
+    position: absolute;
+    bottom: -4px;
+    right: -4px;
+    width: 12px;
+    height: 12px;
+    background-color: var(--accent-blue);
+    border: 2px solid white;
+    border-radius: 50%;
+    cursor: nwse-resize;
+}
+
+/* Settings Modal */
+.settings-modal {
+    max-width: 900px;
+    width: 95%;
+    max-height: 85vh;
+}
+
+.settings-body {
+    display: flex;
+    min-height: 500px;
+    overflow: hidden;
+}
+
+.settings-sidebar {
+    width: 200px;
+    border-right: 1px solid var(--border-color);
+    padding: 1rem 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.settings-tab {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    padding: 0.75rem 1rem;
+    text-align: left;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.2s;
+    border-left: 3px solid transparent;
+}
+
+.settings-tab:hover {
+    background-color: var(--hover-color);
+    color: var(--text-primary);
+}
+
+.settings-tab.active {
+    color: var(--accent-blue);
+    background-color: rgba(59, 130, 246, 0.1);
+    border-left-color: var(--accent-blue);
+}
+
+.settings-content {
+    flex: 1;
+    padding: 1.5rem;
+    overflow-y: auto;
+}
+
+.settings-section {
+    display: none;
+}
+
+.settings-section.active {
+    display: block;
+}
+
+.settings-section h3 {
+    font-size: 1.25rem;
+    margin-bottom: 1.5rem;
+    color: var(--text-primary);
+}
+
+.setting-group {
+    margin-bottom: 1.5rem;
+}
+
+.setting-group label {
+    display: block;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--text-primary);
+    margin-bottom: 0.5rem;
+}
+
+.setting-input {
+    width: 100%;
+    max-width: 300px;
+    padding: 0.5rem;
+    background-color: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    color: var(--text-primary);
+    font-size: 0.9rem;
+}
+
+.setting-input:focus {
+    outline: none;
+    border-color: var(--accent-blue);
+}
+
+.setting-checkbox {
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+}
+
+.setting-hint {
+    display: block;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    margin-top: 0.25rem;
+}
+
+.shortcuts-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.shortcut-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem;
+    background-color: var(--bg-tertiary);
+    border-radius: 4px;
+}
+
+.shortcut-item kbd {
+    background-color: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    padding: 0.25rem 0.5rem;
+    font-family: monospace;
+    font-size: 0.85rem;
 }

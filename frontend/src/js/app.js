@@ -10,6 +10,7 @@ import { renderPage, changePage } from './renderer.js';
 import { changeZoom } from './zoom.js';
 import { switchToTab } from './pdfManager.js';
 import { initMessageDialog } from './messageDialog.js';
+import { initSettings } from './settings.js';
 
 /**
  * Initialize application when DOM is ready
@@ -17,6 +18,7 @@ import { initMessageDialog } from './messageDialog.js';
 document.addEventListener('DOMContentLoaded', () => {
     initializeUI();
     initMessageDialog();
+    initSettings();
     updateStatus('Ready');
     loadRecentFilesWelcome();
     

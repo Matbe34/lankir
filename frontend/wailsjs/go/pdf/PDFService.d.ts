@@ -9,6 +9,8 @@ export function GetMetadata():Promise<pdf.PDFMetadata>;
 
 export function GetPageCount():Promise<number>;
 
+export function GetPageDimensions(arg1:number):Promise<pdf.PageDimensions>;
+
 export function OpenPDF():Promise<pdf.PDFMetadata>;
 
 export function OpenPDFByPath(arg1:string):Promise<pdf.PDFMetadata>;

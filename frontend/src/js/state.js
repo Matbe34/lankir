@@ -7,7 +7,11 @@ export const state = {
     zoomLevel: 1.0,
     viewMode: 'scroll', // 'single' or 'scroll'
     loadingPages: new Set(),
-    selectedCertificate: null
+    selectedCertificate: null,
+    selectedProfile: null,
+    availableProfiles: null,
+    signaturePosition: null,
+    pdfPath: null
 };
 
 export function getActivePDF() {

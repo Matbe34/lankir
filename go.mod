@@ -9,6 +9,7 @@ require (
 	github.com/gen2brain/go-fitz v1.24.15
 	github.com/miekg/pkcs11 v1.1.1
 	github.com/wailsapp/wails/v2 v2.10.2
+	golang.org/x/image v0.32.0
 	software.sslmate.com/src/go-pkcs12 v0.6.0
 )
 
