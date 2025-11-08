@@ -332,24 +332,24 @@
                     <div class="settings-section" id="shortcutsSection">
                         <h3>Keyboard Shortcuts</h3>
                         <div class="setting-group">
-                            <p class="setting-hint">Customize keyboard shortcuts</p>
-                            <div class="shortcuts-list">
-                                <div class="shortcut-item">
-                                    <span>Open File</span>
-                                    <kbd>Ctrl+O</kbd>
-                                </div>
-                                <div class="shortcut-item">
-                                    <span>Sign Document</span>
-                                    <kbd>Ctrl+S</kbd>
-                                </div>
-                                <div class="shortcut-item">
-                                    <span>Zoom In</span>
-                                    <kbd>Ctrl++</kbd>
-                                </div>
-                                <div class="shortcut-item">
-                                    <span>Zoom Out</span>
-                                    <kbd>Ctrl+-</kbd>
-                                </div>
+                            <p class="setting-hint">Customize keyboard shortcuts (use modifiers like Control, Alt, Shift and a key, e.g. <code>Control+o</code>, <code>Alt+s</code>, <code>Control+Plus</code>)</p>
+                            <div class="shortcuts-form">
+                                <label>Open File</label>
+                                <input type="text" id="settingShortcutOpenFile" class="setting-input" placeholder="Control+o">
+
+                                <label>Sign Document</label>
+                                <input type="text" id="settingShortcutSign" class="setting-input" placeholder="Alt+s">
+
+                                <label>Zoom In</label>
+                                <input type="text" id="settingShortcutZoomIn" class="setting-input" placeholder="Control+Plus">
+
+                                <label>Zoom Out</label>
+                                <input type="text" id="settingShortcutZoomOut" class="setting-input" placeholder="Control+Minus">
+
+                                <label>Next Tab</label>
+                                <input type="text" id="settingShortcutNextTab" class="setting-input" placeholder="Control+Tab">
+
+                                <!-- Escape is a reserved key and cannot be modified. It always closes the current modal. -->
                             </div>
                         </div>
                     </div>
@@ -376,6 +376,23 @@
     </div>
 
     <script type="module" src="js/app.js"></script>
+    <!-- Shortcut capture modal -->
+    <div id="shortcutCaptureModal" class="modal-overlay hidden">
+        <div class="modal shortcut-capture-modal">
+            <div class="modal-header">
+                <h2>Set Shortcut</h2>
+                <button class="modal-close" id="shortcutCaptureClose">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>Press the new keyboard combination you want to assign.</p>
+                <div id="shortcutCaptureDisplay" style="font-weight:600; font-size:1.1rem; padding:0.5rem; border:1px dashed var(--accent-blue); margin-top:0.5rem; text-align:center;">Waiting for input...</div>
+            </div>
+            <div class="modal-footer">
+                <button id="shortcutCaptureCancel" class="btn">Cancel</button>
+                <button id="shortcutCaptureOk" class="btn btn-primary" disabled>OK</button>
+            </div>
+        </div>
+    </div>
 </body>
 </html>
 

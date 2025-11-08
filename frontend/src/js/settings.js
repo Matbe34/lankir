@@ -18,6 +18,16 @@ const DEFAULT_SETTINGS = {
     hardwareAccel: true
 };
 
+// Default keyboard shortcuts (modifiable by user)
+DEFAULT_SETTINGS.shortcuts = {
+    openFile: 'Control+o',
+    sign: 'Alt+s',
+    zoomIn: 'Control+Plus',
+    zoomOut: 'Control+Minus',
+    nextTab: 'Control+Tab',
+    // closeModal is reserved (Escape) and not configurable
+};
+
 /**
  * Current settings (loaded from storage or defaults)
  */
@@ -159,6 +169,120 @@ function setupSettingsModal() {
     
     // Setup tab navigation
     setupSettingsTabs();
+
+    // Setup shortcut capture modal wiring
+    const captureModal = document.getElementById('shortcutCaptureModal');
+    const captureDisplay = document.getElementById('shortcutCaptureDisplay');
+    const captureOk = document.getElementById('shortcutCaptureOk');
+    const captureCancel = document.getElementById('shortcutCaptureCancel');
+    const captureClose = document.getElementById('shortcutCaptureClose');
+
+    // Helper to clean up capture listeners
+    let captureKeyHandler = null;
+
+    const closeCapture = () => {
+        if (captureModal) captureModal.classList.add('hidden');
+        captureDisplay && (captureDisplay.textContent = 'Waiting for input...');
+        if (captureOk) captureOk.disabled = true;
+        if (captureKeyHandler) {
+            document.removeEventListener('keydown', captureKeyHandler, true);
+            captureKeyHandler = null;
+        }
+    };
+
+    // Build shortcut string from event
+    const buildShortcutString = (ev) => {
+        const parts = [];
+        if (ev.ctrlKey) parts.push('Control');
+        if (ev.altKey) parts.push('Alt');
+        if (ev.shiftKey) parts.push('Shift');
+        if (ev.metaKey) parts.push('Meta');
+
+        let keyToken = ev.key;
+        // Normalize some keys
+        if (keyToken === '+' || keyToken === '=') keyToken = 'Plus';
+        else if (keyToken === '-') keyToken = 'Minus';
+        else if (keyToken === ' ') keyToken = 'Space';
+        else if (keyToken === 'Esc') keyToken = 'Escape';
+
+        // Ignore pure modifier presses (don't finalize until a non-mod key pressed)
+        if (keyToken === 'Control' || keyToken === 'Shift' || keyToken === 'Alt' || keyToken === 'Meta') {
+            return null;
+        }
+
+        // For long names, keep as-is (Tab, Escape, Enter, etc.). For single chars, lower-case them
+        if (keyToken.length === 1) keyToken = keyToken.toLowerCase();
+
+        parts.push(keyToken);
+        return parts.join('+');
+    };
+
+    const shortcutInputs = document.querySelectorAll('#settingShortcutOpenFile, #settingShortcutSign, #settingShortcutZoomIn, #settingShortcutZoomOut, #settingShortcutNextTab');
+    shortcutInputs.forEach(input => {
+        if (!input) return;
+        input.addEventListener('click', (ev) => {
+            ev.preventDefault();
+            // Open capture modal
+            if (!captureModal) return;
+            captureModal.classList.remove('hidden');
+            captureDisplay && (captureDisplay.textContent = 'Press the shortcut now');
+            if (captureOk) captureOk.disabled = true;
+
+            let lastCaptured = null;
+
+            // Handler captures the first non-modifier key press and updates display
+            captureKeyHandler = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+
+                // If user presses Escape while capturing we abort the capture
+                if (e.key === 'Escape' || e.key === 'Esc') {
+                    lastCaptured = null;
+                    closeCapture();
+                    return;
+                }
+
+                const val = buildShortcutString(e);
+                if (val) {
+                    lastCaptured = val;
+                    captureDisplay.textContent = val;
+                    if (captureOk) captureOk.disabled = false;
+                } else {
+                    // show current modifiers
+                    const mods = [];
+                    if (e.ctrlKey) mods.push('Control');
+                    if (e.altKey) mods.push('Alt');
+                    if (e.shiftKey) mods.push('Shift');
+                    if (e.metaKey) mods.push('Meta');
+                    captureDisplay.textContent = mods.length ? ('Modifiers: ' + mods.join('+') + ' — press another key') : 'Waiting for input...';
+                    if (captureOk) captureOk.disabled = true;
+                }
+            };
+
+            document.addEventListener('keydown', captureKeyHandler, true);
+
+            const okHandler = () => {
+                if (lastCaptured) input.value = lastCaptured;
+                closeCapture();
+                cleanupButtons();
+            };
+
+            const cancelHandler = () => {
+                closeCapture();
+                cleanupButtons();
+            };
+
+            const cleanupButtons = () => {
+                captureOk.removeEventListener('click', okHandler);
+                captureCancel.removeEventListener('click', cancelHandler);
+                captureClose.removeEventListener('click', cancelHandler);
+            };
+
+            captureOk.addEventListener('click', okHandler);
+            captureCancel.addEventListener('click', cancelHandler);
+            captureClose.addEventListener('click', cancelHandler);
+        });
+    });
 }
 
 /**
@@ -202,6 +326,24 @@ function openSettingsModal() {
     document.getElementById('settingAutosaveInterval').value = currentSettings.autosaveInterval;
     document.getElementById('settingDebugMode').checked = currentSettings.debugMode;
     document.getElementById('settingHardwareAccel').checked = currentSettings.hardwareAccel;
+
+    // Populate shortcuts inputs (if present)
+    try {
+        const sc = currentSettings.shortcuts || DEFAULT_SETTINGS.shortcuts;
+        const map = {
+            settingShortcutOpenFile: sc.openFile,
+            settingShortcutSign: sc.sign,
+            settingShortcutZoomIn: sc.zoomIn,
+            settingShortcutZoomOut: sc.zoomOut,
+            settingShortcutNextTab: sc.nextTab
+        };
+        Object.keys(map).forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.value = map[id] || '';
+        });
+    } catch (e) {
+        console.error('Failed to populate shortcuts inputs:', e);
+    }
     
     modal.classList.remove('hidden');
 }
@@ -220,7 +362,25 @@ async function saveSettingsFromModal() {
         currentSettings.autosaveInterval = parseInt(document.getElementById('settingAutosaveInterval').value);
         currentSettings.debugMode = document.getElementById('settingDebugMode').checked;
         currentSettings.hardwareAccel = document.getElementById('settingHardwareAccel').checked;
-        
+
+        // Read shortcuts inputs if present
+        try {
+            currentSettings.shortcuts = currentSettings.shortcuts || {};
+            const scOpen = document.getElementById('settingShortcutOpenFile');
+            const scSign = document.getElementById('settingShortcutSign');
+            const scZoomIn = document.getElementById('settingShortcutZoomIn');
+            const scZoomOut = document.getElementById('settingShortcutZoomOut');
+            const scNext = document.getElementById('settingShortcutNextTab');
+
+            if (scOpen) currentSettings.shortcuts.openFile = scOpen.value || DEFAULT_SETTINGS.shortcuts.openFile;
+            if (scSign) currentSettings.shortcuts.sign = scSign.value || DEFAULT_SETTINGS.shortcuts.sign;
+            if (scZoomIn) currentSettings.shortcuts.zoomIn = scZoomIn.value || DEFAULT_SETTINGS.shortcuts.zoomIn;
+            if (scZoomOut) currentSettings.shortcuts.zoomOut = scZoomOut.value || DEFAULT_SETTINGS.shortcuts.zoomOut;
+            if (scNext) currentSettings.shortcuts.nextTab = scNext.value || DEFAULT_SETTINGS.shortcuts.nextTab;
+        } catch (e) {
+            console.error('Failed to read shortcuts inputs:', e);
+        }
+
         return await saveSettings();
     } catch (error) {
         console.error('Error saving settings:', error);

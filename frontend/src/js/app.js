@@ -10,7 +10,7 @@ import { renderPage, changePage } from './renderer.js';
 import { changeZoom } from './zoom.js';
 import { switchToTab } from './pdfManager.js';
 import { initMessageDialog } from './messageDialog.js';
-import { initSettings } from './settings.js';
+import { initSettings, getSetting } from './settings.js';
 
 /**
  * Initialize application when DOM is ready
@@ -40,9 +40,55 @@ document.addEventListener('DOMContentLoaded', async () => {
             const active = document.activeElement;
             const isTyping = active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.isContentEditable);
 
-            // Ctrl+Tab / Ctrl+Shift+Tab: switch between open tabs
-            if (e.ctrlKey && e.key === 'Tab') {
-                // Always move to the next tab (do not handle Ctrl+Shift+Tab)
+            // Get configured shortcuts
+            const cfg = getSetting('shortcuts') || {};
+
+            // Helper: match event against a shortcut string like "Control+o" or "Alt+s" or "Control+Plus"
+            const matchShortcut = (ev, shortcutStr) => {
+                if (!shortcutStr) return false;
+                const parts = shortcutStr.split('+').map(p => p.trim()).filter(Boolean);
+                if (parts.length === 0) return false;
+
+                let needCtrl = false;
+                let needAlt = false;
+                let needShift = false;
+                let needMeta = false;
+                let keyToken = null;
+
+                parts.forEach(part => {
+                    const lower = part.toLowerCase();
+                    if (lower === 'ctrl' || lower === 'control') needCtrl = true;
+                    else if (lower === 'alt') needAlt = true;
+                    else if (lower === 'shift') needShift = true;
+                    else if (lower === 'meta' || lower === 'cmd' || lower === 'super') needMeta = true;
+                    else keyToken = part; // last non-mod token wins
+                });
+
+                if (ev.ctrlKey !== needCtrl) return false;
+                if (ev.altKey !== needAlt) return false;
+                if (ev.shiftKey !== needShift) return false;
+                if (ev.metaKey !== needMeta) return false;
+
+                if (!keyToken) return true; // only modifiers
+
+                const k = keyToken.toLowerCase();
+                const evKey = ev.key;
+                // Special aliases
+                if (k === 'plus' || k === '+') {
+                    return evKey === '+' || evKey === '=';
+                }
+                if (k === 'minus' || k === '-') {
+                    return evKey === '-';
+                }
+                if (k === 'tab') return evKey === 'Tab';
+                if (k === 'escape' || k === 'esc') return evKey === 'Escape' || evKey === 'Esc';
+                // Single character keys
+                return evKey.toLowerCase() === k;
+            };
+
+            // Next tab (Ctrl+Tab by default)
+            if (matchShortcut(e, cfg.nextTab || 'Control+Tab')) {
+                // Always move to next tab; ignore typing state
                 e.preventDefault();
                 try {
                     const { state } = await import('./state.js');
@@ -58,53 +104,45 @@ document.addEventListener('DOMContentLoaded', async () => {
                         switchToTab(nextTabId);
                     }
                 } catch (err) {
-                    console.error('Error switching tabs with Ctrl+Tab:', err);
+                    console.error('Error switching tabs with shortcut:', err);
                 }
                 return;
             }
 
-            // Zoom in: Ctrl + '+' (also handle Ctrl+Shift+=' which produces '+')
-            if (e.ctrlKey && !e.altKey && (e.key === '+' || e.key === '=')) {
-                if (!isTyping) {
-                    e.preventDefault();
-                    const { changeZoom } = await import('./zoom.js');
-                    changeZoom(0.1);
-                }
+            // Zoom in
+            if (!isTyping && matchShortcut(e, cfg.zoomIn || 'Control+Plus')) {
+                e.preventDefault();
+                const { changeZoom } = await import('./zoom.js');
+                changeZoom(0.1);
                 return;
             }
 
-            // Zoom out: Ctrl + '-'
-            if (e.ctrlKey && !e.altKey && e.key === '-') {
-                if (!isTyping) {
-                    e.preventDefault();
-                    const { changeZoom } = await import('./zoom.js');
-                    changeZoom(-0.1);
-                }
+            // Zoom out
+            if (!isTyping && matchShortcut(e, cfg.zoomOut || 'Control+Minus')) {
+                e.preventDefault();
+                const { changeZoom } = await import('./zoom.js');
+                changeZoom(-0.1);
                 return;
             }
 
-            // Open file: Ctrl + O
-            if (e.ctrlKey && !e.altKey && e.key && e.key.toLowerCase() === 'o') {
-                if (!isTyping) {
-                    e.preventDefault();
-                    const { openPDFFile } = await import('./pdfOperations.js');
-                    openPDFFile();
-                }
+            // Open file
+            if (!isTyping && matchShortcut(e, cfg.openFile || 'Control+o')) {
+                e.preventDefault();
+                const { openPDFFile } = await import('./pdfOperations.js');
+                openPDFFile();
                 return;
             }
 
-            // Sign PDF: Alt + S
-            if (e.altKey && !e.ctrlKey && e.key && e.key.toLowerCase() === 's') {
-                if (!isTyping) {
-                    e.preventDefault();
-                    const { signPDF } = await import('./signature.js');
-                    signPDF();
-                }
+            // Sign PDF
+            if (!isTyping && matchShortcut(e, cfg.sign || 'Alt+s')) {
+                e.preventDefault();
+                const { signPDF } = await import('./signature.js');
+                signPDF();
                 return;
             }
 
-            // Escape: close visible modals (settings, profile, cert, placement, message)
-            if (e.key === 'Escape') {
+            // Escape: always close current modal (special, not configurable)
+            if (e.key === 'Escape' || e.key === 'Esc') {
                 // Order: signature placement overlay -> cert dialog -> profile dialog -> settings -> message dialog
                 // 1) Signature placement: trigger cancel button if present
                 const placementOverlay = document.getElementById('signaturePlacementOverlay');
@@ -119,59 +157,59 @@ document.addEventListener('DOMContentLoaded', async () => {
                     return;
                 }
 
-                // 2) Certificate dialog
-                const certDialog = document.getElementById('certDialog');
-                if (certDialog && !certDialog.classList.contains('hidden')) {
-                    try {
-                        const { closeCertificateDialog } = await import('./signature.js');
-                        closeCertificateDialog();
-                    } catch (e) {
-                        certDialog.classList.add('hidden');
-                    }
-                    return;
-                }
-
-                // 3) Profile dialog
-                const profileDialog = document.getElementById('profileDialog');
-                if (profileDialog && !profileDialog.classList.contains('hidden')) {
-                    const cancelBtn = document.getElementById('profileDialogCancel') || document.getElementById('profileDialogClose');
-                    if (cancelBtn) {
-                        cancelBtn.click();
-                    } else {
-                        profileDialog.classList.add('hidden');
-                        // clear signature-related state if available
+                    // 2) Certificate dialog
+                    const certDialog = document.getElementById('certDialog');
+                    if (certDialog && !certDialog.classList.contains('hidden')) {
                         try {
-                            const { state } = await import('./state.js');
-                            state.selectedProfile = null;
-                            state.pdfPath = null;
-                        } catch (_) {}
+                            const { closeCertificateDialog } = await import('./signature.js');
+                            closeCertificateDialog();
+                        } catch (e) {
+                            certDialog.classList.add('hidden');
+                        }
+                        return;
                     }
-                    return;
-                }
 
-                // 4) Settings modal
-                const settingsModal = document.getElementById('settingsModal');
-                if (settingsModal && !settingsModal.classList.contains('hidden')) {
-                    const closeBtn = document.getElementById('settingsModalClose') || document.getElementById('settingsCancel');
-                    if (closeBtn) {
-                        closeBtn.click();
-                    } else {
-                        settingsModal.classList.add('hidden');
+                    // 3) Profile dialog
+                    const profileDialog = document.getElementById('profileDialog');
+                    if (profileDialog && !profileDialog.classList.contains('hidden')) {
+                        const cancelBtn = document.getElementById('profileDialogCancel') || document.getElementById('profileDialogClose');
+                        if (cancelBtn) {
+                            cancelBtn.click();
+                        } else {
+                            profileDialog.classList.add('hidden');
+                            // clear signature-related state if available
+                            try {
+                                const { state } = await import('./state.js');
+                                state.selectedProfile = null;
+                                state.pdfPath = null;
+                            } catch (_) {}
+                        }
+                        return;
                     }
-                    return;
-                }
 
-                // 5) Generic message dialog
-                const messageDialog = document.getElementById('messageDialog');
-                if (messageDialog && !messageDialog.classList.contains('hidden')) {
-                    const closeBtn = document.getElementById('messageDialogClose') || document.getElementById('messageDialogOk');
-                    if (closeBtn) {
-                        closeBtn.click();
-                    } else {
-                        messageDialog.classList.add('hidden');
+                    // 4) Settings modal
+                    const settingsModal = document.getElementById('settingsModal');
+                    if (settingsModal && !settingsModal.classList.contains('hidden')) {
+                        const closeBtn = document.getElementById('settingsModalClose') || document.getElementById('settingsCancel');
+                        if (closeBtn) {
+                            closeBtn.click();
+                        } else {
+                            settingsModal.classList.add('hidden');
+                        }
+                        return;
                     }
-                    return;
-                }
+
+                    // 5) Generic message dialog
+                    const messageDialog = document.getElementById('messageDialog');
+                    if (messageDialog && !messageDialog.classList.contains('hidden')) {
+                        const closeBtn = document.getElementById('messageDialogClose') || document.getElementById('messageDialogOk');
+                        if (closeBtn) {
+                            closeBtn.click();
+                        } else {
+                            messageDialog.classList.add('hidden');
+                        }
+                        return;
+                    }
             }
         } catch (error) {
             // Swallow errors from keyboard handler to avoid breaking app
