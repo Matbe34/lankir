@@ -173,6 +173,7 @@ function setupSettingsModal() {
     // Setup shortcut capture modal wiring
     const captureModal = document.getElementById('shortcutCaptureModal');
     const captureDisplay = document.getElementById('shortcutCaptureDisplay');
+    const captureAction = document.getElementById('shortcutCaptureAction');
     const captureOk = document.getElementById('shortcutCaptureOk');
     const captureCancel = document.getElementById('shortcutCaptureCancel');
     const captureClose = document.getElementById('shortcutCaptureClose');
@@ -183,6 +184,7 @@ function setupSettingsModal() {
     const closeCapture = () => {
         if (captureModal) captureModal.classList.add('hidden');
         captureDisplay && (captureDisplay.textContent = 'Waiting for input...');
+        if (captureAction) captureAction.textContent = '';
         if (captureOk) captureOk.disabled = true;
         if (captureKeyHandler) {
             document.removeEventListener('keydown', captureKeyHandler, true);
@@ -226,6 +228,25 @@ function setupSettingsModal() {
             if (!captureModal) return;
             captureModal.classList.remove('hidden');
             captureDisplay && (captureDisplay.textContent = 'Press the shortcut now');
+
+            // Show which action is being changed. Prefer a preceding <label> text if available.
+            let actionName = '';
+            try {
+                const prev = input.previousElementSibling;
+                if (prev && prev.tagName === 'LABEL') actionName = prev.textContent.trim();
+            } catch (_) {}
+            if (!actionName) {
+                // Fallback mapping from input id
+                const idMap = {
+                    settingShortcutOpenFile: 'Open File',
+                    settingShortcutSign: 'Sign Document',
+                    settingShortcutZoomIn: 'Zoom In',
+                    settingShortcutZoomOut: 'Zoom Out',
+                    settingShortcutNextTab: 'Next Tab'
+                };
+                actionName = idMap[input.id] || input.id;
+            }
+            if (captureAction) captureAction.textContent = 'Changing: ' + actionName;
             if (captureOk) captureOk.disabled = true;
 
             let lastCaptured = null;
