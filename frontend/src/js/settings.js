@@ -1,11 +1,6 @@
-// Settings Module
-// Handles application settings and preferences
-
 import { showMessage } from './messageDialog.js';
+import { initSignatureProfiles, loadSignatureProfiles } from './signatureProfiles.js';
 
-/**
- * Default settings
- */
 const DEFAULT_SETTINGS = {
     theme: 'dark',
     accentColor: '#007acc',
@@ -18,40 +13,28 @@ const DEFAULT_SETTINGS = {
     hardwareAccel: true
 };
 
-// Default keyboard shortcuts (modifiable by user)
 DEFAULT_SETTINGS.shortcuts = {
     openFile: 'Control+o',
     sign: 'Alt+s',
     zoomIn: 'Control+Plus',
     zoomOut: 'Control+Minus',
     nextTab: 'Control+Tab',
-    // closeModal is reserved (Escape) and not configurable
 };
 
-/**
- * Current settings (loaded from storage or defaults)
- */
 let currentSettings = { ...DEFAULT_SETTINGS };
 
-/**
- * Initialize settings module
- */
 export async function initSettings() {
     await loadSettings();
     setupSettingsModal();
+    initSignatureProfiles();
 }
 
-/**
- * Load settings from backend
- */
 async function loadSettings() {
     try {
-        // Try to load from backend first
         if (window.go && window.go.config && window.go.config.Service) {
             const backendSettings = await window.go.config.Service.Get();
             currentSettings = { ...DEFAULT_SETTINGS, ...backendSettings };
         } else {
-            // Fallback to localStorage for web version
             const stored = localStorage.getItem('pdfEditorSettings');
             if (stored) {
                 currentSettings = { ...DEFAULT_SETTINGS, ...JSON.parse(stored) };
@@ -60,7 +43,6 @@ async function loadSettings() {
         applySettings();
     } catch (error) {
         console.error('Failed to load settings:', error);
-        // Fallback to localStorage
         try {
             const stored = localStorage.getItem('pdfEditorSettings');
             if (stored) {
@@ -73,22 +55,16 @@ async function loadSettings() {
     }
 }
 
-/**
- * Save settings to backend and localStorage
- */
 async function saveSettings() {
     try {
-        // Save to backend if available
         if (window.go && window.go.config && window.go.config.Service) {
             await window.go.config.Service.Update(currentSettings);
         }
-        // Also save to localStorage as backup
         localStorage.setItem('pdfEditorSettings', JSON.stringify(currentSettings));
         applySettings();
         return true;
     } catch (error) {
         console.error('Failed to save settings:', error);
-        // Fallback to localStorage only
         try {
             localStorage.setItem('pdfEditorSettings', JSON.stringify(currentSettings));
             applySettings();
@@ -312,20 +288,24 @@ function setupSettingsModal() {
 function setupSettingsTabs() {
     const tabs = document.querySelectorAll('.settings-tab');
     const sections = document.querySelectorAll('.settings-section');
-    
+
     tabs.forEach(tab => {
         tab.addEventListener('click', () => {
             const sectionId = tab.getAttribute('data-section');
-            
+
             // Update active tab
             tabs.forEach(t => t.classList.remove('active'));
             tab.classList.add('active');
-            
+
             // Update active section
             sections.forEach(s => s.classList.remove('active'));
             const targetSection = document.getElementById(sectionId + 'Section');
             if (targetSection) {
                 targetSection.classList.add('active');
+            }
+
+            if (sectionId === 'signatures') {
+                loadSignatureProfiles();
             }
         });
     });
@@ -336,8 +316,7 @@ function setupSettingsTabs() {
  */
 function openSettingsModal() {
     const modal = document.getElementById('settingsModal');
-    
-    // Populate form with current settings
+
     document.getElementById('settingTheme').value = currentSettings.theme;
     document.getElementById('settingAccentColor').value = currentSettings.accentColor;
     document.getElementById('settingDefaultZoom').value = currentSettings.defaultZoom;
@@ -365,7 +344,7 @@ function openSettingsModal() {
     } catch (e) {
         console.error('Failed to populate shortcuts inputs:', e);
     }
-    
+
     modal.classList.remove('hidden');
 }
 

@@ -304,10 +304,21 @@
 
                     <!-- Signatures Settings -->
                     <div class="settings-section" id="signaturesSection">
-                        <h3>Signatures</h3>
+                        <h3>Signature Profiles</h3>
+                        <p class="setting-hint">Manage your signature profiles for signing PDFs</p>
                         <div class="setting-group">
-                            <p>Manage signature profiles</p>
-                            <button class="btn btn-primary">Manage Profiles</button>
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                                <label style="margin: 0;">Your Profiles</label>
+                                <button id="addProfileBtn" class="btn btn-primary" style="padding: 0.4rem 0.8rem;">
+                                    <span style="font-size: 1.2rem;">+</span> New Profile
+                                </button>
+                            </div>
+                            <div id="signatureProfilesList" class="signature-profiles-list">
+                                <div class="empty-state">
+                                    <div class="loading-spinner"></div>
+                                    <p>Loading profiles...</p>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -376,6 +387,153 @@
     </div>
 
     <script type="module" src="js/app.js"></script>
+
+    <!-- Profile Editor Modal -->
+    <div id="profileEditorModal" class="modal-overlay hidden">
+        <div class="modal settings-modal">
+            <div class="modal-header">
+                <h2 id="profileEditorTitle">Create Signature Profile</h2>
+                <button class="modal-close" id="profileEditorClose">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="profile-editor-container">
+                    <div class="profile-editor-form">
+                    <div class="setting-group">
+                        <label for="profileName">Profile Name <span style="color: var(--error-red);">*</span></label>
+                        <input type="text" id="profileName" class="setting-input" placeholder="e.g., My Visible Signature" required>
+                    </div>
+
+                    <div class="setting-group">
+                        <label for="profileDescription">Description</label>
+                        <textarea id="profileDescription" class="setting-input" placeholder="Optional description" rows="2"></textarea>
+                    </div>
+
+                    <div class="setting-group">
+                        <label for="profileVisibility">Signature Type <span style="color: var(--error-red);">*</span></label>
+                        <select id="profileVisibility" class="setting-input">
+                            <option value="invisible">Invisible - Digital signature only, no visual mark</option>
+                            <option value="visible">Visible - Shows signature information on the PDF</option>
+                        </select>
+                    </div>
+
+                    <div id="visibleProfileSettings" class="visible-profile-settings hidden">
+                        <h4 style="margin: 1.5rem 0 1rem 0; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem;">Signature Appearance</h4>
+
+                        <div class="setting-group">
+                            <label style="display: flex; align-items: center; gap: 0.5rem;">
+                                <input type="checkbox" id="profileShowSignerName" class="setting-checkbox" checked>
+                                Include certificate subject (signer name)
+                            </label>
+                        </div>
+
+                        <div class="setting-group">
+                            <label style="display: flex; align-items: center; gap: 0.5rem;">
+                                <input type="checkbox" id="profileShowSigningTime" class="setting-checkbox" checked>
+                                Include timestamp (local time)
+                            </label>
+                        </div>
+
+                        <div class="setting-group">
+                            <label style="display: flex; align-items: center; gap: 0.5rem;">
+                                <input type="checkbox" id="profileShowLocation" class="setting-checkbox">
+                                Include signing location (based on IP geolocation)
+                            </label>
+                        </div>
+
+                        <div class="setting-group">
+                            <label for="profileCustomText">Custom Text</label>
+                            <textarea id="profileCustomText" class="setting-input" placeholder="Optional custom text to display on signature" rows="3"></textarea>
+                        </div>
+
+                        <div class="setting-group">
+                            <label style="display: flex; align-items: center; gap: 0.5rem;">
+                                <input type="checkbox" id="profileShowIcon" class="setting-checkbox">
+                                Include icon in signature
+                            </label>
+                        </div>
+
+                        <div id="profileIconSettings" class="hidden">
+                            <div class="setting-group">
+                                <label for="profileIconFile">Select Icon</label>
+                                <input type="file" id="profileIconFile" accept="image/*" class="setting-input" style="padding: 0.5rem;">
+                                <p class="setting-hint" style="margin-top: 0.25rem;">Supported formats: PNG, JPG, SVG (max 2MB)</p>
+                            </div>
+
+                            <div class="setting-group">
+                                <label for="profileIconPosition">Icon Position</label>
+                                <select id="profileIconPosition" class="setting-input">
+                                    <option value="left">Left of text</option>
+                                    <option value="top">Above text</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="setting-group">
+                            <label style="display: flex; align-items: center; gap: 0.5rem;">
+                                <input type="checkbox" id="profileDefinePosition" class="setting-checkbox">
+                                Define signature position
+                            </label>
+                        </div>
+
+                        <div id="profilePositionSettings" class="hidden">
+                            <div class="setting-group">
+                                <label for="profilePage">Default Page</label>
+                                <select id="profilePage" class="setting-input">
+                                    <option value="0">Last Page</option>
+                                    <option value="1">First Page</option>
+                                </select>
+                            </div>
+
+                            <div class="setting-group">
+                                <label>Default Position & Size</label>
+                                <p class="setting-hint" style="margin-bottom: 0.5rem;">These are defaults - you can adjust when signing</p>
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
+                                    <div>
+                                        <label style="font-size: 0.875rem;">X Position (pts)</label>
+                                        <input type="number" id="profileX" class="setting-input" value="360" min="0">
+                                    </div>
+                                    <div>
+                                        <label style="font-size: 0.875rem;">Y Position (pts)</label>
+                                        <input type="number" id="profileY" class="setting-input" value="50" min="0">
+                                    </div>
+                                    <div>
+                                        <label style="font-size: 0.875rem;">Width (pts)</label>
+                                        <input type="number" id="profileWidth" class="setting-input" value="200" min="50">
+                                    </div>
+                                    <div>
+                                        <label style="font-size: 0.875rem;">Height (pts)</label>
+                                        <input type="number" id="profileHeight" class="setting-input" value="80" min="30">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="setting-group">
+                        <label style="display: flex; align-items: center; gap: 0.5rem;">
+                            <input type="checkbox" id="profileIsDefault" class="setting-checkbox">
+                            Set as default profile
+                        </label>
+                    </div>
+                </div>
+
+                <div class="profile-preview-container" id="profilePreviewContainer">
+                    <h4 style="margin: 0 0 1rem 0; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem;">Preview</h4>
+                    <div class="signature-preview" id="signaturePreview">
+                        <div class="preview-empty">
+                            Select "Visible" signature type to see preview
+                        </div>
+                    </div>
+                </div>
+            </div>
+            </div>
+            <div class="modal-footer">
+                <button id="profileEditorCancel" class="btn">Cancel</button>
+                <button id="profileEditorSave" class="btn btn-primary">Save Profile</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Shortcut capture modal -->
     <div id="shortcutCaptureModal" class="modal-overlay hidden">
         <div class="modal shortcut-capture-modal">

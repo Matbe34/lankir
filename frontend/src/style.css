@@ -1519,3 +1519,218 @@ body {
     font-family: monospace;
     font-size: 0.85rem;
 }
+
+.signature-profiles-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    max-height: 400px;
+    overflow-y: auto;
+    padding: 0.5rem;
+    background-color: var(--bg-secondary);
+    border-radius: 0.375rem;
+    border: 1px solid var(--border-color);
+}
+
+.profile-list-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem;
+    background-color: var(--bg-tertiary);
+    border-radius: 0.375rem;
+    border: 1px solid var(--border-color);
+    transition: background-color 0.2s, border-color 0.2s;
+}
+
+.profile-list-item:hover {
+    background-color: var(--hover-color);
+    border-color: var(--accent-blue);
+}
+
+.profile-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.profile-name {
+    font-weight: 600;
+    font-size: 0.95rem;
+    color: var(--text-primary);
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.profile-details {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.profile-description {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+}
+
+.profile-visibility {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.profile-visibility.visible {
+    background-color: rgba(59, 130, 246, 0.2);
+    color: #60a5fa;
+}
+
+.profile-visibility.invisible {
+    background-color: rgba(139, 148, 158, 0.2);
+    color: var(--text-secondary);
+}
+
+.profile-default-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    background-color: rgba(16, 185, 129, 0.2);
+    color: var(--accent-green);
+    font-size: 0.75rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.profile-builtin-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    background-color: rgba(139, 148, 158, 0.2);
+    color: var(--text-secondary);
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+.profile-actions {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.btn-small {
+    padding: 0.4rem 0.8rem;
+    font-size: 0.8rem;
+}
+
+.btn-danger {
+    background-color: #dc2626;
+}
+
+.btn-danger:hover:not(:disabled) {
+    background-color: #b91c1c;
+}
+
+.profile-editor-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    max-height: 60vh;
+    overflow-y: auto;
+    padding: 0.5rem;
+}
+
+.visible-profile-settings {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.visible-profile-settings.hidden {
+    display: none;
+}
+
+:root {
+    --error-red: #ef4444;
+}
+
+
+/* Message Dialog - Higher z-index to appear above all other modals */
+#messageDialog {
+    z-index: 2000;
+}
+
+/* Profile Editor Layout */
+.profile-editor-container {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+    max-height: 70vh;
+    overflow: hidden;
+}
+
+.profile-editor-form {
+    overflow-y: auto;
+    padding-right: 1rem;
+}
+
+.profile-preview-container {
+    border-left: 1px solid var(--border-color);
+    padding-left: 2rem;
+    display: flex;
+    flex-direction: column;
+}
+
+.signature-preview {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--bg-primary);
+    border: 2px dashed var(--border-color);
+    border-radius: 0.375rem;
+    padding: 2rem;
+    min-height: 300px;
+}
+
+.preview-empty {
+    color: var(--text-secondary);
+    text-align: center;
+    font-size: 0.875rem;
+}
+
+.signature-preview-box {
+    background-color: var(--bg-secondary);
+    border: 1px solid var(--accent-blue);
+    border-radius: 0.25rem;
+    padding: 1rem;
+    font-family: 'Courier New', monospace;
+    font-size: 10px;
+    line-height: 1.5;
+    color: var(--text-primary);
+    max-width: 100%;
+    word-wrap: break-word;
+}
+
+.signature-preview-box .preview-line {
+    margin: 0.25rem 0;
+}
+
+.signature-preview-box .preview-label {
+    color: var(--text-secondary);
+    font-weight: bold;
+}
+
+/* General hidden class */
+.hidden {
+    display: none !important;
+}

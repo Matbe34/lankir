@@ -33,3 +33,13 @@ func (s *SignatureService) GetSignatureProfile(profileID string) (*SignatureProf
 func (s *SignatureService) GetDefaultSignatureProfile() (*SignatureProfile, error) {
 	return s.profileManager.GetDefaultProfile()
 }
+
+// SaveSignatureProfile saves or updates a signature profile
+func (s *SignatureService) SaveSignatureProfile(profile *SignatureProfile) error {
+	return s.profileManager.SaveProfile(profile)
+}
+
+// DeleteSignatureProfile deletes a signature profile by ID
+func (s *SignatureService) DeleteSignatureProfile(profileID string) error {
+	return s.profileManager.DeleteProfile(profileID)
+}

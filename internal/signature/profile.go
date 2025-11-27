@@ -131,18 +131,27 @@ func NewProfileManager() *ProfileManager {
 }
 
 // ListProfiles returns all available signature profiles
-// Currently returns built-in profiles
-// Future: will read from config directory
+// Returns custom profiles from config directory, or creates defaults if none exist
 func (pm *ProfileManager) ListProfiles() ([]*SignatureProfile, error) {
-	profiles := []*SignatureProfile{
-		DefaultInvisibleProfile(),
-		DefaultVisibleProfile(),
+	var profiles []*SignatureProfile
+
+	if err := pm.loadCustomProfiles(&profiles); err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: failed to load custom profiles: %v\n", err)
 	}
 
-	// Future: load custom profiles from configDir
-	// if err := pm.loadCustomProfiles(&profiles); err != nil {
-	//     return nil, err
-	// }
+	if len(profiles) == 0 {
+		defaultInvisible := DefaultInvisibleProfile()
+		defaultVisible := DefaultVisibleProfile()
+
+		if err := pm.SaveProfile(defaultInvisible); err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: failed to save default invisible profile: %v\n", err)
+		}
+		if err := pm.SaveProfile(defaultVisible); err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: failed to save default visible profile: %v\n", err)
+		}
+
+		profiles = []*SignatureProfile{defaultInvisible, defaultVisible}
+	}
 
 	return profiles, nil
 }
@@ -180,56 +189,39 @@ func (pm *ProfileManager) GetDefaultProfile() (*SignatureProfile, error) {
 	return DefaultInvisibleProfile(), nil
 }
 
-// SaveProfile saves a custom signature profile
-// Future implementation: persist to file system
+// SaveProfile saves a signature profile to disk
 func (pm *ProfileManager) SaveProfile(profile *SignatureProfile) error {
-	// Validate profile
-	if profile.ID == "" {
-		return fmt.Errorf("profile ID cannot be empty")
-	}
-	if profile.Name == "" {
-		return fmt.Errorf("profile name cannot be empty")
+	if err := pm.ValidateProfile(profile); err != nil {
+		return fmt.Errorf("profile validation failed: %w", err)
 	}
 
-	// Future: ensure config directory exists
-	// if err := os.MkdirAll(pm.configDir, 0755); err != nil {
-	//     return fmt.Errorf("failed to create config directory: %w", err)
-	// }
+	if err := os.MkdirAll(pm.configDir, 0755); err != nil {
+		return fmt.Errorf("failed to create config directory: %w", err)
+	}
 
-	// Future: save to file
-	// profilePath := filepath.Join(pm.configDir, profile.ID+".json")
-	// data, err := json.MarshalIndent(profile, "", "  ")
-	// if err != nil {
-	//     return fmt.Errorf("failed to marshal profile: %w", err)
-	// }
-	// if err := os.WriteFile(profilePath, data, 0644); err != nil {
-	//     return fmt.Errorf("failed to write profile: %w", err)
-	// }
-
-	// For now, just validate that JSON serialization works
-	_, err := json.MarshalIndent(profile, "", "  ")
+	profilePath := filepath.Join(pm.configDir, profile.ID+".json")
+	data, err := json.MarshalIndent(profile, "", "  ")
 	if err != nil {
-		return fmt.Errorf("invalid profile structure: %w", err)
+		return fmt.Errorf("failed to marshal profile: %w", err)
+	}
+	if err := os.WriteFile(profilePath, data, 0644); err != nil {
+		return fmt.Errorf("failed to write profile: %w", err)
 	}
 
-	return fmt.Errorf("saving custom profiles not yet implemented")
+	return nil
 }
 
-// DeleteProfile deletes a custom signature profile
-// Future implementation
+// DeleteProfile deletes a signature profile from disk
 func (pm *ProfileManager) DeleteProfile(id string) error {
-	// Prevent deletion of built-in profiles
-	if id == "default-invisible" || id == "default-visible" {
-		return fmt.Errorf("cannot delete built-in profile")
+	profilePath := filepath.Join(pm.configDir, id+".json")
+	if err := os.Remove(profilePath); err != nil {
+		if os.IsNotExist(err) {
+			return fmt.Errorf("profile not found: %s", id)
+		}
+		return fmt.Errorf("failed to delete profile: %w", err)
 	}
 
-	// Future: delete profile file
-	// profilePath := filepath.Join(pm.configDir, id+".json")
-	// if err := os.Remove(profilePath); err != nil {
-	//     return fmt.Errorf("failed to delete profile: %w", err)
-	// }
-
-	return fmt.Errorf("deleting custom profiles not yet implemented")
+	return nil
 }
 
 // ValidateProfile checks if a profile is valid
@@ -249,9 +241,41 @@ func (pm *ProfileManager) ValidateProfile(profile *SignatureProfile) error {
 			return fmt.Errorf("visible signature must have positive width and height (got width=%.2f, height=%.2f)",
 				profile.Position.Width, profile.Position.Height)
 		}
-		if profile.Position.Page <= 0 {
-			return fmt.Errorf("visible signature must have valid page number (got page=%d)", profile.Position.Page)
+	}
+
+	return nil
+}
+
+// loadCustomProfiles loads custom signature profiles from the config directory
+func (pm *ProfileManager) loadCustomProfiles(profiles *[]*SignatureProfile) error {
+	if _, err := os.Stat(pm.configDir); os.IsNotExist(err) {
+		return nil
+	}
+
+	files, err := filepath.Glob(filepath.Join(pm.configDir, "*.json"))
+	if err != nil {
+		return fmt.Errorf("failed to list profile files: %w", err)
+	}
+
+	for _, file := range files {
+		data, err := os.ReadFile(file)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: failed to read profile file %s: %v\n", file, err)
+			continue
 		}
+
+		var profile SignatureProfile
+		if err := json.Unmarshal(data, &profile); err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: failed to parse profile file %s: %v\n", file, err)
+			continue
+		}
+
+		if err := pm.ValidateProfile(&profile); err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: invalid profile in file %s: %v\n", file, err)
+			continue
+		}
+
+		*profiles = append(*profiles, &profile)
 	}
 
 	return nil

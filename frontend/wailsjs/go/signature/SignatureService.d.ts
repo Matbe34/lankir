@@ -3,6 +3,8 @@
 import {signature} from '../models';
 import {context} from '../models';
 
+export function DeleteSignatureProfile(arg1:string):Promise<void>;
+
 export function GetDefaultSignatureProfile():Promise<signature.SignatureProfile>;
 
 export function GetSignatureProfile(arg1:string):Promise<signature.SignatureProfile>;
@@ -12,6 +14,8 @@ export function ListCertificates():Promise<Array<signature.Certificate>>;
 export function ListCertificatesFiltered(arg1:signature.CertificateFilter):Promise<Array<signature.Certificate>>;
 
 export function ListSignatureProfiles():Promise<Array<signature.SignatureProfile>>;
+
+export function SaveSignatureProfile(arg1:signature.SignatureProfile):Promise<void>;
 
 export function SearchCertificates(arg1:string):Promise<Array<signature.Certificate>>;
 
