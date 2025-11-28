@@ -31,10 +31,11 @@ type SignatureAppearance struct {
 	ShowReason          bool   `json:"showReason"`                // Show reason for signing
 	ShowLocation        bool   `json:"showLocation"`              // Show location
 	ShowCertificateInfo bool   `json:"showCertificateInfo"`       // Show cert issuer/serial
-	ShowLogo            bool   `json:"showLogo"`                  // Show custom logo (future)
-	LogoPath            string `json:"logoPath,omitempty"`        // Path to logo image (future)
-	CustomText          string `json:"customText,omitempty"`      // Additional custom text (future)
-	FontSize            int    `json:"fontSize"`                  // Font size for text (future)
+	ShowLogo            bool   `json:"showLogo"`                  // Show custom logo
+	LogoPath            string `json:"logoPath,omitempty"`        // Base64 data URL of logo image
+	LogoPosition        string `json:"logoPosition,omitempty"`    // Position of logo: "left" or "top"
+	CustomText          string `json:"customText,omitempty"`      // Additional custom text
+	FontSize            int    `json:"fontSize"`                  // Font size for text
 	BackgroundColor     string `json:"backgroundColor,omitempty"` // Hex color (future)
 	TextColor           string `json:"textColor,omitempty"`       // Hex color (future)
 }

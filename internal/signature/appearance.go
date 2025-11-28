@@ -2,10 +2,13 @@ package signature
 
 import (
 	"bytes"
+	"encoding/base64"
 	"fmt"
 	"image"
 	"image/color"
+	"image/draw"
 	"image/png"
+	"strings"
 	"time"
 
 	"github.com/digitorus/pdfsign/sign"
@@ -120,7 +123,19 @@ func generateSignatureImage(textLines []string, profile *SignatureProfile) []byt
 		}
 	}
 
-	if len(textLines) == 0 {
+	var logoImg image.Image
+	if profile.Appearance.ShowLogo && profile.Appearance.LogoPath != "" {
+		logoImg = decodeLogoImage(profile.Appearance.LogoPath)
+	}
+
+	if len(textLines) == 0 && logoImg == nil {
+		var buf bytes.Buffer
+		png.Encode(&buf, img)
+		return buf.Bytes()
+	}
+
+	if logoImg != nil && len(textLines) == 0 {
+		drawLogoOnly(img, logoImg)
 		var buf bytes.Buffer
 		png.Encode(&buf, img)
 		return buf.Bytes()
@@ -212,25 +227,87 @@ func generateSignatureImage(textLines []string, profile *SignatureProfile) []byt
 		return buf.Bytes()
 	}
 
-	// Draw text
-	col := color.Black
-	d := &font.Drawer{
-		Dst:  img,
-		Src:  image.NewUniform(col),
-		Face: face,
-	}
+	// Handle logo and text layout
+	if logoImg != nil {
+		if profile.Appearance.LogoPosition == "top" {
+			// Draw logo on top, text below
+			logoHeight := 60
+			if logoHeight > height/3 {
+				logoHeight = height / 3
+			}
+			drawResizedLogo(img, logoImg, width/2, margin+logoHeight/2, logoHeight)
 
-	lineSpacing := int(fontSize * 1.2)
-	startY := margin + int(fontSize)
+			// Adjust text starting position
+			col := color.Black
+			d := &font.Drawer{
+				Dst:  img,
+				Src:  image.NewUniform(col),
+				Face: face,
+			}
 
-	for i, line := range wrappedLines {
-		yPos := startY + i*lineSpacing
-		if yPos > height-margin {
-			break
+			lineSpacing := int(fontSize * 1.2)
+			startY := margin + logoHeight + margin + int(fontSize)
+
+			for i, line := range wrappedLines {
+				yPos := startY + i*lineSpacing
+				if yPos > height-margin {
+					break
+				}
+				d.Dot.X = fixed.I(margin)
+				d.Dot.Y = fixed.I(yPos)
+				d.DrawString(line)
+			}
+		} else {
+			// Draw logo on left, text on right
+			logoWidth := 60
+			if logoWidth > width/3 {
+				logoWidth = width / 3
+			}
+			drawResizedLogo(img, logoImg, margin+logoWidth/2, height/2, logoWidth)
+
+			// Adjust text position to right of logo
+			col := color.Black
+			d := &font.Drawer{
+				Dst:  img,
+				Src:  image.NewUniform(col),
+				Face: face,
+			}
+
+			lineSpacing := int(fontSize * 1.2)
+			startY := margin + int(fontSize)
+			textStartX := margin + logoWidth + margin
+
+			for i, line := range wrappedLines {
+				yPos := startY + i*lineSpacing
+				if yPos > height-margin {
+					break
+				}
+				d.Dot.X = fixed.I(textStartX)
+				d.Dot.Y = fixed.I(yPos)
+				d.DrawString(line)
+			}
 		}
-		d.Dot.X = fixed.I(margin)
-		d.Dot.Y = fixed.I(yPos)
-		d.DrawString(line)
+	} else {
+		// Draw text only
+		col := color.Black
+		d := &font.Drawer{
+			Dst:  img,
+			Src:  image.NewUniform(col),
+			Face: face,
+		}
+
+		lineSpacing := int(fontSize * 1.2)
+		startY := margin + int(fontSize)
+
+		for i, line := range wrappedLines {
+			yPos := startY + i*lineSpacing
+			if yPos > height-margin {
+				break
+			}
+			d.Dot.X = fixed.I(margin)
+			d.Dot.Y = fixed.I(yPos)
+			d.DrawString(line)
+		}
 	}
 
 	face.Close()
@@ -239,6 +316,73 @@ func generateSignatureImage(textLines []string, profile *SignatureProfile) []byt
 	png.Encode(&buf, img)
 
 	return buf.Bytes()
+}
+
+// decodeLogoImage decodes a base64 data URL to an image
+func decodeLogoImage(dataURL string) image.Image {
+	if !strings.HasPrefix(dataURL, "data:image/") {
+		return nil
+	}
+
+	parts := strings.SplitN(dataURL, ",", 2)
+	if len(parts) != 2 {
+		return nil
+	}
+
+	data, err := base64.StdEncoding.DecodeString(parts[1])
+	if err != nil {
+		return nil
+	}
+
+	img, _, err := image.Decode(bytes.NewReader(data))
+	if err != nil {
+		return nil
+	}
+
+	return img
+}
+
+// drawLogoOnly draws just the logo centered in the image
+func drawLogoOnly(dst *image.RGBA, logo image.Image) {
+	bounds := dst.Bounds()
+	maxSize := 60
+	if bounds.Dx() < maxSize {
+		maxSize = bounds.Dx()
+	}
+	if bounds.Dy() < maxSize {
+		maxSize = bounds.Dy()
+	}
+
+	drawResizedLogo(dst, logo, bounds.Dx()/2, bounds.Dy()/2, maxSize)
+}
+
+// drawResizedLogo draws a logo at the specified position with max size
+func drawResizedLogo(dst *image.RGBA, logo image.Image, centerX, centerY, maxSize int) {
+	logoBounds := logo.Bounds()
+	logoW := logoBounds.Dx()
+	logoH := logoBounds.Dy()
+
+	scale := float64(maxSize) / float64(logoW)
+	if float64(logoH) > float64(logoW) {
+		scale = float64(maxSize) / float64(logoH)
+	}
+
+	newW := int(float64(logoW) * scale)
+	newH := int(float64(logoH) * scale)
+
+	scaled := image.NewRGBA(image.Rect(0, 0, newW, newH))
+	for y := 0; y < newH; y++ {
+		for x := 0; x < newW; x++ {
+			srcX := int(float64(x) / scale)
+			srcY := int(float64(y) / scale)
+			scaled.Set(x, y, logo.At(srcX+logoBounds.Min.X, srcY+logoBounds.Min.Y))
+		}
+	}
+
+	startX := centerX - newW/2
+	startY := centerY - newH/2
+
+	draw.Draw(dst, image.Rect(startX, startY, startX+newW, startY+newH), scaled, image.Point{0, 0}, draw.Over)
 } // splitIntoWords splits text into words preserving punctuation
 func splitIntoWords(text string) []string {
 	var words []string

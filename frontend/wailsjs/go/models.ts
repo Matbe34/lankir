@@ -203,6 +203,7 @@ export namespace signature {
 	    showCertificateInfo: boolean;
 	    showLogo: boolean;
 	    logoPath?: string;
+	    logoPosition?: string;
 	    customText?: string;
 	    fontSize: number;
 	    backgroundColor?: string;
@@ -221,6 +222,7 @@ export namespace signature {
 	        this.showCertificateInfo = source["showCertificateInfo"];
 	        this.showLogo = source["showLogo"];
 	        this.logoPath = source["logoPath"];
+	        this.logoPosition = source["logoPosition"];
 	        this.customText = source["customText"];
 	        this.fontSize = source["fontSize"];
 	        this.backgroundColor = source["backgroundColor"];

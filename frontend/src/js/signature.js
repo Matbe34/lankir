@@ -59,11 +59,12 @@ async function showProfileSelection(pdfPath) {
         
         // Load signature profiles
         const profiles = await window.go.signature.SignatureService.ListSignatureProfiles();
-        
+
         // Populate profile select
-        profileSelect.innerHTML = profiles.map(profile => 
-            `<option value="${profile.id}" ${profile.isDefault ? 'selected' : ''}>${profile.name}</option>`
-        ).join('');
+        profileSelect.innerHTML = profiles.map(profile => {
+            const defaultLabel = profile.isDefault ? ' (Default)' : '';
+            return `<option value="${profile.id}" ${profile.isDefault ? 'selected' : ''}>${profile.name}${defaultLabel}</option>`;
+        }).join('');
         
         // Store in state for later use
         state.availableProfiles = profiles;
