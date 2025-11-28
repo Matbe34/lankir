@@ -218,11 +218,8 @@ func (s *SignatureService) signPDFWithSigner(inputPath, outputPath string, signe
 	signData := sign.SignData{
 		Signature: sign.SignDataSignature{
 			Info: sign.SignDataSignatureInfo{
-				Name:        cert.Name,
-				Location:    profile.Location,
-				Reason:      profile.Reason,
-				ContactInfo: profile.ContactInfo,
-				Date:        signingTime,
+				Name: cert.Name,
+				Date: signingTime,
 			},
 			CertType:   certType,
 			DocMDPPerm: sign.AllowFillingExistingFormFieldsAndSignaturesPerms,

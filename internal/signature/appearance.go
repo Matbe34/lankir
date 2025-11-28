@@ -3,11 +3,13 @@ package signature
 import (
 	"bytes"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"image"
 	"image/color"
 	"image/draw"
 	"image/png"
+	"net/http"
 	"strings"
 	"time"
 
@@ -36,19 +38,11 @@ func CreateSignatureAppearance(profile *SignatureProfile, cert *Certificate, sig
 	}
 	appearance.Page = uint32(page)
 
-	// PDF coordinates: LowerLeft is the bottom-left corner, UpperRight is top-right
-	// Our coordinates from frontend already have Y from bottom
 	appearance.LowerLeftX = profile.Position.X
 	appearance.LowerLeftY = profile.Position.Y
 	appearance.UpperRightX = profile.Position.X + profile.Position.Width
 	appearance.UpperRightY = profile.Position.Y + profile.Position.Height
 
-	// Debug output
-	fmt.Printf("APPEARANCE RECT: Page=%d LL=(%.2f,%.2f) UR=(%.2f,%.2f)\n",
-		appearance.Page, appearance.LowerLeftX, appearance.LowerLeftY,
-		appearance.UpperRightX, appearance.UpperRightY)
-
-	// Ensure we have valid rectangle
 	if appearance.UpperRightX <= appearance.LowerLeftX {
 		appearance.UpperRightX = appearance.LowerLeftX + 200
 	}
@@ -56,7 +50,6 @@ func CreateSignatureAppearance(profile *SignatureProfile, cert *Certificate, sig
 		appearance.UpperRightY = appearance.LowerLeftY + 80
 	}
 
-	// Build the text content based on appearance settings
 	var textLines []string
 
 	if profile.Appearance.ShowSignerName {
@@ -72,20 +65,10 @@ func CreateSignatureAppearance(profile *SignatureProfile, cert *Certificate, sig
 		textLines = append(textLines, fmt.Sprintf("Date: %s", timeStr))
 	}
 
-	if profile.Appearance.ShowReason && profile.Reason != "" {
-		textLines = append(textLines, fmt.Sprintf("Reason: %s", profile.Reason))
-	}
-
-	if profile.Appearance.ShowLocation && profile.Location != "" {
-		textLines = append(textLines, fmt.Sprintf("Location: %s", profile.Location))
-	}
-
-	if profile.Appearance.ShowCertificateInfo {
-		if cert.Issuer != "" {
-			textLines = append(textLines, fmt.Sprintf("Issuer: %s", cert.Issuer))
-		}
-		if cert.SerialNumber != "" {
-			textLines = append(textLines, fmt.Sprintf("Serial: %s", cert.SerialNumber))
+	if profile.Appearance.ShowLocation {
+		location, err := getLocationString()
+		if err == nil && location != "" {
+			textLines = append(textLines, fmt.Sprintf("Location: %s", location))
 		}
 	}
 
@@ -93,34 +76,54 @@ func CreateSignatureAppearance(profile *SignatureProfile, cert *Certificate, sig
 		textLines = append(textLines, profile.Appearance.CustomText)
 	}
 
-	// Generate image with text for appearance
-	// pdfsign requires an actual image for visible signatures
 	appearance.Image = generateSignatureImage(textLines, profile)
-	appearance.ImageAsWatermark = false // Show only the image, not text overlay
+	appearance.ImageAsWatermark = false
 
 	return appearance
 }
 
 // generateSignatureImage creates an image for signature appearance
-// The image is scaled to match the signature rectangle size
+// Renders at higher resolution (3x) for better quality at all sizes
 func generateSignatureImage(textLines []string, profile *SignatureProfile) []byte {
-	width := int(profile.Position.Width)
-	height := int(profile.Position.Height)
+	generator := NewSignatureImageGenerator(profile, textLines)
+	return generator.Generate()
+}
 
-	if width < 1 {
-		width = 1
+// SignatureImageGenerator handles the creation of the signature image
+type SignatureImageGenerator struct {
+	profile   *SignatureProfile
+	textLines []string
+	scale     float64
+	width     int
+	height    int
+	margin    int
+	logoImg   image.Image
+}
+
+// NewSignatureImageGenerator creates a new generator instance
+func NewSignatureImageGenerator(profile *SignatureProfile, textLines []string) *SignatureImageGenerator {
+	baseWidth := int(profile.Position.Width)
+	baseHeight := int(profile.Position.Height)
+
+	if baseWidth < 1 {
+		baseWidth = 1
 	}
-	if height < 1 {
-		height = 1
+	if baseHeight < 1 {
+		baseHeight = 1
 	}
 
-	img := image.NewRGBA(image.Rect(0, 0, width, height))
+	scale := 4.0
 
-	// Transparent background
-	for y := 0; y < height; y++ {
-		for x := 0; x < width; x++ {
-			img.Set(x, y, color.RGBA{0, 0, 0, 0})
-		}
+	width := int(float64(baseWidth) * scale)
+	height := int(float64(baseHeight) * scale)
+
+	margin := int(2.0 * scale) // Default: 2pt margin
+	if baseHeight < 30 || baseWidth < 60 {
+		margin = int(1.0 * scale)
+	}
+	maxMargin := int(5.0 * scale)
+	if margin > maxMargin {
+		margin = maxMargin
 	}
 
 	var logoImg image.Image
@@ -128,194 +131,250 @@ func generateSignatureImage(textLines []string, profile *SignatureProfile) []byt
 		logoImg = decodeLogoImage(profile.Appearance.LogoPath)
 	}
 
-	if len(textLines) == 0 && logoImg == nil {
-		var buf bytes.Buffer
-		png.Encode(&buf, img)
-		return buf.Bytes()
+	return &SignatureImageGenerator{
+		profile:   profile,
+		textLines: textLines,
+		scale:     scale,
+		width:     width,
+		height:    height,
+		margin:    margin,
+		logoImg:   logoImg,
+	}
+}
+
+// Generate creates the final signature image
+func (g *SignatureImageGenerator) Generate() []byte {
+	img := image.NewRGBA(image.Rect(0, 0, g.width, g.height))
+
+	for y := range g.height {
+		for x := range g.width {
+			img.Set(x, y, color.RGBA{0, 0, 0, 0})
+		}
 	}
 
-	if logoImg != nil && len(textLines) == 0 {
-		drawLogoOnly(img, logoImg)
-		var buf bytes.Buffer
-		png.Encode(&buf, img)
-		return buf.Bytes()
+	if len(g.textLines) == 0 && g.logoImg == nil {
+		return g.encodeImage(img)
 	}
 
-	// Calculate optimal font size based on available height
-	margin := 4
-	maxWidth := width - (margin * 2)
+	if g.logoImg != nil && len(g.textLines) == 0 {
+		g.drawLogoOnly(img)
+		return g.encodeImage(img)
+	}
 
-	// Load scalable font
 	ttf, err := opentype.Parse(goregular.TTF)
 	if err != nil {
-		// Fallback to empty image if font loading fails
-		var buf bytes.Buffer
-		png.Encode(&buf, img)
-		return buf.Bytes()
+		return g.encodeImage(img)
 	}
 
-	// Calculate font size: divide available height by estimated number of wrapped lines
-	// Start with a size estimate and adjust
-	fontSize := float64(height) / float64(len(textLines)+1)
-	if fontSize < 4 {
-		fontSize = 4
-	}
-	if fontSize > 72 {
-		fontSize = 72
+	g.drawContent(img, ttf)
+
+	return g.encodeImage(img)
+}
+
+// encodeImage encodes the image to PNG bytes
+func (g *SignatureImageGenerator) encodeImage(img image.Image) []byte {
+	var buf bytes.Buffer
+	png.Encode(&buf, img)
+	return buf.Bytes()
+}
+
+// drawLogoOnly draws just the logo centered in the image
+func (g *SignatureImageGenerator) drawLogoOnly(dst *image.RGBA) {
+	maxSize := min(g.width*2/3, g.height*2/3)
+	drawResizedLogo(dst, g.logoImg, g.width/2, g.height/2, maxSize)
+}
+
+// drawContent calculates layout and draws both logo and text
+func (g *SignatureImageGenerator) drawContent(img *image.RGBA, ttf *opentype.Font) {
+	textWidth := g.width - (g.margin * 2)
+	availableHeight := g.height - (g.margin * 2)
+
+	logoSize := 0
+	logoX, logoY := 0, 0
+
+	if g.logoImg != nil {
+		if g.profile.Appearance.LogoPosition == "top" {
+			logoSize = max(int(float64(g.height)*0.2), 10)
+
+			logoX = g.width / 2
+			logoY = g.margin + logoSize/2
+			availableHeight -= (logoSize + g.margin)
+		} else {
+			logoSize = max(int(float64(g.width)*0.2), 10)
+
+			logoX = g.margin + logoSize/2
+			logoY = g.height / 2
+			textWidth -= (logoSize + g.margin)
+		}
 	}
 
-	// Try different font sizes to find the best fit
+	fontSize, wrappedLines, face := g.calculateOptimalFontSize(ttf, textWidth, availableHeight)
+	defer func() {
+		if face != nil {
+			face.Close()
+		}
+	}()
+
+	if len(wrappedLines) == 0 {
+		if g.logoImg != nil {
+			drawResizedLogo(img, g.logoImg, logoX, logoY, logoSize)
+		}
+		return
+	}
+
+	if g.logoImg != nil {
+		drawResizedLogo(img, g.logoImg, logoX, logoY, logoSize)
+	}
+
+	g.drawTextLines(img, face, wrappedLines, fontSize, logoSize)
+}
+
+// calculateOptimalFontSize finds the best font size to fit text
+func (g *SignatureImageGenerator) calculateOptimalFontSize(ttf *opentype.Font, maxWidth, maxHeight int) (float64, []string, font.Face) {
+	fontSize := (float64(maxHeight) / float64(len(g.textLines)+1)) * 0.8
+
+	minSize := 1 * g.scale // Minimum readable size
+	maxSize := 72.0 * g.scale
+
+	if fontSize < minSize {
+		fontSize = minSize
+	}
+	if fontSize > maxSize {
+		fontSize = maxSize
+	}
+
 	var face font.Face
 	var wrappedLines []string
+	var err error
 
-	for attempt := 0; attempt < 10; attempt++ {
+	for range 20 {
 		face, err = opentype.NewFace(ttf, &opentype.FaceOptions{
 			Size: fontSize,
 			DPI:  72,
 		})
 		if err != nil {
-			var buf bytes.Buffer
-			png.Encode(&buf, img)
-			return buf.Bytes()
+			return 0, nil, nil
 		}
 
-		// Word wrap all text lines to fit width
-		wrappedLines = nil
-		for _, line := range textLines {
-			words := splitIntoWords(line)
-			currentLine := ""
-
-			for _, word := range words {
-				testLine := currentLine
-				if testLine != "" {
-					testLine += " "
-				}
-				testLine += word
-
-				d := &font.Drawer{Face: face}
-				lineWidth := d.MeasureString(testLine).Ceil()
-
-				if lineWidth <= maxWidth {
-					currentLine = testLine
-				} else {
-					if currentLine != "" {
-						wrappedLines = append(wrappedLines, currentLine)
-					}
-					currentLine = word
-				}
-			}
-			if currentLine != "" {
-				wrappedLines = append(wrappedLines, currentLine)
-			}
-		}
-
-		// Check if all lines fit
-		totalHeight := len(wrappedLines)*int(fontSize*1.2) + margin*2
-		if totalHeight <= height || fontSize <= 4 {
-			break
-		}
-
-		// Reduce font size and try again
-		face.Close()
-		fontSize *= 0.8
-	}
-
-	if len(wrappedLines) == 0 {
-		face.Close()
-		var buf bytes.Buffer
-		png.Encode(&buf, img)
-		return buf.Bytes()
-	}
-
-	// Handle logo and text layout
-	if logoImg != nil {
-		if profile.Appearance.LogoPosition == "top" {
-			// Draw logo on top, text below
-			logoHeight := 60
-			if logoHeight > height/3 {
-				logoHeight = height / 3
-			}
-			drawResizedLogo(img, logoImg, width/2, margin+logoHeight/2, logoHeight)
-
-			// Adjust text starting position
-			col := color.Black
-			d := &font.Drawer{
-				Dst:  img,
-				Src:  image.NewUniform(col),
-				Face: face,
-			}
-
-			lineSpacing := int(fontSize * 1.2)
-			startY := margin + logoHeight + margin + int(fontSize)
-
-			for i, line := range wrappedLines {
-				yPos := startY + i*lineSpacing
-				if yPos > height-margin {
-					break
-				}
-				d.Dot.X = fixed.I(margin)
-				d.Dot.Y = fixed.I(yPos)
-				d.DrawString(line)
-			}
-		} else {
-			// Draw logo on left, text on right
-			logoWidth := 60
-			if logoWidth > width/3 {
-				logoWidth = width / 3
-			}
-			drawResizedLogo(img, logoImg, margin+logoWidth/2, height/2, logoWidth)
-
-			// Adjust text position to right of logo
-			col := color.Black
-			d := &font.Drawer{
-				Dst:  img,
-				Src:  image.NewUniform(col),
-				Face: face,
-			}
-
-			lineSpacing := int(fontSize * 1.2)
-			startY := margin + int(fontSize)
-			textStartX := margin + logoWidth + margin
-
-			for i, line := range wrappedLines {
-				yPos := startY + i*lineSpacing
-				if yPos > height-margin {
-					break
-				}
-				d.Dot.X = fixed.I(textStartX)
-				d.Dot.Y = fixed.I(yPos)
-				d.DrawString(line)
-			}
-		}
-	} else {
-		// Draw text only
-		col := color.Black
-		d := &font.Drawer{
-			Dst:  img,
-			Src:  image.NewUniform(col),
-			Face: face,
-		}
+		wrappedLines = g.wrapLines(g.textLines, face, maxWidth)
 
 		lineSpacing := int(fontSize * 1.2)
-		startY := margin + int(fontSize)
+		requiredHeight := int(fontSize) + (len(wrappedLines)-1)*lineSpacing
 
-		for i, line := range wrappedLines {
-			yPos := startY + i*lineSpacing
-			if yPos > height-margin {
-				break
+		if requiredHeight <= maxHeight || fontSize <= minSize {
+			return fontSize, wrappedLines, face
+		}
+
+		face.Close()
+		fontSize *= 0.9
+	}
+
+	face, _ = opentype.NewFace(ttf, &opentype.FaceOptions{
+		Size: minSize,
+		DPI:  72,
+	})
+	wrappedLines = g.wrapLines(g.textLines, face, maxWidth)
+	return minSize, wrappedLines, face
+}
+
+// wrapLines wraps multiple lines of text
+func (g *SignatureImageGenerator) wrapLines(lines []string, face font.Face, maxWidth int) []string {
+	var result []string
+	for _, line := range lines {
+		result = append(result, g.wrapText(line, face, maxWidth)...)
+	}
+	return result
+}
+
+// wrapText wraps a single line of text
+func (g *SignatureImageGenerator) wrapText(text string, face font.Face, maxWidth int) []string {
+	words := splitIntoWords(text)
+	var lines []string
+	currentLine := ""
+	d := &font.Drawer{Face: face}
+
+	for _, word := range words {
+		testLine := currentLine
+		if testLine != "" {
+			testLine += " "
+		}
+		testLine += word
+
+		if d.MeasureString(testLine).Ceil() <= maxWidth {
+			currentLine = testLine
+		} else {
+			if currentLine != "" {
+				lines = append(lines, currentLine)
 			}
-			d.Dot.X = fixed.I(margin)
-			d.Dot.Y = fixed.I(yPos)
-			d.DrawString(line)
+			currentLine = word
+		}
+	}
+	if currentLine != "" {
+		lines = append(lines, currentLine)
+	}
+	return lines
+}
+
+// drawTextLines draws the lines of text onto the image
+func (g *SignatureImageGenerator) drawTextLines(img *image.RGBA, face font.Face, lines []string, fontSize float64, logoSize int) {
+	col := color.Black
+	d := &font.Drawer{
+		Dst:  img,
+		Src:  image.NewUniform(col),
+		Face: face,
+	}
+
+	lineSpacing := int(fontSize * 1.2)
+
+	startX := g.margin
+	startY := g.margin + int(fontSize)
+
+	if g.logoImg != nil {
+		if g.profile.Appearance.LogoPosition == "top" {
+			startY += logoSize + g.margin
+		} else {
+			startX += logoSize + g.margin
 		}
 	}
 
-	face.Close()
+	for i, line := range lines {
+		yPos := startY + i*lineSpacing
+		if yPos > g.height-g.margin {
+			break
+		}
+		d.Dot.X = fixed.I(startX)
+		d.Dot.Y = fixed.I(yPos)
+		d.DrawString(line)
+	}
+}
 
-	var buf bytes.Buffer
-	png.Encode(&buf, img)
+// drawResizedLogo draws a logo at the specified position with max size
+func drawResizedLogo(dst *image.RGBA, logo image.Image, centerX, centerY, maxSize int) {
+	logoBounds := logo.Bounds()
+	logoW := logoBounds.Dx()
+	logoH := logoBounds.Dy()
 
-	return buf.Bytes()
+	scale := float64(maxSize) / float64(logoW)
+	if float64(logoH) > float64(logoW) {
+		scale = float64(maxSize) / float64(logoH)
+	}
+
+	newW := int(float64(logoW) * scale)
+	newH := int(float64(logoH) * scale)
+
+	scaled := image.NewRGBA(image.Rect(0, 0, newW, newH))
+	for y := range newH {
+		for x := range newW {
+			srcX := int(float64(x) / scale)
+			srcY := int(float64(y) / scale)
+			scaled.Set(x, y, logo.At(srcX+logoBounds.Min.X, srcY+logoBounds.Min.Y))
+		}
+	}
+
+	startX := centerX - newW/2
+	startY := centerY - newH/2
+
+	draw.Draw(dst, image.Rect(startX, startY, startX+newW, startY+newH), scaled, image.Point{0, 0}, draw.Over)
 }
 
 // decodeLogoImage decodes a base64 data URL to an image
@@ -342,48 +401,7 @@ func decodeLogoImage(dataURL string) image.Image {
 	return img
 }
 
-// drawLogoOnly draws just the logo centered in the image
-func drawLogoOnly(dst *image.RGBA, logo image.Image) {
-	bounds := dst.Bounds()
-	maxSize := 60
-	if bounds.Dx() < maxSize {
-		maxSize = bounds.Dx()
-	}
-	if bounds.Dy() < maxSize {
-		maxSize = bounds.Dy()
-	}
-
-	drawResizedLogo(dst, logo, bounds.Dx()/2, bounds.Dy()/2, maxSize)
-}
-
-// drawResizedLogo draws a logo at the specified position with max size
-func drawResizedLogo(dst *image.RGBA, logo image.Image, centerX, centerY, maxSize int) {
-	logoBounds := logo.Bounds()
-	logoW := logoBounds.Dx()
-	logoH := logoBounds.Dy()
-
-	scale := float64(maxSize) / float64(logoW)
-	if float64(logoH) > float64(logoW) {
-		scale = float64(maxSize) / float64(logoH)
-	}
-
-	newW := int(float64(logoW) * scale)
-	newH := int(float64(logoH) * scale)
-
-	scaled := image.NewRGBA(image.Rect(0, 0, newW, newH))
-	for y := 0; y < newH; y++ {
-		for x := 0; x < newW; x++ {
-			srcX := int(float64(x) / scale)
-			srcY := int(float64(y) / scale)
-			scaled.Set(x, y, logo.At(srcX+logoBounds.Min.X, srcY+logoBounds.Min.Y))
-		}
-	}
-
-	startX := centerX - newW/2
-	startY := centerY - newH/2
-
-	draw.Draw(dst, image.Rect(startX, startY, startX+newW, startY+newH), scaled, image.Point{0, 0}, draw.Over)
-} // splitIntoWords splits text into words preserving punctuation
+// splitIntoWords splits text into words preserving punctuation
 func splitIntoWords(text string) []string {
 	var words []string
 	current := ""
@@ -417,4 +435,46 @@ func calculatePageNumber(page int) int {
 		return 0 // Will be set to last page or dynamically
 	}
 	return page
+}
+
+// getLocationString retrieves the location string
+func getLocationString() (string, error) {
+	endpoint := "http://ipinfo.io/json"
+	resp, err := http.Get(endpoint)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		return "", fmt.Errorf("failed to get location: status %d", resp.StatusCode)
+	}
+
+	var result struct {
+		City    string `json:"city"`
+		Region  string `json:"region"`
+		Country string `json:"country"`
+	}
+
+	err = json.NewDecoder(resp.Body).Decode(&result)
+	if err != nil {
+		return "", err
+	}
+
+	parts := []string{}
+	if result.City != "" {
+		parts = append(parts, result.City)
+	}
+	if result.Region != "" {
+		parts = append(parts, result.Region)
+	}
+	if result.Country != "" {
+		parts = append(parts, result.Country)
+	}
+
+	if len(parts) == 0 {
+		return "", nil
+	}
+
+	return strings.Join(parts, ", "), nil
 }

@@ -26,18 +26,16 @@ type SignaturePosition struct {
 
 // SignatureAppearance defines the visual content of a visible signature
 type SignatureAppearance struct {
-	ShowSignerName      bool   `json:"showSignerName"`            // Show the certificate name/DN
-	ShowSigningTime     bool   `json:"showSigningTime"`           // Show timestamp
-	ShowReason          bool   `json:"showReason"`                // Show reason for signing
-	ShowLocation        bool   `json:"showLocation"`              // Show location
-	ShowCertificateInfo bool   `json:"showCertificateInfo"`       // Show cert issuer/serial
-	ShowLogo            bool   `json:"showLogo"`                  // Show custom logo
-	LogoPath            string `json:"logoPath,omitempty"`        // Base64 data URL of logo image
-	LogoPosition        string `json:"logoPosition,omitempty"`    // Position of logo: "left" or "top"
-	CustomText          string `json:"customText,omitempty"`      // Additional custom text
-	FontSize            int    `json:"fontSize"`                  // Font size for text
-	BackgroundColor     string `json:"backgroundColor,omitempty"` // Hex color (future)
-	TextColor           string `json:"textColor,omitempty"`       // Hex color (future)
+	ShowSignerName  bool   `json:"showSignerName"`            // Show the certificate name/DN
+	ShowSigningTime bool   `json:"showSigningTime"`           // Show timestamp
+	ShowLocation    bool   `json:"showLocation"`              // Show location
+	ShowLogo        bool   `json:"showLogo"`                  // Show custom logo
+	LogoPath        string `json:"logoPath,omitempty"`        // Base64 data URL of logo image
+	LogoPosition    string `json:"logoPosition,omitempty"`    // Position of logo: "left" or "top"
+	CustomText      string `json:"customText,omitempty"`      // Additional custom text
+	FontSize        int    `json:"fontSize"`                  // Font size for text
+	BackgroundColor string `json:"backgroundColor,omitempty"` // Hex color (future)
+	TextColor       string `json:"textColor,omitempty"`       // Hex color (future)
 }
 
 // SignatureProfile represents a reusable signing configuration
@@ -49,9 +47,6 @@ type SignatureProfile struct {
 	Visibility  SignatureVisibility `json:"visibility"`  // Invisible or visible
 	Position    SignaturePosition   `json:"position"`    // Where to place signature (if visible)
 	Appearance  SignatureAppearance `json:"appearance"`  // What to show (if visible)
-	Reason      string              `json:"reason"`      // Default reason for signing
-	Location    string              `json:"location"`    // Default location
-	ContactInfo string              `json:"contactInfo"` // Default contact info
 	IsDefault   bool                `json:"isDefault"`   // Whether this is the default profile
 }
 
@@ -63,9 +58,6 @@ func DefaultInvisibleProfile() *SignatureProfile {
 		Name:        "Invisible Signature",
 		Description: "Digital signature without visible appearance",
 		Visibility:  VisibilityInvisible,
-		Reason:      "Document digitally signed",
-		Location:    "Digital Signature",
-		ContactInfo: "",
 		IsDefault:   true,
 		Position: SignaturePosition{
 			Page:   0, // Not used for invisible
@@ -77,7 +69,6 @@ func DefaultInvisibleProfile() *SignatureProfile {
 		Appearance: SignatureAppearance{
 			ShowSignerName:  false,
 			ShowSigningTime: false,
-			ShowReason:      false,
 			ShowLocation:    false,
 		},
 	}
@@ -91,9 +82,6 @@ func DefaultVisibleProfile() *SignatureProfile {
 		Name:        "Visible Signature",
 		Description: "Visible signature with signer name and timestamp",
 		Visibility:  VisibilityVisible,
-		Reason:      "Document digitally signed",
-		Location:    "Digital Signature",
-		ContactInfo: "",
 		IsDefault:   false,
 		Position: SignaturePosition{
 			Page:   0,   // 0 = last page
@@ -103,12 +91,10 @@ func DefaultVisibleProfile() *SignatureProfile {
 			Height: 80,
 		},
 		Appearance: SignatureAppearance{
-			ShowSignerName:      true,
-			ShowSigningTime:     true,
-			ShowReason:          false,
-			ShowLocation:        false,
-			ShowCertificateInfo: false,
-			FontSize:            10,
+			ShowSignerName:  true,
+			ShowSigningTime: true,
+			ShowLocation:    false,
+			FontSize:        10,
 		},
 	}
 }
