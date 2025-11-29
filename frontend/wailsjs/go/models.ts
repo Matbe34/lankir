@@ -198,9 +198,7 @@ export namespace signature {
 	export class SignatureAppearance {
 	    showSignerName: boolean;
 	    showSigningTime: boolean;
-	    showReason: boolean;
 	    showLocation: boolean;
-	    showCertificateInfo: boolean;
 	    showLogo: boolean;
 	    logoPath?: string;
 	    logoPosition?: string;
@@ -217,9 +215,7 @@ export namespace signature {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.showSignerName = source["showSignerName"];
 	        this.showSigningTime = source["showSigningTime"];
-	        this.showReason = source["showReason"];
 	        this.showLocation = source["showLocation"];
-	        this.showCertificateInfo = source["showCertificateInfo"];
 	        this.showLogo = source["showLogo"];
 	        this.logoPath = source["logoPath"];
 	        this.logoPosition = source["logoPosition"];
@@ -290,9 +286,6 @@ export namespace signature {
 	    visibility: string;
 	    position: SignaturePosition;
 	    appearance: SignatureAppearance;
-	    reason: string;
-	    location: string;
-	    contactInfo: string;
 	    isDefault: boolean;
 	
 	    static createFrom(source: any = {}) {
@@ -307,9 +300,6 @@ export namespace signature {
 	        this.visibility = source["visibility"];
 	        this.position = this.convertValues(source["position"], SignaturePosition);
 	        this.appearance = this.convertValues(source["appearance"], SignatureAppearance);
-	        this.reason = source["reason"];
-	        this.location = source["location"];
-	        this.contactInfo = source["contactInfo"];
 	        this.isDefault = source["isDefault"];
 	    }
 	

@@ -7,72 +7,72 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div id="app">
-        <header class="toolbar">
-            <div class="toolbar-left">
-                <button id="openBtn" class="btn btn-primary">
+    <div id="app" class="flex flex-col h-screen">
+        <header class="flex justify-between items-center px-4 py-3 bg-bg-secondary border-b border-border-color">
+            <div class="flex gap-2">
+                <button id="openBtn" class="px-4 py-2 rounded-md bg-accent-blue text-text-primary cursor-pointer text-sm flex items-center gap-2 transition-colors hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed">
                     <span>📂</span> Open PDF
                 </button>
                 <button id="settingsBtn" class="btn">
                     <span>⚙️</span> Settings
                 </button>
             </div>
-            <div class="toolbar-center">
-                <h1>PDF Editor Pro</h1>
+            <div>
+                <h1 class="text-xl font-bold">PDF Editor Pro</h1>
             </div>
-            <div class="toolbar-right">
-                <button id="signBtn" class="btn btn-accent" disabled>
+            <div class="flex gap-2">
+                <button id="signBtn" class="btn btn-primary" disabled>
                     <span>🔒</span> Sign
                 </button>
             </div>
         </header>
 
-        <div class="pdf-tabs-container has-tabs" id="pdfTabsContainer">
+        <div class="flex bg-bg-secondary border-b border-border-color overflow-x-auto min-h-0 max-h-0 opacity-0 transition-all has-tabs:min-h-10 has-tabs:max-h-10 has-tabs:opacity-100 scrollbar-thin" id="pdfTabsContainer">
             <div class="pdf-tab active" id="homeTab">
                 <span class="pdf-tab-name">🏠 Home</span>
             </div>
             <!-- PDF tabs will be dynamically added here -->
         </div>
 
-        <main class="main-content">
-            <div class="sidebar left-sidebar" id="leftSidebar">
-                <div class="sidebar-header">
-                    <div class="sidebar-tabs">
-                        <button class="tab-btn active" data-tab="pages">Pages</button>
-                        <button class="tab-btn" data-tab="index">Index</button>
-                        <button class="tab-btn" data-tab="comments">Comments</button>
+        <main class="flex flex-1 overflow-hidden relative">
+            <div class="flex flex-col bg-bg-secondary border-r border-border-color w-64 transition-all left-sidebar" id="leftSidebar">
+                <div class="flex justify-between items-center bg-bg-tertiary border-b border-border-color">
+                    <div class="flex flex-1">
+                        <button class="tab-btn flex-1 px-2 py-3 border-none bg-transparent text-text-secondary cursor-pointer text-sm font-medium border-b-2 border-transparent transition-all hover:bg-hover-color hover:text-text-primary active" data-tab="pages">Pages</button>
+                        <button class="tab-btn flex-1 px-2 py-3 border-none bg-transparent text-text-secondary cursor-pointer text-sm font-medium border-b-2 border-transparent transition-all hover:bg-hover-color hover:text-text-primary" data-tab="index">Index</button>
+                        <button class="tab-btn flex-1 px-2 py-3 border-none bg-transparent text-text-secondary cursor-pointer text-sm font-medium border-b-2 border-transparent transition-all hover:bg-hover-color hover:text-text-primary" data-tab="comments">Comments</button>
                     </div>
-                    <button class="collapse-btn" id="collapseLeft" title="Hide sidebar">&lt;</button>
+                    <button class="px-2 py-2 bg-transparent border-none text-text-secondary cursor-pointer text-base transition-all hover:text-text-primary hover:bg-hover-color" id="collapseLeft" title="Hide sidebar">&lt;</button>
                 </div>
-                
+
                 <div class="tab-content active" id="pagesTab">
-                    <div id="pageList" class="page-list">
-                        <div class="empty-state">
+                    <div id="pageList" class="flex-1 overflow-y-auto p-2">
+                        <div class="flex items-center justify-center h-full text-text-secondary text-sm">
                             <p>No PDF loaded</p>
                         </div>
                     </div>
                 </div>
-                
+
                 <div class="tab-content" id="indexTab">
-                    <div class="index-content">
-                        <div class="empty-state">
+                    <div class="flex-1 overflow-y-auto p-4">
+                        <div class="flex items-center justify-center h-full text-text-secondary text-sm">
                             <p>No index available</p>
                         </div>
                     </div>
                 </div>
-                
+
                 <div class="tab-content" id="commentsTab">
-                    <div class="comments-content">
-                        <div class="empty-state">
+                    <div class="flex-1 overflow-y-auto p-4">
+                        <div class="flex items-center justify-center h-full text-text-secondary text-sm">
                             <p>No comments yet</p>
                         </div>
                     </div>
                 </div>
             </div>
-            
-            <button class="expand-btn left-expand-btn hidden" id="expandLeft" title="Show sidebar">&gt;</button>
 
-            <div class="viewer">
+            <button class="expand-btn left-expand-btn absolute top-2 left-0 px-2 py-3 bg-bg-secondary border border-border-color border-l-0 rounded-r text-text-secondary cursor-pointer text-base z-10 transition-all hover:text-text-primary hover:bg-bg-tertiary hidden" id="expandLeft" title="Show sidebar">&gt;</button>
+
+            <div class="flex-1 bg-bg-primary overflow-hidden flex flex-col">
                 <div id="pdfViewer" class="pdf-viewer">
                     <div class="welcome-screen">
                         <div class="welcome-content">
@@ -81,7 +81,7 @@
                             <button class="btn btn-large btn-primary" id="welcomeOpenBtn">
                                 📂 Open a PDF File
                             </button>
-                            
+
                             <div class="recent-files-welcome" id="recentFilesWelcome">
                                 <h3>Recent Files</h3>
                                 <div id="recentFilesGrid" class="recent-files-grid">
@@ -95,28 +95,28 @@
                 </div>
             </div>
 
-            <button class="expand-btn right-expand-btn hidden" id="expandRight" title="Show properties">&lt;</button>
+            <button class="expand-btn right-expand-btn absolute top-2 right-0 px-2 py-3 bg-bg-secondary border border-border-color border-r-0 rounded-l text-text-secondary cursor-pointer text-base z-10 transition-all hover:text-text-primary hover:bg-bg-tertiary hidden" id="expandRight" title="Show properties">&lt;</button>
 
-            <div class="properties-panel right-sidebar" id="rightSidebar">
-                <div class="properties-header sidebar-header">
-                    <h3>Properties</h3>
-                    <button class="collapse-btn" id="collapseRight" title="Hide properties">&gt;</button>
+            <div class="flex flex-col bg-bg-secondary border-l border-border-color w-64 transition-all right-sidebar" id="rightSidebar">
+                <div class="flex justify-between items-center p-4 border-b border-border-color">
+                    <h3 class="text-sm font-semibold uppercase text-text-secondary">Properties</h3>
+                    <button class="px-2 py-2 bg-transparent border-none text-text-secondary cursor-pointer text-base transition-all hover:text-text-primary hover:bg-hover-color" id="collapseRight" title="Hide properties">&gt;</button>
                 </div>
-                <div id="properties" class="properties-content">
-                    <div class="property-group">
-                        <label>File:</label>
-                        <span id="fileName">-</span>
+                <div id="properties" class="p-4">
+                    <div class="mb-4">
+                        <label class="block text-xs font-semibold uppercase text-text-secondary mb-1">File:</label>
+                        <span id="fileName" class="block text-sm text-text-primary">-</span>
                     </div>
-                    <div class="property-group">
-                        <label>Pages:</label>
-                        <span id="pageCount">-</span>
+                    <div class="mb-4">
+                        <label class="block text-xs font-semibold uppercase text-text-secondary mb-1">Pages:</label>
+                        <span id="pageCount" class="block text-sm text-text-primary">-</span>
                     </div>
-                    
+
                     <!-- Signature Information -->
-                    <div class="property-section">
-                        <h4 class="property-section-title">Digital Signatures</h4>
-                        <div id="signatureInfo" class="signature-info">
-                            <div class="empty-state">
+                    <div class="mt-6 pt-4 border-t border-border-color">
+                        <h4 class="text-sm font-semibold text-text-primary mb-4">Digital Signatures</h4>
+                        <div id="signatureInfo" class="text-sm">
+                            <div class="flex items-center justify-center h-full text-text-secondary text-sm py-4">
                                 <p>No signature information</p>
                             </div>
                         </div>
@@ -125,20 +125,20 @@
             </div>
         </main>
 
-        <footer class="statusbar">
-            <div class="status-left">
+        <footer class="flex justify-between items-center px-4 py-2 bg-bg-secondary border-t border-border-color text-xs text-text-secondary">
+            <div class="flex items-center gap-2">
                 <span id="statusText">Ready</span>
             </div>
-            <div class="status-center">
+            <div class="flex items-center gap-3">
                 <span id="pageIndicator">-</span>
-                <span class="status-separator">•</span>
+                <span class="text-border-color">•</span>
                 <span id="scrollProgress">-</span>
             </div>
-            <div class="status-right">
-                <button id="zoomOutBtn" class="btn-zoom" title="Zoom out">-</button>
+            <div class="flex items-center gap-2">
+                <button id="zoomOutBtn" class="btn-icon" title="Zoom out">-</button>
                 <input type="text" id="zoomInput" class="zoom-input" value="100">
-                <span class="zoom-percent">%</span>
-                <button id="zoomInBtn" class="btn-zoom" title="Zoom in">+</button>
+                <span class="text-text-secondary text-xs">%</span>
+                <button id="zoomInBtn" class="btn-icon" title="Zoom in">+</button>
             </div>
         </footer>
     </div>
@@ -255,62 +255,104 @@
                 <div class="settings-content">
                     <!-- Appearance Settings -->
                     <div class="settings-section active" id="appearanceSection">
-                        <h3>Appearance</h3>
+                        <h3 class="settings-section-title">Appearance</h3>
+                        <p class="settings-section-description">Customize the look and feel of the application</p>
+
                         <div class="setting-group">
-                            <label>Theme</label>
+                            <label class="setting-label" for="settingTheme">Theme</label>
                             <select id="settingTheme" class="setting-input">
                                 <option value="dark">Dark</option>
                                 <option value="light">Light</option>
-                                <option value="auto">Auto</option>
+                                <option value="auto">Auto (System)</option>
                             </select>
+                            <p class="setting-hint">Choose your preferred color scheme</p>
                         </div>
+
                         <div class="setting-group">
-                            <label>Accent Color</label>
-                            <input type="color" id="settingAccentColor" class="setting-input" value="#007acc">
+                            <label class="setting-label" for="settingAccentColor">Accent Color</label>
+                            <input type="color" id="settingAccentColor" class="setting-input setting-input-color" value="#007acc">
+                            <p class="setting-hint">Primary highlight color for buttons and interactive elements</p>
+                        </div>
+
+                        <div class="setting-group">
+                            <label class="setting-label" for="settingSecondaryAccent">Theme Palette</label>
+                            <select id="settingSecondaryAccent" class="setting-input">
+                                <option value="neutral">Neutral (Blue-Gray)</option>
+                                <option value="slate">Slate (Cool Gray)</option>
+                                <option value="purple">Purple</option>
+                                <option value="green">Green</option>
+                                <option value="orange">Orange</option>
+                                <option value="red">Red</option>
+                            </select>
+                            <p class="setting-hint">Base color palette for backgrounds and surfaces</p>
                         </div>
                     </div>
 
                     <!-- Viewer Settings -->
                     <div class="settings-section" id="viewerSection">
-                        <h3>Viewer</h3>
+                        <h3 class="settings-section-title">Viewer</h3>
+                        <p class="settings-section-description">Configure how PDFs are displayed</p>
+
                         <div class="setting-group">
-                            <label>Default Zoom Level</label>
-                            <input type="number" id="settingDefaultZoom" class="setting-input" min="10" max="400" value="100" step="10">
-                            <span class="setting-hint">%</span>
+                            <label class="setting-label" for="settingDefaultZoom">Default Zoom Level</label>
+                            <div class="setting-input-group">
+                                <input type="number" id="settingDefaultZoom" class="setting-input setting-input-number" min="10" max="400" value="100" step="10">
+                                <span class="setting-unit">%</span>
+                            </div>
+                            <p class="setting-hint">Initial zoom level when opening PDFs (10-400%)</p>
                         </div>
+
                         <div class="setting-group">
-                            <label>Show Left Sidebar by Default</label>
-                            <input type="checkbox" id="settingShowLeftSidebar" class="setting-checkbox" checked>
+                            <label class="setting-label-inline">
+                                <input type="checkbox" id="settingShowLeftSidebar" class="setting-checkbox" checked>
+                                <span>Show Left Sidebar by Default</span>
+                            </label>
+                            <p class="setting-hint">Display pages/index/comments sidebar on startup</p>
                         </div>
+
                         <div class="setting-group">
-                            <label>Show Right Sidebar by Default</label>
-                            <input type="checkbox" id="settingShowRightSidebar" class="setting-checkbox">
+                            <label class="setting-label-inline">
+                                <input type="checkbox" id="settingShowRightSidebar" class="setting-checkbox">
+                                <span>Show Right Sidebar by Default</span>
+                            </label>
+                            <p class="setting-hint">Display properties panel on startup</p>
                         </div>
                     </div>
 
                     <!-- Files Settings -->
                     <div class="settings-section" id="filesSection">
-                        <h3>Files</h3>
+                        <h3 class="settings-section-title">Files</h3>
+                        <p class="settings-section-description">Manage file handling and history</p>
+
                         <div class="setting-group">
-                            <label>Recent Files List Length</label>
-                            <input type="number" id="settingRecentFilesLength" class="setting-input" min="0" max="50" value="10">
+                            <label class="setting-label" for="settingRecentFilesLength">Recent Files List Length</label>
+                            <div class="setting-input-group">
+                                <input type="number" id="settingRecentFilesLength" class="setting-input setting-input-number" min="0" max="50" value="10">
+                                <span class="setting-unit">files</span>
+                            </div>
+                            <p class="setting-hint">Number of recent files to display (0-50)</p>
                         </div>
+
                         <div class="setting-group">
-                            <label>Auto-save Interval</label>
-                            <input type="number" id="settingAutosaveInterval" class="setting-input" min="0" max="600" value="0">
-                            <span class="setting-hint">seconds (0 = disabled)</span>
+                            <label class="setting-label" for="settingAutosaveInterval">Auto-save Interval</label>
+                            <div class="setting-input-group">
+                                <input type="number" id="settingAutosaveInterval" class="setting-input setting-input-number" min="0" max="600" value="0">
+                                <span class="setting-unit">seconds</span>
+                            </div>
+                            <p class="setting-hint">Automatically save changes (0 = disabled)</p>
                         </div>
                     </div>
 
                     <!-- Signatures Settings -->
                     <div class="settings-section" id="signaturesSection">
-                        <h3>Signature Profiles</h3>
-                        <p class="setting-hint">Manage your signature profiles for signing PDFs</p>
+                        <h3 class="settings-section-title">Signature Profiles</h3>
+                        <p class="settings-section-description">Manage your signature profiles for signing PDFs</p>
+
                         <div class="setting-group">
-                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                                <label style="margin: 0;">Your Profiles</label>
-                                <button id="addProfileBtn" class="btn btn-primary" style="padding: 0.4rem 0.8rem;">
-                                    <span style="font-size: 1.2rem;">+</span> New Profile
+                            <div class="flex justify-between items-center mb-4">
+                                <label class="setting-label m-0">Your Profiles</label>
+                                <button id="addProfileBtn" class="btn btn-primary btn-small">
+                                    <span class="text-lg leading-none">+</span> New Profile
                                 </button>
                             </div>
                             <div id="signatureProfilesList" class="signature-profiles-list">
@@ -324,57 +366,84 @@
 
                     <!-- Certificates Settings -->
                     <div class="settings-section" id="certificatesSection">
-                        <h3>Certificates</h3>
+                        <h3 class="settings-section-title">Certificates</h3>
+                        <p class="settings-section-description">Configure certificate stores and PKCS#11 tokens</p>
+
                         <div class="setting-group">
-                            <label>Certificate Stores</label>
-                            <div id="certificateStoresList">
+                            <label class="setting-label">Certificate Stores</label>
+                            <div id="certificateStoresList" class="setting-info-box">
                                 <p class="setting-hint">Configure certificate store locations</p>
                             </div>
                         </div>
+
                         <div class="setting-group">
-                            <label>PKCS#11 Token Libraries</label>
-                            <div id="tokenLibrariesList">
-                                <p class="setting-hint">Configure PKCS#11 library paths</p>
+                            <label class="setting-label">PKCS#11 Token Libraries</label>
+                            <div id="tokenLibrariesList" class="setting-info-box">
+                                <p class="setting-hint">Configure PKCS#11 library paths for hardware tokens</p>
                             </div>
                         </div>
                     </div>
 
                     <!-- Shortcuts Settings -->
                     <div class="settings-section" id="shortcutsSection">
-                        <h3>Keyboard Shortcuts</h3>
+                        <h3 class="settings-section-title">Keyboard Shortcuts</h3>
+                        <p class="settings-section-description">Customize keyboard shortcuts for common actions</p>
+
                         <div class="setting-group">
-                            <p class="setting-hint">Customize keyboard shortcuts (use modifiers like Control, Alt, Shift and a key, e.g. <code>Control+o</code>, <code>Alt+s</code>, <code>Control+Plus</code>)</p>
-                            <div class="shortcuts-form">
-                                <label>Open File</label>
-                                <input type="text" id="settingShortcutOpenFile" class="setting-input" placeholder="Control+o">
+                            <p class="setting-hint mb-4">Click on any shortcut field to set a new key combination. Use modifiers like Control, Alt, Shift with letters or special keys.</p>
 
-                                <label>Sign Document</label>
-                                <input type="text" id="settingShortcutSign" class="setting-input" placeholder="Alt+s">
+                            <div class="shortcuts-list">
+                                <div class="shortcut-item">
+                                    <label class="setting-label" for="settingShortcutOpenFile">Open File</label>
+                                    <input type="text" id="settingShortcutOpenFile" class="setting-input shortcut-input" placeholder="Control+o" readonly>
+                                </div>
 
-                                <label>Zoom In</label>
-                                <input type="text" id="settingShortcutZoomIn" class="setting-input" placeholder="Control+Plus">
+                                <div class="shortcut-item">
+                                    <label class="setting-label" for="settingShortcutSign">Sign Document</label>
+                                    <input type="text" id="settingShortcutSign" class="setting-input shortcut-input" placeholder="Alt+s" readonly>
+                                </div>
 
-                                <label>Zoom Out</label>
-                                <input type="text" id="settingShortcutZoomOut" class="setting-input" placeholder="Control+Minus">
+                                <div class="shortcut-item">
+                                    <label class="setting-label" for="settingShortcutZoomIn">Zoom In</label>
+                                    <input type="text" id="settingShortcutZoomIn" class="setting-input shortcut-input" placeholder="Control+Plus" readonly>
+                                </div>
 
-                                <label>Next Tab</label>
-                                <input type="text" id="settingShortcutNextTab" class="setting-input" placeholder="Control+Tab">
+                                <div class="shortcut-item">
+                                    <label class="setting-label" for="settingShortcutZoomOut">Zoom Out</label>
+                                    <input type="text" id="settingShortcutZoomOut" class="setting-input shortcut-input" placeholder="Control+Minus" readonly>
+                                </div>
 
-                                <!-- Escape is a reserved key and cannot be modified. It always closes the current modal. -->
+                                <div class="shortcut-item">
+                                    <label class="setting-label" for="settingShortcutNextTab">Next Tab</label>
+                                    <input type="text" id="settingShortcutNextTab" class="setting-input shortcut-input" placeholder="Control+Tab" readonly>
+                                </div>
                             </div>
+
+                            <p class="setting-hint mt-4">
+                                <strong>Note:</strong> Escape key is reserved for closing modals and cannot be changed.
+                            </p>
                         </div>
                     </div>
 
                     <!-- Advanced Settings -->
                     <div class="settings-section" id="advancedSection">
-                        <h3>Advanced</h3>
+                        <h3 class="settings-section-title">Advanced</h3>
+                        <p class="settings-section-description">Advanced configuration options</p>
+
                         <div class="setting-group">
-                            <label>Enable Debug Mode</label>
-                            <input type="checkbox" id="settingDebugMode" class="setting-checkbox">
+                            <label class="setting-label-inline">
+                                <input type="checkbox" id="settingDebugMode" class="setting-checkbox">
+                                <span>Enable Debug Mode</span>
+                            </label>
+                            <p class="setting-hint">Show additional debugging information in the console</p>
                         </div>
+
                         <div class="setting-group">
-                            <label>Hardware Acceleration</label>
-                            <input type="checkbox" id="settingHardwareAccel" class="setting-checkbox" checked>
+                            <label class="setting-label-inline">
+                                <input type="checkbox" id="settingHardwareAccel" class="setting-checkbox" checked>
+                                <span>Hardware Acceleration</span>
+                            </label>
+                            <p class="setting-hint">Use GPU acceleration for rendering (recommended)</p>
                         </div>
                     </div>
                 </div>

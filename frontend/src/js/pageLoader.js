@@ -10,38 +10,49 @@ import { updateStatus, updatePageIndicator, updateScrollProgress } from './utils
 export async function loadVisiblePages() {
     const activePDF = getActivePDF();
     if (!activePDF) return;
-    
+
     const viewer = document.getElementById('pdfViewer');
     const viewerRect = viewer.getBoundingClientRect();
     const pageDivs = viewer.querySelectorAll('.pdf-page-container');
-    
+
     // Load pages that are visible or near visible
     const loadPromises = [];
     pageDivs.forEach((pageDiv, index) => {
         const rect = pageDiv.getBoundingClientRect();
         const isVisible = rect.top < viewerRect.bottom + 1000 && rect.bottom > viewerRect.top - 1000;
-        
+
         if (isVisible && !activePDF.renderedPages.has(index) && !state.loadingPages.has(index)) {
             state.loadingPages.add(index);
             loadPromises.push(loadPage(index, pageDiv, activePDF));
         }
     });
-    
+
     await Promise.all(loadPromises);
 }
 
-/**
- * Load a single page
- */
+const DPI_SCALE = 96 / 150;
+
 export async function loadPage(pageNum, pageDiv, activePDF) {
     try {
         const pageInfo = await window.go.pdf.PDFService.RenderPage(pageNum, 150);
         activePDF.renderedPages.set(pageNum, pageInfo);
-        
+
+        const baseWidth = pageInfo.width * DPI_SCALE;
+        const baseHeight = pageInfo.height * DPI_SCALE;
+
+        pageDiv.dataset.width = baseWidth;
+        pageDiv.dataset.height = baseHeight;
+
+        const width = baseWidth * state.zoomLevel;
+        const height = baseHeight * state.zoomLevel;
+
+        pageDiv.style.width = `${width}px`;
+        pageDiv.style.height = `${height}px`;
+
         pageDiv.innerHTML = `
-            <img src="${pageInfo.imageData}" class="pdf-page" alt="Page ${pageNum + 1}" data-page="${pageNum}"/>
+            <img src="${pageInfo.imageData}" class="pdf-page" alt="Page ${pageNum + 1}" data-page="${pageNum}" style="width: 100%; height: 100%;"/>
         `;
-        
+
         // Update actual height
         pageDiv.style.minHeight = '';
     } catch (error) {
@@ -52,14 +63,10 @@ export async function loadPage(pageNum, pageDiv, activePDF) {
     }
 }
 
-/**
- * Load remaining pages in background (non-blocking)
- */
 export async function loadRemainingPagesInBackground(activePDF) {
     const viewer = document.getElementById('pdfViewer');
     const pageDivs = viewer.querySelectorAll('.pdf-page-container');
-    
-    // Load pages in batches to not block UI
+
     for (let i = 0; i < activePDF.totalPages; i++) {
         if (!activePDF.renderedPages.has(i) && !state.loadingPages.has(i)) {
             const pageDiv = pageDivs[i];
@@ -73,7 +80,7 @@ export async function loadRemainingPagesInBackground(activePDF) {
                         updateStatus(`Loaded ${loaded}/${activePDF.totalPages} pages in background`);
                     }
                 });
-                
+
                 // Small delay between pages to keep UI responsive
                 if (i % 3 === 0) {
                     await new Promise(resolve => setTimeout(resolve, 10));
@@ -89,36 +96,36 @@ export async function loadRemainingPagesInBackground(activePDF) {
 export function updateCurrentPageFromScroll() {
     const activePDF = getActivePDF();
     if (!activePDF) return;
-    
+
     const viewer = document.getElementById('pdfViewer');
     const pages = viewer.querySelectorAll('.pdf-page');
-    
+
     let closestPage = 0;
     let minDistance = Infinity;
-    
+
     pages.forEach((page, index) => {
         const rect = page.getBoundingClientRect();
         const distance = Math.abs(rect.top);
-        
+
         if (distance < minDistance) {
             minDistance = distance;
             closestPage = index;
         }
     });
-    
+
     if (activePDF && closestPage !== activePDF.currentPage) {
         activePDF.currentPage = closestPage;
-        
+
         // Update active page in sidebar
         document.querySelectorAll('.page-item').forEach((el, idx) => {
             el.classList.toggle('active', idx === activePDF.currentPage);
         });
     }
-    
+
     // Update status bar
     if (activePDF) {
         updatePageIndicator(activePDF.currentPage + 1, activePDF.totalPages);
-        
+
         // Calculate scroll progress
         const scrollTop = viewer.scrollTop;
         const scrollHeight = viewer.scrollHeight - viewer.clientHeight;

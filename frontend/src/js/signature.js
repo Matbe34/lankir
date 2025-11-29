@@ -26,16 +26,16 @@ function getCertTypeName(source) {
 export async function signPDF() {
     try {
         updateStatus('Preparing to sign PDF...');
-        
+
         const activePDF = getActivePDF();
         if (!activePDF) {
             updateStatus('No PDF loaded');
             return;
         }
-        
+
         // Load and show profile selection first
         await showProfileSelection(activePDF.filePath);
-        
+
     } catch (error) {
         console.error('Error signing PDF:', error);
         updateStatus('Error signing PDF');
@@ -52,11 +52,11 @@ async function showProfileSelection(pdfPath) {
     const nextBtn = document.getElementById('profileDialogNext');
     const cancelBtn = document.getElementById('profileDialogCancel');
     const closeBtn = document.getElementById('profileDialogClose');
-    
+
     try {
         // Show dialog
         dialog.classList.remove('hidden');
-        
+
         // Load signature profiles
         const profiles = await window.go.signature.SignatureService.ListSignatureProfiles();
 
@@ -65,18 +65,18 @@ async function showProfileSelection(pdfPath) {
             const defaultLabel = profile.isDefault ? ' (Default)' : '';
             return `<option value="${profile.id}" ${profile.isDefault ? 'selected' : ''}>${profile.name}${defaultLabel}</option>`;
         }).join('');
-        
+
         // Store in state for later use
         state.availableProfiles = profiles;
         state.pdfPath = pdfPath;
-        
+
         // Select default profile
         const defaultProfile = profiles.find(p => p.isDefault) || profiles[0];
         if (defaultProfile) {
             state.selectedProfile = defaultProfile;
             profileDescription.textContent = defaultProfile.description;
         }
-        
+
         // Handle profile selection change
         profileSelect.onchange = (e) => {
             const profileId = e.target.value;
@@ -86,28 +86,28 @@ async function showProfileSelection(pdfPath) {
                 profileDescription.textContent = selectedProfile.description;
             }
         };
-        
+
         // Handle next button
         nextBtn.onclick = async () => {
             dialog.classList.add('hidden');
-            
+
             if (state.selectedProfile.visibility === 'visible') {
                 await showSignaturePlacement(pdfPath, state.selectedProfile);
             } else {
                 await showCertificateDialog(pdfPath);
             }
         };
-        
+
         // Handle cancel/close
         const closeDialog = () => {
             dialog.classList.add('hidden');
             state.selectedProfile = null;
             state.pdfPath = null;
         };
-        
+
         cancelBtn.onclick = closeDialog;
         closeBtn.onclick = closeDialog;
-        
+
     } catch (error) {
         console.error('Error loading profiles:', error);
         await showMessage(`Error loading signature profiles:\n\n${error}`, 'Error', 'error');
@@ -123,10 +123,10 @@ async function showSignaturePlacement(pdfPath, profile) {
     const confirmBtn = document.getElementById('placementConfirm');
     const cancelBtn = document.getElementById('placementCancel');
     const pdfViewer = document.getElementById('pdfViewer');
-    
+
     // Show overlay
     overlay.classList.remove('hidden');
-    
+
     // State for signature placement
     let isDrawing = false;
     let isDragging = false;
@@ -134,26 +134,26 @@ async function showSignaturePlacement(pdfPath, profile) {
     let startX = 0;
     let startY = 0;
     let rectData = null;
-    
+
     // Get PDF viewer bounds and current page
     const viewerRect = pdfViewer.getBoundingClientRect();
     const activePDF = getActivePDF();
-    
+
     // Mouse down - start drawing
     const onMouseDown = (e) => {
         if (e.target.closest('.placement-header') || e.target.closest('.btn')) {
             return;
         }
-        
+
         const rect = rectangle.getBoundingClientRect();
-        const isOnRect = !rectangle.classList.contains('hidden') && 
-                        e.clientX >= rect.left && e.clientX <= rect.right &&
-                        e.clientY >= rect.top && e.clientY <= rect.bottom;
-        
+        const isOnRect = !rectangle.classList.contains('hidden') &&
+            e.clientX >= rect.left && e.clientX <= rect.right &&
+            e.clientY >= rect.top && e.clientY <= rect.bottom;
+
         // Check if clicking on resize handle
-        const isOnHandle = isOnRect && 
-                          e.clientX >= rect.right - 20 && e.clientY >= rect.bottom - 20;
-        
+        const isOnHandle = isOnRect &&
+            e.clientX >= rect.right - 20 && e.clientY >= rect.bottom - 20;
+
         if (isOnHandle) {
             isResizing = true;
             startX = e.clientX;
@@ -173,7 +173,7 @@ async function showSignaturePlacement(pdfPath, profile) {
             rectangle.classList.remove('hidden');
         }
     };
-    
+
     // Mouse move - update rectangle
     const onMouseMove = (e) => {
         if (isDrawing) {
@@ -195,21 +195,21 @@ async function showSignaturePlacement(pdfPath, profile) {
             startX = e.clientX;
             startY = e.clientY;
         }
-        
+
         // Enable confirm button if rectangle has size
         if (!rectangle.classList.contains('hidden')) {
             const rect = rectangle.getBoundingClientRect();
             confirmBtn.disabled = rect.width < 10 || rect.height < 5;
         }
     };
-    
+
     // Mouse up - finish drawing
     const onMouseUp = () => {
         isDrawing = false;
         isDragging = false;
         isResizing = false;
     };
-    
+
     // Cleanup function
     const cleanup = () => {
         document.removeEventListener('mousedown', onMouseDown);
@@ -218,31 +218,31 @@ async function showSignaturePlacement(pdfPath, profile) {
         overlay.classList.add('hidden');
         rectangle.classList.add('hidden');
     };
-    
+
     // Event listeners
     document.addEventListener('mousedown', onMouseDown);
     document.addEventListener('mousemove', onMouseMove);
     document.addEventListener('mouseup', onMouseUp);
-    
+
     // Cancel button
     cancelBtn.onclick = () => {
         cleanup();
         updateStatus('Signature placement cancelled');
     };
-    
+
     // Confirm button
     confirmBtn.onclick = async () => {
         try {
             const rect = rectangle.getBoundingClientRect();
-            
+
             // Convert screen coordinates to PDF coordinates
             const pdfCoords = await convertScreenToPDFCoordinates(rect, viewerRect, activePDF);
-            
+
             // Store position in state
             state.signaturePosition = pdfCoords;
-            
+
             cleanup();
-            
+
             // Continue to certificate selection
             await showCertificateDialog(pdfPath);
         } catch (error) {
@@ -260,11 +260,11 @@ async function convertScreenToPDFCoordinates(rect, viewerRect, activePDF) {
     try {
         // Get the current zoom level
         const zoom = state.zoomLevel || 1.0;
-        
+
         // Determine which page - find the page that contains the signature rectangle
         let targetPage = 1;
         let targetPageImg = null;
-        
+
         // Check all visible pages to find which one contains the signature
         const allPageImgs = document.querySelectorAll('.pdf-page');
         for (const pageImg of allPageImgs) {
@@ -281,39 +281,39 @@ async function convertScreenToPDFCoordinates(rect, viewerRect, activePDF) {
                 break;
             }
         }
-        
+
         // If no page found, use current page
         if (!targetPageImg) {
             targetPage = activePDF?.currentPage >= 0 ? activePDF.currentPage + 1 : 1;
             targetPageImg = document.querySelector('.pdf-page');
         }
-        
+
         if (!targetPageImg) {
             return fallbackCoordinateConversion(rect, viewerRect, zoom, targetPage);
         }
-        
+
         // Get actual page dimensions from backend
         const dimensions = await window.go.pdf.PDFService.GetPageDimensions(targetPage - 1);
         const pdfWidth = dimensions.width;
         const pdfHeight = dimensions.height;
-        
+
         const imgRect = targetPageImg.getBoundingClientRect();
-        
+
         // Calculate scaling between rendered image and PDF points
         const scaleX = pdfWidth / imgRect.width;
         const scaleY = pdfHeight / imgRect.height;
-        
+
         // Calculate position relative to the PDF page image
         const relativeX = rect.left - imgRect.left;
         const relativeY = rect.top - imgRect.top;
-        
+
         // Convert to PDF coordinates (origin at bottom-left)
         // The Y coordinate must be from the BOTTOM of the page
         const x = relativeX * scaleX;
         const y = pdfHeight - (relativeY * scaleY) - (rect.height * scaleY);
         const width = rect.width * scaleX;
         const height = rect.height * scaleY;
-        
+
         console.log('Coordinate conversion:', {
             screen: { x: rect.left, y: rect.top, w: rect.width, h: rect.height },
             img: { x: imgRect.left, y: imgRect.top, w: imgRect.width, h: imgRect.height },
@@ -322,7 +322,7 @@ async function convertScreenToPDFCoordinates(rect, viewerRect, activePDF) {
             pdfDims: { w: pdfWidth, h: pdfHeight },
             pdf: { x, y, width, height, page: targetPage }
         });
-        
+
         return {
             page: targetPage,
             x: Math.max(0, Math.min(x, pdfWidth - width)),
@@ -345,15 +345,15 @@ async function convertScreenToPDFCoordinates(rect, viewerRect, activePDF) {
 function fallbackCoordinateConversion(rect, viewerRect, zoom, page) {
     const pdfWidth = 595;
     const pdfHeight = 842;
-    
+
     const relativeX = rect.left - viewerRect.left;
     const relativeY = rect.top - viewerRect.top;
-    
+
     const x = (relativeX / zoom);
     const y = pdfHeight - (relativeY / zoom) - (rect.height / zoom);
     const width = rect.width / zoom;
     const height = rect.height / zoom;
-    
+
     return {
         page: page,
         x: Math.max(0, x),
@@ -372,13 +372,13 @@ export async function showCertificateDialog(pdfPath) {
     const pinSection = document.getElementById('pinInputSection');
     const pinInput = document.getElementById('pinInput');
     const signBtn = document.getElementById('certDialogSign');
-    
+
     // Reset certificate state (keep profile from previous step)
     state.selectedCertificate = null;
     pinInput.value = '';
     pinSection.classList.add('hidden');
     signBtn.disabled = true;
-    
+
     // Show loading state
     listContainer.innerHTML = `
         <div class="empty-state">
@@ -386,14 +386,14 @@ export async function showCertificateDialog(pdfPath) {
             <p>Loading certificates...</p>
         </div>
     `;
-    
+
     // Show dialog
     dialog.classList.remove('hidden');
-    
+
     try {
         // Load certificates from backend
         const certificates = await window.go.signature.SignatureService.ListCertificates();
-        
+
         if (!certificates || certificates.length === 0) {
             listContainer.innerHTML = `
                 <div class="empty-state">
@@ -405,15 +405,15 @@ export async function showCertificateDialog(pdfPath) {
             `;
             return;
         }
-        
+
         // Filter to show certificates, exclude root CAs (self-signed)
         const signingCerts = certificates.filter(cert => {
             // Exclude root CAs (self-signed certificates where issuer == subject)
             if (cert.issuer === cert.subject) return false;
-            
+
             return true;
         });
-        
+
         // Sort: signable certificates first, then by validity
         signingCerts.sort((a, b) => {
             // First priority: can sign + valid
@@ -421,18 +421,18 @@ export async function showCertificateDialog(pdfPath) {
             const bCanUse = b.canSign && b.isValid;
             if (aCanUse && !bCanUse) return -1;
             if (!aCanUse && bCanUse) return 1;
-            
+
             // Second priority: can sign (even if expired)
             if (a.canSign && !b.canSign) return -1;
             if (!a.canSign && b.canSign) return 1;
-            
+
             // Third priority: valid (even if can't sign)
             if (a.isValid && !b.isValid) return -1;
             if (!a.isValid && b.isValid) return 1;
-            
+
             return 0;
         });
-        
+
         if (signingCerts.length === 0) {
             listContainer.innerHTML = `
                 <div class="empty-state">
@@ -444,15 +444,15 @@ export async function showCertificateDialog(pdfPath) {
             `;
             return;
         }
-        
+
         // Count usable certificates
         const usableCerts = signingCerts.filter(c => c.canSign && c.isValid).length;
-        
+
         console.log(`Found ${signingCerts.length} certificates, ${usableCerts} can be used for signing`);
-        
+
         // Render certificate list
         renderCertificateList(signingCerts, pdfPath);
-        
+
     } catch (error) {
         console.error('Error loading certificates:', error);
         listContainer.innerHTML = `
@@ -473,16 +473,16 @@ export function renderCertificateList(certificates, pdfPath) {
     const listContainer = document.getElementById('certificateListContainer');
     const pinSection = document.getElementById('pinInputSection');
     const signBtn = document.getElementById('certDialogSign');
-    
+
     const html = `
         <div class="certificate-list">
             ${certificates.map(cert => {
-                const canUse = cert.isValid && cert.canSign;
-                const disabledClass = !canUse ? 'invalid' : '';
-                const disabledReason = !cert.isValid ? 'Certificate expired or not yet valid' : 
-                                      !cert.canSign ? 'Certificate does not have private key for signing' : '';
-                
-                return `
+        const canUse = cert.isValid && cert.canSign;
+        const disabledClass = !canUse ? 'invalid' : '';
+        const disabledReason = !cert.isValid ? 'Certificate expired or not yet valid' :
+            !cert.canSign ? 'Certificate does not have private key for signing' : '';
+
+        return `
                 <div class="certificate-item ${disabledClass}" data-fingerprint="${cert.fingerprint}" ${disabledReason ? `title="${disabledReason}"` : ''}>
                     <div class="cert-header">
                         <div>
@@ -517,32 +517,32 @@ export function renderCertificateList(certificates, pdfPath) {
             `}).join('')}
         </div>
     `;
-    
+
     listContainer.innerHTML = html;
-    
+
     // Add click handlers to certificate items (only valid ones with private keys)
     const certItems = listContainer.querySelectorAll('.certificate-item:not(.invalid)');
     certItems.forEach(item => {
         item.addEventListener('click', () => {
             // Deselect all
             certItems.forEach(i => i.classList.remove('selected'));
-            
+
             // Select this one
             item.classList.add('selected');
-            
+
             // Store selected certificate
             const fingerprint = item.dataset.fingerprint;
             state.selectedCertificate = certificates.find(c => c.fingerprint === fingerprint);
-            
+
             // Show PIN input and enable sign button
             pinSection.classList.remove('hidden');
             signBtn.disabled = false;
-            
+
             // Focus PIN input
             document.getElementById('pinInput').focus();
         });
     });
-    
+
     // Store pdfPath for signing
     signBtn.dataset.pdfPath = pdfPath;
 }
@@ -566,31 +566,31 @@ export async function performSigning() {
     const pdfPath = signBtn.dataset.pdfPath;
     const pinInput = document.getElementById('pinInput');
     const pin = pinInput.value;
-    
+
     if (!state.selectedCertificate) {
         updateStatus('No certificate selected');
         return;
     }
-    
+
     if (!state.selectedProfile) {
         updateStatus('No signature profile selected');
         return;
     }
-    
+
     if (!pin) {
         await showMessage('Please enter your PIN', 'PIN Required', 'warning');
         pinInput.focus();
         return;
     }
-    
+
     try {
         // Disable button and show loading
         signBtn.disabled = true;
         signBtn.innerHTML = '<span class="loading-spinner"></span> Signing...';
         updateStatus('Signing PDF...');
-        
+
         let signedPath;
-        
+
         // Call backend to sign PDF with selected profile and position (if visible)
         if (state.signaturePosition && state.selectedProfile.visibility === 'visible') {
             // Sign with custom position
@@ -610,18 +610,18 @@ export async function performSigning() {
                 state.selectedProfile.id
             );
         }
-        
+
         // Close dialog
         closeCertificateDialog();
-        
+
         // Clear state
         state.signaturePosition = null;
         state.pdfPath = null;
-        
+
         // Show success message
         const profileType = state.selectedProfile.visibility === 'visible' ? 'visible' : 'invisible';
         updateStatus(`PDF signed successfully with ${profileType} signature: ${signedPath}`);
-        
+
         // Optionally open the signed PDF
         const openSigned = await showConfirm(
             `PDF signed successfully with ${profileType} signature!\n\nSigned file: ${signedPath}\n\nWould you like to open the signed PDF?`,
@@ -630,12 +630,12 @@ export async function performSigning() {
         if (openSigned) {
             await openSignedPDF(signedPath);
         }
-        
+
     } catch (error) {
         console.error('Error signing PDF:', error);
         await showMessage(`Error signing PDF:\n\n${error}`, 'Signature Error', 'error');
         updateStatus('Error signing PDF');
-        
+
         // Re-enable button
         signBtn.disabled = false;
         signBtn.innerHTML = 'Sign PDF';

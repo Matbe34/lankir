@@ -5,20 +5,17 @@ import (
 	"encoding/base64"
 	"fmt"
 	"image/png"
-	"os"
-	"os/exec"
-	"path/filepath"
 )
 
 // RenderPageWithAnnotations renders a PDF page including all annotations and signature widgets
-// This uses pdftocairo which properly renders annotations, unlike go-fitz's ImageDPI
+// This uses go-fitz which properly renders annotations
 func (s *PDFService) renderPageWithAnnotations(pageNum int, dpi float64) (*PageInfo, error) {
 	s.mu.RLock()
-	filePath := s.currentFile
+	doc := s.doc
 	totalPages := s.pageCount
 	s.mu.RUnlock()
 
-	if filePath == "" {
+	if doc == nil {
 		return nil, fmt.Errorf("no PDF document is open")
 	}
 
@@ -26,56 +23,21 @@ func (s *PDFService) renderPageWithAnnotations(pageNum int, dpi float64) (*PageI
 		return nil, fmt.Errorf("invalid page number: %d (document has %d pages)", pageNum, totalPages)
 	}
 
-	// Create temporary directory for rendered output
-	tmpDir, err := os.MkdirTemp("", "pdf_render_*")
+	// Render the page with annotations using go-fitz
+	// ImageDPI renders the page at the specified DPI
+	img, err := doc.ImageDPI(pageNum, dpi)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create temp directory: %w", err)
-	}
-	defer os.RemoveAll(tmpDir)
-
-	outputPath := filepath.Join(tmpDir, "page")
-
-	// pdftocairo pages are 1-indexed, our pageNum is 0-indexed
-	pageNumStr := fmt.Sprintf("%d", pageNum+1)
-
-	// Use pdftocairo to render the page with annotations
-	// -png: output as PNG
-	// -f: first page to render
-	// -l: last page to render
-	// -r: resolution in DPI
-	// -singlefile: output a single file (not page-NN.png)
-	cmd := exec.Command("pdftocairo",
-		"-png",
-		"-f", pageNumStr,
-		"-l", pageNumStr,
-		"-r", fmt.Sprintf("%.0f", dpi),
-		"-singlefile",
-		filePath,
-		outputPath,
-	)
-
-	var stderr bytes.Buffer
-	cmd.Stderr = &stderr
-
-	if err := cmd.Run(); err != nil {
-		return nil, fmt.Errorf("pdftocairo failed: %w, stderr: %s", err, stderr.String())
+		return nil, fmt.Errorf("failed to render page: %w", err)
 	}
 
-	// Read the generated PNG file
-	pngPath := outputPath + ".png"
-	pngData, err := os.ReadFile(pngPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read rendered PNG: %w", err)
-	}
-
-	// Decode PNG to get dimensions
-	img, err := png.Decode(bytes.NewReader(pngData))
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode PNG: %w", err)
+	// Encode to PNG
+	var buf bytes.Buffer
+	if err := png.Encode(&buf, img); err != nil {
+		return nil, fmt.Errorf("failed to encode PNG: %w", err)
 	}
 
 	// Convert to base64
-	base64Data := base64.StdEncoding.EncodeToString(pngData)
+	base64Data := base64.StdEncoding.EncodeToString(buf.Bytes())
 
 	bounds := img.Bounds()
 	return &PageInfo{

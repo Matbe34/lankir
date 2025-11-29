@@ -1,66 +1,69 @@
-// Zoom Module
-// Handles zoom functionality for PDF viewing
-
 import { state, setZoomLevel, getActivePDF } from './state.js';
 import { updateZoomDisplay } from './utils.js';
 
-/**
- * Change zoom level by delta
- */
+
 export function changeZoom(delta) {
-    const newZoom = Math.max(0.5, Math.min(3.0, state.zoomLevel + delta));
+    const newZoom = Math.max(0.1, Math.min(3.0, state.zoomLevel + delta));
     state.zoomLevel = newZoom;
-    
-    // Save zoom to current PDF
+
     const activePDF = getActivePDF();
     if (activePDF) {
         activePDF.zoomLevel = newZoom;
     }
-    
+
     updateZoomDisplay(newZoom);
-    
+
     const containers = document.querySelectorAll('.pdf-page-container');
     if (containers.length > 0) {
         containers.forEach(container => {
-            container.style.transform = `scale(${newZoom})`;
+            const originalWidth = parseFloat(container.dataset.width);
+            const originalHeight = parseFloat(container.dataset.height);
+
+            if (!isNaN(originalWidth) && !isNaN(originalHeight)) {
+                container.style.width = `${originalWidth * newZoom}px`;
+                container.style.height = `${originalHeight * newZoom}px`;
+                container.style.transform = 'none';
+            } else {
+                container.style.transform = `scale(${newZoom})`;
+            }
         });
     }
 }
 
-/**
- * Set zoom level from input value
- */
 export function setZoomFromInput(value) {
     const percentage = parseInt(value);
-    if (isNaN(percentage) || percentage < 50 || percentage > 300) {
-        // Reset to current value if invalid
+    if (isNaN(percentage) || percentage < 10 || percentage > 300) {
         updateZoomDisplay(state.zoomLevel);
         return;
     }
-    
+
     const newZoom = percentage / 100;
     state.zoomLevel = newZoom;
-    
-    // Save zoom to current PDF
+
     const activePDF = getActivePDF();
     if (activePDF) {
         activePDF.zoomLevel = newZoom;
     }
-    
+
     updateZoomDisplay(newZoom);
-    
-    // Re-render current view with new zoom
+
     const containers = document.querySelectorAll('.pdf-page-container');
     if (containers.length > 0) {
         containers.forEach(container => {
-            container.style.transform = `scale(${newZoom})`;
+            const originalWidth = parseFloat(container.dataset.width);
+            const originalHeight = parseFloat(container.dataset.height);
+
+            if (!isNaN(originalWidth) && !isNaN(originalHeight)) {
+                container.style.width = `${originalWidth * newZoom}px`;
+                container.style.height = `${originalHeight * newZoom}px`;
+                container.style.transform = 'none';
+            } else {
+                container.style.transform = `scale(${newZoom})`;
+            }
         });
     }
 }
 
-/**
- * Update zoom controls in UI
- */
 export function updateZoomControls() {
     updateZoomDisplay(state.zoomLevel);
 }

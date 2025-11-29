@@ -1,6 +1,3 @@
-// Main Application Entry Point
-// Initializes the PDF Editor application
-
 import { initializeUI } from './ui.js';
 import { updateStatus } from './utils.js';
 import { loadRecentFilesWelcome } from './recentFiles.js';
@@ -11,39 +8,34 @@ import { changeZoom } from './zoom.js';
 import { switchToTab } from './pdfManager.js';
 import { initMessageDialog } from './messageDialog.js';
 import { initSettings, getSetting } from './settings.js';
+import { themeManager } from './themeManager.js';
 
-/**
- * Initialize application when DOM is ready
- */
+
 document.addEventListener('DOMContentLoaded', async () => {
     initializeUI();
     initMessageDialog();
     await initSettings();
+    await themeManager.init();
     updateStatus('Ready');
     loadRecentFilesWelcome();
-    
-    // Hide sidebars on initial load (home screen)
+
     const leftSidebar = document.getElementById('leftSidebar');
     const rightSidebar = document.getElementById('rightSidebar');
     const expandLeft = document.getElementById('expandLeft');
     const expandRight = document.getElementById('expandRight');
-    
+
     if (leftSidebar) leftSidebar.style.display = 'none';
     if (rightSidebar) rightSidebar.style.display = 'none';
     if (expandLeft) expandLeft.style.display = 'none';
     if (expandRight) expandRight.style.display = 'none';
 
-    // Global keyboard shortcuts
     document.addEventListener('keydown', async (e) => {
         try {
-            // Don't intercept when user is typing in an input/textarea or contentEditable
             const active = document.activeElement;
             const isTyping = active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.isContentEditable);
 
-            // Get configured shortcuts
             const cfg = getSetting('shortcuts') || {};
 
-            // Helper: match event against a shortcut string like "Control+o" or "Alt+s" or "Control+Plus"
             const matchShortcut = (ev, shortcutStr) => {
                 if (!shortcutStr) return false;
                 const parts = shortcutStr.split('+').map(p => p.trim()).filter(Boolean);
@@ -143,7 +135,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             // Escape: always close current modal (special, not configurable)
             if (e.key === 'Escape' || e.key === 'Esc') {
-                // Order: signature placement overlay -> cert dialog -> profile dialog -> settings -> message dialog
+                // Order: signature placement overlay -> cert dialog -> profile dialog -> profile editor -> settings -> message dialog
                 // 1) Signature placement: trigger cancel button if present
                 const placementOverlay = document.getElementById('signaturePlacementOverlay');
                 if (placementOverlay && !placementOverlay.classList.contains('hidden')) {
@@ -157,68 +149,89 @@ document.addEventListener('DOMContentLoaded', async () => {
                     return;
                 }
 
-                    // 2) Certificate dialog
-                    const certDialog = document.getElementById('certDialog');
-                    if (certDialog && !certDialog.classList.contains('hidden')) {
+                // 2) Certificate dialog
+                const certDialog = document.getElementById('certDialog');
+                if (certDialog && !certDialog.classList.contains('hidden')) {
+                    try {
+                        const { closeCertificateDialog } = await import('./signature.js');
+                        closeCertificateDialog();
+                    } catch (e) {
+                        certDialog.classList.add('hidden');
+                    }
+                    return;
+                }
+
+                // 3) Profile dialog
+                const profileDialog = document.getElementById('profileDialog');
+                if (profileDialog && !profileDialog.classList.contains('hidden')) {
+                    const cancelBtn = document.getElementById('profileDialogCancel') || document.getElementById('profileDialogClose');
+                    if (cancelBtn) {
+                        cancelBtn.click();
+                    } else {
+                        profileDialog.classList.add('hidden');
+                        // clear signature-related state if available
                         try {
-                            const { closeCertificateDialog } = await import('./signature.js');
-                            closeCertificateDialog();
-                        } catch (e) {
-                            certDialog.classList.add('hidden');
-                        }
-                        return;
+                            const { state } = await import('./state.js');
+                            state.selectedProfile = null;
+                            state.pdfPath = null;
+                        } catch (_) { }
                     }
+                    return;
+                }
 
-                    // 3) Profile dialog
-                    const profileDialog = document.getElementById('profileDialog');
-                    if (profileDialog && !profileDialog.classList.contains('hidden')) {
-                        const cancelBtn = document.getElementById('profileDialogCancel') || document.getElementById('profileDialogClose');
-                        if (cancelBtn) {
-                            cancelBtn.click();
-                        } else {
-                            profileDialog.classList.add('hidden');
-                            // clear signature-related state if available
-                            try {
-                                const { state } = await import('./state.js');
-                                state.selectedProfile = null;
-                                state.pdfPath = null;
-                            } catch (_) {}
-                        }
-                        return;
+                // 4) Profile editor modal (signature profile create/edit)
+                const profileEditorModal = document.getElementById('profileEditorModal');
+                if (profileEditorModal && !profileEditorModal.classList.contains('hidden')) {
+                    const cancelBtn = document.getElementById('profileEditorCancel') || document.getElementById('profileEditorClose');
+                    if (cancelBtn) {
+                        cancelBtn.click();
+                    } else {
+                        profileEditorModal.classList.add('hidden');
                     }
+                    return;
+                }
 
-                    // 4) Settings modal
-                    const settingsModal = document.getElementById('settingsModal');
-                    if (settingsModal && !settingsModal.classList.contains('hidden')) {
-                        const closeBtn = document.getElementById('settingsModalClose') || document.getElementById('settingsCancel');
-                        if (closeBtn) {
-                            closeBtn.click();
-                        } else {
-                            settingsModal.classList.add('hidden');
-                        }
-                        return;
+                // 5) Settings modal
+                const settingsModal = document.getElementById('settingsModal');
+                if (settingsModal && !settingsModal.classList.contains('hidden')) {
+                    const closeBtn = document.getElementById('settingsModalClose') || document.getElementById('settingsCancel');
+                    if (closeBtn) {
+                        closeBtn.click();
+                    } else {
+                        settingsModal.classList.add('hidden');
                     }
+                    return;
+                }
 
-                    // 5) Generic message dialog
-                    const messageDialog = document.getElementById('messageDialog');
-                    if (messageDialog && !messageDialog.classList.contains('hidden')) {
-                        const closeBtn = document.getElementById('messageDialogClose') || document.getElementById('messageDialogOk');
-                        if (closeBtn) {
-                            closeBtn.click();
-                        } else {
-                            messageDialog.classList.add('hidden');
-                        }
-                        return;
+                // 6) Generic message dialog
+                const messageDialog = document.getElementById('messageDialog');
+                if (messageDialog && !messageDialog.classList.contains('hidden')) {
+                    const closeBtn = document.getElementById('messageDialogClose') || document.getElementById('messageDialogOk');
+                    if (closeBtn) {
+                        closeBtn.click();
+                    } else {
+                        messageDialog.classList.add('hidden');
                     }
+                    return;
+                }
             }
         } catch (error) {
             // Swallow errors from keyboard handler to avoid breaking app
             console.error('Keyboard shortcut handler error:', error);
         }
     });
+
+    document.addEventListener('wheel', (e) => {
+        if (e.ctrlKey || e.metaKey) {
+            e.preventDefault();
+
+            const zoomDelta = e.deltaY > 0 ? -0.1 : 0.1;
+
+            changeZoom(zoomDelta);
+        }
+    }, { passive: false });
 });
 
-// Export API for potential external use or debugging
 window.pdfApp = {
     openPDFFile,
     signPDF,

@@ -43,7 +43,9 @@ export function getNextTabId() {
 export function getDefaultZoomLevel() {
     try {
         const settings = JSON.parse(localStorage.getItem('pdfEditorSettings') || '{}');
-        return (settings.defaultZoom || 100) / 100;
+        let zoom = (settings.defaultZoom || 100) / 100;
+        if (isNaN(zoom) || zoom < 0.1) zoom = 1.0;
+        return zoom;
     } catch {
         return 1.0;
     }
@@ -51,7 +53,6 @@ export function getDefaultZoomLevel() {
 
 export function addOpenPDF(tabId, pdfData) {
     state.openPDFs.set(tabId, pdfData);
-    // Set global zoom to this PDF's zoom
     state.zoomLevel = pdfData.zoomLevel;
 }
 
@@ -64,7 +65,7 @@ export function setActiveTab(tabId) {
 }
 
 export function setZoomLevel(level) {
-    state.zoomLevel = Math.max(0.5, Math.min(3.0, level));
+    state.zoomLevel = Math.max(0.1, Math.min(3.0, level));
     return state.zoomLevel;
 }
 
