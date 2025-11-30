@@ -351,11 +351,26 @@
 
   .profile-select {
     @apply w-full px-3 py-2 bg-bg-tertiary border border-border-color rounded text-text-primary text-base cursor-pointer;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%238b949e' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
+    background-size: 12px;
+    padding-right: 2.5rem;
+    color: var(--text-primary);
+    background-color: var(--bg-tertiary);
   }
 
   .profile-select:focus {
     @apply outline-none border-accent-blue;
     box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+  }
+
+  .profile-select option {
+    background-color: var(--bg-tertiary);
+    color: var(--text-primary);
   }
 
   .profile-description {
@@ -674,6 +689,7 @@
     @apply w-full max-w-md px-3 py-2.5 rounded-lg text-text-primary text-sm font-medium transition-all;
     background: var(--bg-tertiary);
     border: 1.5px solid var(--border-color);
+    color: var(--text-primary);
   }
 
   .setting-input:focus {
@@ -687,6 +703,40 @@
   .setting-input:hover:not(:focus) {
     border-color: var(--text-tertiary);
     background: var(--bg-elevated);
+  }
+
+  /* Select-specific styling */
+  .setting-input[type="text"],
+  .setting-input[type="number"],
+  .setting-input[type="password"] {
+    /* Text inputs already styled above */
+  }
+
+  select.setting-input {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%238b949e' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
+    background-size: 12px;
+    padding-right: 2.5rem;
+    cursor: pointer;
+    background-color: var(--bg-tertiary);
+    color: var(--text-primary);
+  }
+
+  select.setting-input option {
+    background-color: var(--bg-tertiary);
+    color: var(--text-primary);
+  }
+
+  :root[data-theme="light"] select.setting-input {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23656d76' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+  }
+
+  :root[data-theme="light"] .profile-select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23656d76' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
   }
 
   .setting-input-number {
