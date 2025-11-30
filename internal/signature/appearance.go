@@ -31,10 +31,9 @@ func CreateSignatureAppearance(profile *SignatureProfile, cert *Certificate, sig
 		return appearance
 	}
 
-	// Set position and page (Page is 1-indexed in pdfsign library)
 	page := profile.Position.Page
 	if page <= 0 {
-		page = 1 // Default to first page if not specified
+		page = 1
 	}
 	appearance.Page = uint32(page)
 

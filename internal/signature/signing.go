@@ -51,11 +51,6 @@ func (s *SignatureService) SignPDFWithProfileAndPosition(pdfPath string, certFin
 			positionOverride.Page = 1
 		}
 		profile.Position = *positionOverride
-
-		// Debug output
-		fmt.Printf("SIGNATURE POSITION: Page=%d X=%.2f Y=%.2f Width=%.2f Height=%.2f\n",
-			profile.Position.Page, profile.Position.X, profile.Position.Y,
-			profile.Position.Width, profile.Position.Height)
 	}
 
 	// Validate the profile
