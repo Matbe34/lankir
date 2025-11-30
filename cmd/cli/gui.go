@@ -1,0 +1,29 @@
+package cli
+
+import (
+	"fmt"
+	"os"
+
+	"github.com/spf13/cobra"
+)
+
+var guiCmd = &cobra.Command{
+	Use:   "gui",
+	Short: "Launch the graphical user interface",
+	Long:  `Launch the PDF Editor Pro graphical user interface (GUI).`,
+	Run: func(cmd *cobra.Command, args []string) {
+		fmt.Println("Launching GUI...")
+		if RunGUIFunc != nil {
+			RunGUIFunc()
+		} else {
+			fmt.Fprintln(os.Stderr, "Error: GUI mode is not available")
+			os.Exit(1)
+		}
+	},
+}
+
+var RunGUIFunc func()
+
+func init() {
+	rootCmd.AddCommand(guiCmd)
+}

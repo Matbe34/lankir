@@ -4,30 +4,46 @@ A modern, high-performance PDF editor for Linux built with Go and Wails.
 
 ## 🚀 Features
 
-### Current (v0.1.0)
-- Modern desktop application interface
-- Basic project structure and architecture
+### Current
+- ✅ **Desktop application** with Wails GUI
+- ✅ **Powerful CLI tool** built with Cobra and slog
+  - Single binary for both GUI and CLI
+  - Structured logging with JSON support
+  - Full PDF operations via command line
+- ✅ **PDF Operations**
+  - View PDF metadata
+  - Render pages to PNG with custom DPI
+  - Generate thumbnails
+  - Get page dimensions
+- ✅ **Digital Signatures**
+  - Sign PDFs with X.509 certificates
+  - Support for PKCS#11 hardware tokens (smart cards, USB tokens)
+  - Support for PKCS#12 files (.p12, .pfx)
+  - Support for NSS databases (Firefox/Thunderbird)
+  - Signature verification with certificate chain validation
+  - Visible and invisible signatures
+  - Customizable signature profiles
+  - Position control for visible signatures
+- ✅ **Certificate Management**
+  - List certificates from all sources
+  - Search and filter certificates
+  - Detailed certificate information
+  - Validate certificate status and key usage
 
 ### Planned
 - **PDF Viewing & Editing**
-  - Open and view PDF documents
-  - Page navigation and zoom
+  - Enhanced PDF viewer in GUI
+  - Page navigation and zoom controls
   - Text selection and search
   - Annotations and comments
-  
-- **Digital Signatures** (Priority)
-  - Sign PDFs with X.509 certificates
-  - Support for PKCS#11 hardware tokens
-  - Certificate management
-  - Signature verification
-  - Timestamp support
 
 - **Advanced Features**
+  - Timestamp support for signatures (TSA)
   - PDF creation and conversion
   - Form filling
   - Page manipulation (merge, split, rotate)
-  - OCR support
-  - Encryption and permissions
+  - Encryption and permissions management
+  - Watermark signatures
 
 ## 🏗️ Architecture
 
@@ -84,7 +100,7 @@ pdf_app/
 
 ### Installation
 
-1. **Install Wails CLI**:
+1. **Install Wails CLI** (for GUI development):
    ```bash
    go install github.com/wailsapp/wails/v2/cmd/wails@latest
    ```
@@ -98,13 +114,30 @@ pdf_app/
 3. **Build the application**:
    ```bash
    wails build
+   # The binary will be in ./build/bin/
+
+   # Or build CLI-only binary (faster, no GUI dependencies)
+   go build -o pdf-app .
+   ```
+
+4. **Install to system** (optional):
+   ```bash
+   sudo cp build/bin/pdf_app /usr/local/bin/pdf-app
+   # Or for CLI-only build:
+   # sudo cp pdf-app /usr/local/bin/
    ```
 
 ### Development
 
-Run in development mode with hot reload:
+Run GUI in development mode with hot reload:
 ```bash
 wails dev
+```
+
+Test CLI commands during development:
+```bash
+go run . --help
+go run . pdf info document.pdf
 ```
 
 ### Building for Production
@@ -113,7 +146,8 @@ wails dev
 # Build optimized binary
 wails build -clean
 
-# The binary will be in ./build/bin/
+# Build CLI-only (lightweight, no Wails dependencies)
+go build -ldflags="-s -w" -o pdf-app .
 ```
 
 ## 📦 Project Status
@@ -135,14 +169,140 @@ This is the initial project setup. The following components are in place:
 4. Add certificate management
 5. Implement digital signature support
 
+## 💻 Command Line Interface (CLI)
+
+PDF Editor Pro includes a powerful CLI built with Cobra and slog. The same binary works as both GUI and CLI:
+
+- **Run without arguments**: Launches the GUI
+- **Run with arguments**: Executes CLI commands
+
+### CLI Usage
+
+```bash
+# Launch GUI (default when no arguments)
+./pdf-app
+# Or explicitly
+./pdf-app gui
+
+# Show help
+./pdf-app --help
+
+# Enable verbose logging
+./pdf-app --verbose <command>
+
+# JSON output (for scripting)
+./pdf-app --json <command>
+```
+
+### PDF Operations
+
+```bash
+# Display PDF metadata
+pdf-app pdf info document.pdf
+pdf-app pdf info document.pdf --json
+
+# Show page dimensions
+pdf-app pdf pages document.pdf
+
+# Render a page to PNG
+pdf-app pdf render document.pdf --page 1 --dpi 300 --output page1.png
+
+# Generate thumbnail
+pdf-app pdf thumbnail document.pdf --width 400 --output thumb.png
+```
+
+### Certificate Management
+
+```bash
+# List all certificates
+pdf-app cert list
+
+# List only valid certificates
+pdf-app cert list --valid-only
+
+# Filter by source (system, user, pkcs11)
+pdf-app cert list --source pkcs11
+
+# Search certificates
+pdf-app cert search "John"
+
+# Show detailed certificate info
+pdf-app cert info <fingerprint>
+
+# JSON output for scripting
+pdf-app cert list --json
+```
+
+### Digital Signatures
+
+```bash
+# Sign a PDF with default invisible signature
+pdf-app sign pdf document.pdf --cert <fingerprint>
+
+# Sign with PIN prompt
+pdf-app sign pdf document.pdf --cert <fingerprint> --pin <pin>
+
+# Sign with a specific profile
+pdf-app sign pdf document.pdf --cert <fingerprint> --profile default-visible
+
+# Sign with custom visible signature position
+pdf-app sign pdf document.pdf --cert <fingerprint> \
+  --page 1 --x 400 --y 50 --width 200 --height 80
+
+# Specify output file
+pdf-app sign pdf document.pdf --cert <fingerprint> --output signed.pdf
+
+# Verify signatures in a PDF
+pdf-app sign verify document.pdf
+pdf-app sign verify document.pdf --json
+
+# List signature profiles
+pdf-app sign profile-list
+
+# Show profile details
+pdf-app sign profile-info default-visible
+```
+
+### Configuration
+
+```bash
+# View all configuration
+pdf-app config get
+
+# Get specific setting
+pdf-app config get theme
+
+# Set configuration value
+pdf-app config set theme dark
+pdf-app config set defaultZoom 150
+
+# Reset to defaults
+pdf-app config reset
+```
+
+### Logging
+
+The CLI uses structured logging with slog:
+
+```bash
+# Text logging (default)
+pdf-app --verbose pdf info document.pdf
+
+# JSON logging (for log aggregation)
+pdf-app --json --verbose pdf info document.pdf
+```
+
 ## 🔐 Digital Signature Support
 
-Digital signatures will support:
+Digital signatures support:
 - X.509 certificates from system keystores
-- PKCS#12 certificate files
+- PKCS#12 certificate files (.p12, .pfx)
 - PKCS#11 hardware tokens (smart cards, USB tokens)
+- NSS databases (Firefox/Thunderbird certificates)
 - PAdES (PDF Advanced Electronic Signatures) standard
-- Long-term validation (LTV)
+- Visible and invisible signatures
+- Signature profiles with customizable appearance
+- Signature verification with full certificate chain validation
 
 ## 🤝 Development Philosophy
 
@@ -166,13 +326,12 @@ TBD
 Add configurable settings:
 - Theme selection (light/dark and accent colors)
 - Default zoom level
-- Sidebar visibility
-- Recent files list length
 - Auto-save interval
 - Certificates storage location (allow multiple locations)
 - Token libraries paths (allow loading multiple PKCS#11 libraries to recognize different tokens)
 - Have several signature profiles (with different display options visible/not visible, visible signature contents like name, date, image...; certificates, etc.)
-- Be able to place visible signatures in different positions of the page (not only bottom left)
-- Keyboard shortcuts customization (have default ones but be able to change them)
 - Be able to fill PDF forms
 - Add OCR support for scanned documents (Maybe AI based?)
+
+
+option for watermark background signature

@@ -4,12 +4,14 @@ import (
 	"context"
 	"embed"
 	"log"
+	"os"
 
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
 	"github.com/wailsapp/wails/v2/pkg/options/linux"
 
+	"github.com/ferran/pdf_app/cmd/cli"
 	"github.com/ferran/pdf_app/internal/config"
 	"github.com/ferran/pdf_app/internal/pdf"
 	"github.com/ferran/pdf_app/internal/signature"
@@ -19,6 +21,17 @@ import (
 var assets embed.FS
 
 func main() {
+	cli.RunGUIFunc = runGUI
+
+	if len(os.Args) > 1 {
+		cli.Execute()
+		return
+	}
+
+	runGUI()
+}
+
+func runGUI() {
 	// Create an instance of the app structure
 	app := NewApp()
 
