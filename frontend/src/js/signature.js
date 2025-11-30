@@ -611,6 +611,9 @@ export async function performSigning() {
             );
         }
 
+        signBtn.disabled = false;
+        signBtn.innerHTML = 'Sign PDF';
+
         // Close dialog
         closeCertificateDialog();
 
