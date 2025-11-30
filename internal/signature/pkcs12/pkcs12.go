@@ -179,6 +179,36 @@ func parseCertificate(data []byte) (*x509.Certificate, error) {
 	return nil, fmt.Errorf("failed to parse certificate")
 }
 
+// CheckPKCS12RequiresPassword checks if a PKCS#12 file requires a password
+// Returns: requiresPassword, canOpenWithoutPassword, error
+func CheckPKCS12RequiresPassword(filePath string) (bool, error) {
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return true, fmt.Errorf("failed to read PKCS#12 file: %w", err)
+	}
+
+	// Try to decode with empty password
+	_, _, _, err = goPkcs12.DecodeChain(data, "")
+	if err == nil {
+		// Successfully decoded with empty password
+		return false, nil
+	}
+
+	// Check if it's a password error or a structural error
+	// If it's a password error, the file requires a password
+	// If it's a structural error, the file might be corrupted
+	errStr := err.Error()
+	if strings.Contains(errStr, "pkcs12: expected exactly two safe bags") ||
+		strings.Contains(errStr, "incorrect password") ||
+		strings.Contains(errStr, "decryption password incorrect") ||
+		strings.Contains(errStr, "MAC verification failed") {
+		return true, nil
+	}
+
+	// For other errors, assume password is required
+	return true, nil
+}
+
 // GetSignerFromPKCS12File loads a signer from a PKCS#12 file with password
 func GetSignerFromPKCS12File(filePath string, password string) (*Signer, error) {
 	data, err := os.ReadFile(filePath)

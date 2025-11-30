@@ -15,7 +15,9 @@ type Certificate struct {
 	PKCS11URL    string   `json:"pkcs11Url,omitempty"`
 	PKCS11Module string   `json:"pkcs11Module,omitempty"`
 	FilePath     string   `json:"filePath,omitempty"`
-	CanSign      bool     `json:"canSign"` // Indicates if this certificate has an associated private key for signing
+	CanSign      bool     `json:"canSign"`
+	RequiresPin  bool     `json:"requiresPin"`
+	PinOptional  bool     `json:"pinOptional"`
 }
 
 type SignatureInfo struct {

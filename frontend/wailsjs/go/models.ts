@@ -151,6 +151,8 @@ export namespace signature {
 	    pkcs11Module?: string;
 	    filePath?: string;
 	    canSign: boolean;
+	    requiresPin: boolean;
+	    pinOptional: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new Certificate(source);
@@ -173,6 +175,8 @@ export namespace signature {
 	        this.pkcs11Module = source["pkcs11Module"];
 	        this.filePath = source["filePath"];
 	        this.canSign = source["canSign"];
+	        this.requiresPin = source["requiresPin"];
+	        this.pinOptional = source["pinOptional"];
 	    }
 	}
 	export class CertificateFilter {

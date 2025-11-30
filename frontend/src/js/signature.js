@@ -369,14 +369,10 @@ function fallbackCoordinateConversion(rect, viewerRect, zoom, page) {
 export async function showCertificateDialog(pdfPath) {
     const dialog = document.getElementById('certDialog');
     const listContainer = document.getElementById('certificateListContainer');
-    const pinSection = document.getElementById('pinInputSection');
-    const pinInput = document.getElementById('pinInput');
     const signBtn = document.getElementById('certDialogSign');
 
     // Reset certificate state (keep profile from previous step)
     state.selectedCertificate = null;
-    pinInput.value = '';
-    pinSection.classList.add('hidden');
     signBtn.disabled = true;
 
     // Show loading state
@@ -471,7 +467,6 @@ export async function showCertificateDialog(pdfPath) {
  */
 export function renderCertificateList(certificates, pdfPath) {
     const listContainer = document.getElementById('certificateListContainer');
-    const pinSection = document.getElementById('pinInputSection');
     const signBtn = document.getElementById('certDialogSign');
 
     const html = `
@@ -534,12 +529,7 @@ export function renderCertificateList(certificates, pdfPath) {
             const fingerprint = item.dataset.fingerprint;
             state.selectedCertificate = certificates.find(c => c.fingerprint === fingerprint);
 
-            // Show PIN input and enable sign button
-            pinSection.classList.remove('hidden');
             signBtn.disabled = false;
-
-            // Focus PIN input
-            document.getElementById('pinInput').focus();
         });
     });
 
@@ -555,7 +545,61 @@ export function closeCertificateDialog() {
     dialog.classList.add('hidden');
     state.selectedCertificate = null;
     // Keep selectedProfile and signaturePosition for the signing workflow
-    document.getElementById('pinInput').value = '';
+}
+
+async function showPINDialog(certName, isOptional) {
+    return new Promise((resolve, reject) => {
+        const dialog = document.getElementById('pinDialog');
+        const input = document.getElementById('pinDialogInput');
+        const message = document.getElementById('pinDialogMessage');
+        const okBtn = document.getElementById('pinDialogOk');
+        const cancelBtn = document.getElementById('pinDialogCancel');
+        const closeBtn = document.getElementById('pinDialogClose');
+
+        if (isOptional) {
+            message.textContent = `Enter PIN/password for "${certName}" or leave empty if not required.`;
+        } else {
+            message.textContent = `Enter PIN/password for "${certName}".`;
+        }
+
+        input.value = '';
+        input.type = 'password';
+
+        dialog.classList.remove('hidden');
+        input.focus();
+
+        const handleOk = () => {
+            const pin = input.value;
+            cleanup();
+            resolve(pin);
+        };
+
+        const handleCancel = () => {
+            cleanup();
+            reject(new Error('PIN entry cancelled'));
+        };
+
+        const handleKeyPress = (e) => {
+            if (e.key === 'Enter') {
+                handleOk();
+            } else if (e.key === 'Escape') {
+                handleCancel();
+            }
+        };
+
+        const cleanup = () => {
+            dialog.classList.add('hidden');
+            input.removeEventListener('keypress', handleKeyPress);
+            okBtn.removeEventListener('click', handleOk);
+            cancelBtn.removeEventListener('click', handleCancel);
+            closeBtn.removeEventListener('click', handleCancel);
+        };
+
+        input.addEventListener('keypress', handleKeyPress);
+        okBtn.addEventListener('click', handleOk);
+        cancelBtn.addEventListener('click', handleCancel);
+        closeBtn.addEventListener('click', handleCancel);
+    });
 }
 
 /**
@@ -564,8 +608,6 @@ export function closeCertificateDialog() {
 export async function performSigning() {
     const signBtn = document.getElementById('certDialogSign');
     const pdfPath = signBtn.dataset.pdfPath;
-    const pinInput = document.getElementById('pinInput');
-    const pin = pinInput.value;
 
     if (!state.selectedCertificate) {
         updateStatus('No certificate selected');
@@ -577,38 +619,72 @@ export async function performSigning() {
         return;
     }
 
-    if (!pin) {
-        await showMessage('Please enter your PIN', 'PIN Required', 'warning');
-        pinInput.focus();
-        return;
-    }
-
     try {
-        // Disable button and show loading
         signBtn.disabled = true;
         signBtn.innerHTML = '<span class="loading-spinner"></span> Signing...';
         updateStatus('Signing PDF...');
 
+        let pin = '';
         let signedPath;
 
-        // Call backend to sign PDF with selected profile and position (if visible)
-        if (state.signaturePosition && state.selectedProfile.visibility === 'visible') {
-            // Sign with custom position
-            signedPath = await window.go.signature.SignatureService.SignPDFWithProfileAndPosition(
-                pdfPath,
-                state.selectedCertificate.fingerprint,
-                pin,
-                state.selectedProfile.id,
-                state.signaturePosition
-            );
-        } else {
-            // Sign with default profile settings
-            signedPath = await window.go.signature.SignatureService.SignPDFWithProfile(
-                pdfPath,
-                state.selectedCertificate.fingerprint,
-                pin,
-                state.selectedProfile.id
-            );
+        if (state.selectedCertificate.pinOptional && !state.selectedCertificate.requiresPin) {
+            try {
+                if (state.signaturePosition && state.selectedProfile.visibility === 'visible') {
+                    signedPath = await window.go.signature.SignatureService.SignPDFWithProfileAndPosition(
+                        pdfPath,
+                        state.selectedCertificate.fingerprint,
+                        '',
+                        state.selectedProfile.id,
+                        state.signaturePosition
+                    );
+                } else {
+                    signedPath = await window.go.signature.SignatureService.SignPDFWithProfile(
+                        pdfPath,
+                        state.selectedCertificate.fingerprint,
+                        '',
+                        state.selectedProfile.id
+                    );
+                }
+            } catch (error) {
+                try {
+                    pin = await showPINDialog(state.selectedCertificate.name, true);
+                } catch (pinError) {
+                    signBtn.disabled = false;
+                    signBtn.innerHTML = 'Sign PDF';
+                    return;
+                }
+                signedPath = null;
+            }
+        } else if (state.selectedCertificate.requiresPin) {
+            try {
+                pin = await showPINDialog(
+                    state.selectedCertificate.name,
+                    state.selectedCertificate.pinOptional
+                );
+            } catch (error) {
+                signBtn.disabled = false;
+                signBtn.innerHTML = 'Sign PDF';
+                return;
+            }
+        }
+
+        if (!signedPath) {
+            if (state.signaturePosition && state.selectedProfile.visibility === 'visible') {
+                signedPath = await window.go.signature.SignatureService.SignPDFWithProfileAndPosition(
+                    pdfPath,
+                    state.selectedCertificate.fingerprint,
+                    pin,
+                    state.selectedProfile.id,
+                    state.signaturePosition
+                );
+            } else {
+                signedPath = await window.go.signature.SignatureService.SignPDFWithProfile(
+                    pdfPath,
+                    state.selectedCertificate.fingerprint,
+                    pin,
+                    state.selectedProfile.id
+                );
+            }
         }
 
         signBtn.disabled = false;

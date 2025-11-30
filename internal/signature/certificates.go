@@ -42,11 +42,25 @@ func (s *SignatureService) ListCertificatesFiltered(filter CertificateFilter) ([
 					KeyUsage:     sc.KeyUsage,
 					IsValid:      sc.IsValid,
 					FilePath:     sc.FilePath,
+					RequiresPin:  false,
+					PinOptional:  false,
 				}
 				// Check if this is a PKCS#12 file (has private key)
 				if sc.FilePath != "" {
 					ext := strings.ToLower(filepath.Ext(sc.FilePath))
-					cert.CanSign = (ext == ".p12" || ext == ".pfx")
+					if ext == ".p12" || ext == ".pfx" {
+						cert.CanSign = true
+						// Check if PIN/password is required
+						requiresPin, err := pkcs12.CheckPKCS12RequiresPassword(sc.FilePath)
+						if err == nil {
+							cert.RequiresPin = requiresPin
+							cert.PinOptional = !requiresPin
+						} else {
+							// If we can't check, assume PIN is required for safety
+							cert.RequiresPin = true
+							cert.PinOptional = false
+						}
+					}
 				}
 				allCerts = append(allCerts, cert)
 			}
@@ -69,14 +83,32 @@ func (s *SignatureService) ListCertificatesFiltered(filter CertificateFilter) ([
 					KeyUsage:     uc.KeyUsage,
 					IsValid:      uc.IsValid,
 					FilePath:     uc.FilePath,
+					RequiresPin:  false,
+					PinOptional:  false,
 				}
 
 				if uc.FilePath != "" {
 					ext := strings.ToLower(filepath.Ext(uc.FilePath))
 					inNSSDB := strings.Contains(uc.FilePath, ".pki/nssdb")
-					cert.CanSign = (ext == ".p12" || ext == ".pfx") || inNSSDB
-					if inNSSDB {
+
+					if ext == ".p12" || ext == ".pfx" {
+						cert.CanSign = true
+						// Check if PIN/password is required
+						requiresPin, err := pkcs12.CheckPKCS12RequiresPassword(uc.FilePath)
+						if err == nil {
+							cert.RequiresPin = requiresPin
+							cert.PinOptional = !requiresPin
+						} else {
+							// If we can't check, assume PIN is required for safety
+							cert.RequiresPin = true
+							cert.PinOptional = false
+						}
+					} else if inNSSDB {
+						cert.CanSign = true
 						cert.Source = "User NSS DB"
+						// NSS DB password is optional - try empty first
+						cert.RequiresPin = false
+						cert.PinOptional = true
 					}
 				}
 				allCerts = append(allCerts, cert)
@@ -101,7 +133,9 @@ func (s *SignatureService) ListCertificatesFiltered(filter CertificateFilter) ([
 					IsValid:      pc.IsValid,
 					PKCS11Module: pc.PKCS11Module,
 					PKCS11URL:    pc.PKCS11URL,
-					CanSign:      true, // PKCS#11 tokens always have private keys
+					CanSign:      true,
+					RequiresPin:  true,
+					PinOptional:  false,
 				})
 			}
 		}

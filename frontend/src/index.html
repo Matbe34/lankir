@@ -187,17 +187,30 @@
                         <p>Loading certificates...</p>
                     </div>
                 </div>
-                <div id="pinInputSection" class="pin-input-section hidden">
-                    <label for="pinInput">Enter PIN for the certificate:</label>
-                    <input type="password" id="pinInput" placeholder="Enter PIN" autocomplete="off">
-                    <p style="font-size: 0.875rem; color: var(--text-secondary); margin-top: 0.5rem;">
-                        Your PIN is required to access the private key for signing.
-                    </p>
-                </div>
             </div>
             <div class="modal-footer">
                 <button id="certDialogCancel" class="btn">Cancel</button>
                 <button id="certDialogSign" class="btn btn-primary" disabled>Sign PDF</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="pinDialog" class="modal-overlay hidden">
+        <div class="modal message-modal">
+            <div class="modal-header">
+                <h2 id="pinDialogTitle">Enter PIN</h2>
+                <button class="modal-close" id="pinDialogClose">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p id="pinDialogMessage" style="margin-bottom: 1rem; color: var(--text-secondary);"></p>
+                <div style="margin-bottom: 1rem;">
+                    <label for="pinDialogInput" style="display: block; margin-bottom: 0.5rem; font-weight: 500;">PIN/Password:</label>
+                    <input type="password" id="pinDialogInput" class="setting-input" placeholder="Enter your PIN" autocomplete="off" style="width: 100%;">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="pinDialogCancel" class="btn">Cancel</button>
+                <button id="pinDialogOk" class="btn btn-primary">OK</button>
             </div>
         </div>
     </div>

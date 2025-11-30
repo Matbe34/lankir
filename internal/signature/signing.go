@@ -156,7 +156,36 @@ func (s *SignatureService) signWithNSS(pdfPath string, cert *Certificate, passwo
 		nickname = cert.Name
 	}
 
-	signer, err := nss.GetNSSSigner(nickname, password)
+	var signer *nss.NSSSigner
+	var err error
+
+	// If PIN is optional and no password provided, try empty password first
+	if cert.PinOptional && password == "" {
+		signer, err = nss.GetNSSSigner(nickname, "")
+		if err != nil && !strings.HasPrefix(nickname, "CERTIFICADO ") {
+			parts := strings.Fields(nickname)
+			if len(parts) > 0 {
+				lastPart := parts[len(parts)-1]
+				nickname = "CERTIFICADO " + lastPart
+				signer, err = nss.GetNSSSigner(nickname, "")
+			}
+		}
+		if err == nil {
+			// Successfully loaded with empty password
+			defer signer.Close()
+			if err := s.signPDFWithSigner(pdfPath, outputPath, signer, cert, profile); err != nil {
+				return "", fmt.Errorf("failed to sign PDF: %w", err)
+			}
+			return outputPath, nil
+		}
+		// If empty password failed and user provided no password, return error
+		if password == "" {
+			return "", fmt.Errorf("NSS database requires a password")
+		}
+	}
+
+	// Try with provided password
+	signer, err = nss.GetNSSSigner(nickname, password)
 	if err != nil {
 		if !strings.HasPrefix(nickname, "CERTIFICADO ") {
 			parts := strings.Fields(nickname)
@@ -186,7 +215,27 @@ func (s *SignatureService) signWithPKCS12(pdfPath string, cert *Certificate, pas
 		return "", fmt.Errorf("certificate does not have file path information")
 	}
 
-	signer, err := pkcs12.GetSignerFromPKCS12File(cert.FilePath, password)
+	var signer *pkcs12.Signer
+	var err error
+
+	// If PIN is optional and no password provided, try empty password first
+	if cert.PinOptional && password == "" {
+		signer, err = pkcs12.GetSignerFromPKCS12File(cert.FilePath, "")
+		if err == nil {
+			// Successfully loaded with empty password
+			if err := s.signPDFWithSigner(pdfPath, outputPath, signer, cert, profile); err != nil {
+				return "", fmt.Errorf("failed to sign PDF: %w", err)
+			}
+			return outputPath, nil
+		}
+		// If empty password failed and user provided no password, return error
+		if password == "" {
+			return "", fmt.Errorf("PKCS#12 file requires a password")
+		}
+	}
+
+	// Try with provided password
+	signer, err = pkcs12.GetSignerFromPKCS12File(cert.FilePath, password)
 	if err != nil {
 		return "", fmt.Errorf("failed to load PKCS#12 certificate: %w", err)
 	}
