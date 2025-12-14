@@ -69,6 +69,8 @@ func (s *SignatureService) SignPDFWithProfileAndPosition(pdfPath string, certFin
 		}
 
 		const maxSignatureDimension = 2000.0
+		const maxCoordinate = 10000.0
+
 		if positionOverride.Width > maxSignatureDimension {
 			return "", fmt.Errorf("signature width too large: %.2f points (maximum %.2f)",
 				positionOverride.Width, maxSignatureDimension)
@@ -76,6 +78,14 @@ func (s *SignatureService) SignPDFWithProfileAndPosition(pdfPath string, certFin
 		if positionOverride.Height > maxSignatureDimension {
 			return "", fmt.Errorf("signature height too large: %.2f points (maximum %.2f)",
 				positionOverride.Height, maxSignatureDimension)
+		}
+		if positionOverride.X < 0 || positionOverride.X > maxCoordinate {
+			return "", fmt.Errorf("signature X coordinate out of bounds: %.2f (must be 0-%.2f)",
+				positionOverride.X, maxCoordinate)
+		}
+		if positionOverride.Y < 0 || positionOverride.Y > maxCoordinate {
+			return "", fmt.Errorf("signature Y coordinate out of bounds: %.2f (must be 0-%.2f)",
+				positionOverride.Y, maxCoordinate)
 		}
 
 		profile.Position = *positionOverride
