@@ -1,9 +1,12 @@
 package cli
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"log/slog"
 	"os"
+	"path/filepath"
 
 	"github.com/spf13/cobra"
 )
@@ -16,8 +19,8 @@ var (
 
 var rootCmd = &cobra.Command{
 	Use:   "pdf-app",
-	Short: "PDF Editor Pro - A powerful PDF management tool",
-	Long: `PDF Editor Pro is a comprehensive PDF management tool that supports:
+	Short: "PDF App - A powerful PDF management tool",
+	Long: `PDF App is a comprehensive PDF management tool that supports:
 - PDF viewing and rendering
 - Digital signatures with PKCS#11, PKCS#12, and NSS support
 - Certificate management
@@ -28,11 +31,14 @@ var rootCmd = &cobra.Command{
 	},
 }
 
-func Execute() {
+func Execute(runGUI func()) {
+	guiFunc = runGUI
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
 	}
 }
+
+var guiFunc func()
 
 func init() {
 	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "enable verbose logging")
@@ -77,4 +83,27 @@ func ExitWithError(msg string, err error) {
 		fmt.Fprintf(os.Stderr, "Error: %s\n", msg)
 	}
 	os.Exit(1)
+}
+
+// SanitizePath sanitizes file paths for logging
+func SanitizePath(path string) string {
+	if verbose {
+		return path
+	}
+	return filepath.Base(path)
+}
+
+// SanitizeCertName sanitizes certificate names for logging
+func SanitizeCertName(name string) string {
+	if verbose {
+		return name
+	}
+	// Hash the name and return first 8 characters
+	hash := sha256.Sum256([]byte(name))
+	hashStr := hex.EncodeToString(hash[:])
+	return hashStr[:8] + "..."
+}
+
+func IsVerbose() bool {
+	return verbose
 }

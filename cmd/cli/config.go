@@ -31,7 +31,10 @@ var configGetCmd = &cobra.Command{
 
 		if len(args) == 0 {
 			if jsonOutput {
-				data, _ := json.MarshalIndent(cfg, "", "  ")
+				data, err := json.MarshalIndent(cfg, "", "  ")
+				if err != nil {
+					ExitWithError("failed to marshal config to JSON", err)
+				}
 				fmt.Println(string(data))
 			} else {
 				fmt.Println("Current Configuration:")
@@ -69,7 +72,10 @@ var configGetCmd = &cobra.Command{
 
 		if jsonOutput {
 			result := map[string]interface{}{key: value}
-			data, _ := json.MarshalIndent(result, "", "  ")
+			data, err := json.MarshalIndent(result, "", "  ")
+			if err != nil {
+				ExitWithError("failed to marshal config value to JSON", err)
+			}
 			fmt.Println(string(data))
 		} else {
 			fmt.Printf("%s: %v\n", key, value)

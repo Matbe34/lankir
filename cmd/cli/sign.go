@@ -81,7 +81,7 @@ var signPDFCmd = &cobra.Command{
 			signPin = string(pinBytes)
 		}
 
-		GetLogger().Info("signing PDF", "file", pdfPath, "cert", cert.Name, "profile", signProfile)
+		GetLogger().Info("signing PDF", "file", SanitizePath(pdfPath), "cert", SanitizeCertName(cert.Name), "profile", signProfile)
 
 		var outputPath string
 		var signingErr error
@@ -100,7 +100,7 @@ var signPDFCmd = &cobra.Command{
 				if err != nil {
 					ExitWithError("failed to get default profile", err)
 				}
-				signProfile = profile.ID
+				signProfile = profile.ID.String()
 			}
 
 			outputPath, signingErr = service.SignPDFWithProfileAndPosition(pdfPath, signCertFingerprint, signPin, signProfile, position)
@@ -123,7 +123,7 @@ var signPDFCmd = &cobra.Command{
 			}
 		}
 
-		GetLogger().Info("PDF signed successfully", "output", outputPath)
+		GetLogger().Info("PDF signed successfully", "output", SanitizePath(outputPath))
 		fmt.Printf("PDF signed successfully: %s\n", outputPath)
 	},
 }
@@ -147,7 +147,7 @@ var signVerifyCmd = &cobra.Command{
 		service := signature.NewSignatureService(cfgService)
 		service.Startup(context.Background())
 
-		GetLogger().Info("verifying signatures", "file", pdfPath)
+		GetLogger().Info("verifying signatures", "file", SanitizePath(pdfPath))
 
 		signatures, err := service.VerifySignature(pdfPath)
 		if err != nil {
@@ -160,7 +160,10 @@ var signVerifyCmd = &cobra.Command{
 		}
 
 		if jsonOutput {
-			data, _ := json.MarshalIndent(signatures, "", "  ")
+			data, err := json.MarshalIndent(signatures, "", "  ")
+			if err != nil {
+				ExitWithError("failed to marshal signatures to JSON", err)
+			}
 			fmt.Println(string(data))
 		} else {
 			fmt.Printf("Found %d signature(s):\n\n", len(signatures))
@@ -213,7 +216,10 @@ var signProfileListCmd = &cobra.Command{
 		}
 
 		if jsonOutput {
-			data, _ := json.MarshalIndent(profiles, "", "  ")
+			data, err := json.MarshalIndent(profiles, "", "  ")
+			if err != nil {
+				ExitWithError("failed to marshal profiles to JSON", err)
+			}
 			fmt.Println(string(data))
 		} else {
 			fmt.Printf("Found %d signature profile(s):\n\n", len(profiles))
@@ -269,7 +275,10 @@ var signProfileInfoCmd = &cobra.Command{
 		}
 
 		if jsonOutput {
-			data, _ := json.MarshalIndent(profile, "", "  ")
+			data, err := json.MarshalIndent(profile, "", "  ")
+			if err != nil {
+				ExitWithError("failed to marshal profile to JSON", err)
+			}
 			fmt.Println(string(data))
 		} else {
 			fmt.Printf("Signature Profile:\n\n")
@@ -312,7 +321,10 @@ func init() {
 	signCmd.AddCommand(signProfileInfoCmd)
 
 	signPDFCmd.Flags().StringVarP(&signCertFingerprint, "cert", "c", "", "certificate fingerprint (required)")
-	signPDFCmd.Flags().StringVarP(&signPin, "pin", "p", "", "PIN/password for certificate (prompted if not provided)")
+	signPDFCmd.Flags().StringVarP(&signPin, "pin", "p", "",
+		"⚠️  SECURITY WARNING: PIN/password for certificate (if not provided, will prompt securely)\n"+
+		"    Using this flag exposes your PIN in shell history and process list.\n"+
+		"    For production use, omit this flag to be prompted securely.")
 	signPDFCmd.Flags().StringVar(&signProfile, "profile", "", "signature profile ID")
 	signPDFCmd.Flags().IntVar(&signPage, "page", 0, "page number for visible signature (0 = last page)")
 	signPDFCmd.Flags().Float64Var(&signX, "x", 0, "x position for visible signature")

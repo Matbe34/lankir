@@ -41,9 +41,12 @@ var pdfInfoCmd = &cobra.Command{
 		GetLogger().Info("PDF metadata retrieved", "file", pdfPath, "pages", metadata.PageCount)
 
 		if jsonOutput {
-			data, _ := json.MarshalIndent(metadata, "", "  ")
+			data, err := json.MarshalIndent(metadata, "", "  ")
+			if err != nil {
+				ExitWithError("failed to marshal PDF metadata to JSON", err)
+			}
 			fmt.Println(string(data))
-		} else {
+		} else{
 			fmt.Printf("PDF Information:\n")
 			fmt.Printf("  File:       %s\n", metadata.FilePath)
 			fmt.Printf("  Title:      %s\n", metadata.Title)
@@ -96,7 +99,10 @@ var pdfPagesCmd = &cobra.Command{
 				pages = append(pages, PageDims{Page: i + 1, Width: dims.Width, Height: dims.Height})
 			}
 
-			data, _ := json.MarshalIndent(pages, "", "  ")
+			data, err := json.MarshalIndent(pages, "", "  ")
+			if err != nil {
+				ExitWithError("failed to marshal page dimensions to JSON", err)
+			}
 			fmt.Println(string(data))
 		} else {
 			fmt.Printf("Page Dimensions:\n")

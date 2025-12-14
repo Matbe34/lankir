@@ -52,9 +52,12 @@ var certListCmd = &cobra.Command{
 		GetLogger().Debug("certificates retrieved", "count", len(certs))
 
 		if jsonOutput {
-			data, _ := json.MarshalIndent(certs, "", "  ")
+			data, err := json.MarshalIndent(certs, "", "  ")
+			if err != nil {
+				ExitWithError("failed to marshal certificates to JSON", err)
+			}
 			fmt.Println(string(data))
-		} else {
+		} else{
 			fmt.Printf("Found %d certificate(s):\n\n", len(certs))
 
 			for i, cert := range certs {
@@ -119,7 +122,10 @@ var certSearchCmd = &cobra.Command{
 		GetLogger().Debug("certificates found", "count", len(certs))
 
 		if jsonOutput {
-			data, _ := json.MarshalIndent(certs, "", "  ")
+			data, err := json.MarshalIndent(certs, "", "  ")
+			if err != nil {
+				ExitWithError("failed to marshal certificates to JSON", err)
+			}
 			fmt.Println(string(data))
 		} else {
 			fmt.Printf("Found %d certificate(s) matching '%s':\n\n", len(certs), query)
@@ -177,7 +183,10 @@ var certInfoCmd = &cobra.Command{
 		}
 
 		if jsonOutput {
-			data, _ := json.MarshalIndent(targetCert, "", "  ")
+			data, err := json.MarshalIndent(targetCert, "", "  ")
+			if err != nil {
+				ExitWithError("failed to marshal certificate to JSON", err)
+			}
 			fmt.Println(string(data))
 		} else {
 			fmt.Printf("Certificate Information:\n\n")
