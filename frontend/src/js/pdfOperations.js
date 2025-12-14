@@ -138,7 +138,7 @@ export async function loadSignatureInfo(pdfPath) {
         `;
         
         // Call backend to verify signatures
-        const signatures = await window.go.signature.SignatureService.VerifySignature(pdfPath);
+        const signatures = await window.go.signature.SignatureService.VerifySignatures(pdfPath);
         
         if (!signatures || signatures.length === 0) {
             signatureInfoContainer.innerHTML = `
