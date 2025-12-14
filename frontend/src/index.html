@@ -1,16 +1,19 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PDF Editor Pro</title>
     <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
     <div id="app" class="flex flex-col h-screen">
         <header class="flex justify-between items-center px-4 py-3 bg-bg-secondary border-b border-border-color">
             <div class="flex gap-2">
-                <button id="openBtn" class="px-4 py-2 rounded-md bg-accent-blue text-text-primary cursor-pointer text-sm flex items-center gap-2 transition-colors hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed">
+                <button id="openBtn"
+                    class="px-4 py-2 rounded-md bg-accent-blue text-text-primary cursor-pointer text-sm flex items-center gap-2 transition-colors hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed">
                     <span>📂</span> Open PDF
                 </button>
                 <button id="settingsBtn" class="btn">
@@ -27,7 +30,8 @@
             </div>
         </header>
 
-        <div class="flex bg-bg-secondary border-b border-border-color overflow-x-auto min-h-0 max-h-0 opacity-0 transition-all has-tabs:min-h-10 has-tabs:max-h-10 has-tabs:opacity-100 scrollbar-thin" id="pdfTabsContainer">
+        <div class="flex bg-bg-secondary border-b border-border-color overflow-x-auto min-h-0 max-h-0 opacity-0 transition-all has-tabs:min-h-10 has-tabs:max-h-10 has-tabs:opacity-100 scrollbar-thin"
+            id="pdfTabsContainer">
             <div class="pdf-tab active" id="homeTab">
                 <span class="pdf-tab-name">🏠 Home</span>
             </div>
@@ -35,14 +39,23 @@
         </div>
 
         <main class="flex flex-1 overflow-hidden relative">
-            <div class="flex flex-col bg-bg-secondary border-r border-border-color w-64 transition-all left-sidebar" id="leftSidebar">
+            <div class="flex flex-col bg-bg-secondary border-r border-border-color w-64 transition-all left-sidebar"
+                id="leftSidebar">
                 <div class="flex justify-between items-center bg-bg-tertiary border-b border-border-color">
                     <div class="flex flex-1">
-                        <button class="tab-btn flex-1 px-2 py-3 border-none bg-transparent text-text-secondary cursor-pointer text-sm font-medium border-b-2 border-transparent transition-all hover:bg-hover-color hover:text-text-primary active" data-tab="pages">Pages</button>
-                        <button class="tab-btn flex-1 px-2 py-3 border-none bg-transparent text-text-secondary cursor-pointer text-sm font-medium border-b-2 border-transparent transition-all hover:bg-hover-color hover:text-text-primary" data-tab="index">Index</button>
-                        <button class="tab-btn flex-1 px-2 py-3 border-none bg-transparent text-text-secondary cursor-pointer text-sm font-medium border-b-2 border-transparent transition-all hover:bg-hover-color hover:text-text-primary" data-tab="comments">Comments</button>
+                        <button
+                            class="tab-btn flex-1 px-2 py-3 border-none bg-transparent text-text-secondary cursor-pointer text-sm font-medium border-b-2 border-transparent transition-all hover:bg-hover-color hover:text-text-primary active"
+                            data-tab="pages">Pages</button>
+                        <button
+                            class="tab-btn flex-1 px-2 py-3 border-none bg-transparent text-text-secondary cursor-pointer text-sm font-medium border-b-2 border-transparent transition-all hover:bg-hover-color hover:text-text-primary"
+                            data-tab="index">Index</button>
+                        <button
+                            class="tab-btn flex-1 px-2 py-3 border-none bg-transparent text-text-secondary cursor-pointer text-sm font-medium border-b-2 border-transparent transition-all hover:bg-hover-color hover:text-text-primary"
+                            data-tab="comments">Comments</button>
                     </div>
-                    <button class="px-2 py-2 bg-transparent border-none text-text-secondary cursor-pointer text-base transition-all hover:text-text-primary hover:bg-hover-color" id="collapseLeft" title="Hide sidebar">&lt;</button>
+                    <button
+                        class="px-2 py-2 bg-transparent border-none text-text-secondary cursor-pointer text-base transition-all hover:text-text-primary hover:bg-hover-color"
+                        id="collapseLeft" title="Hide sidebar">&lt;</button>
                 </div>
 
                 <div class="tab-content active" id="pagesTab">
@@ -70,7 +83,9 @@
                 </div>
             </div>
 
-            <button class="expand-btn left-expand-btn absolute top-2 left-0 px-2 py-3 bg-bg-secondary border border-border-color border-l-0 rounded-r text-text-secondary cursor-pointer text-base z-10 transition-all hover:text-text-primary hover:bg-bg-tertiary hidden" id="expandLeft" title="Show sidebar">&gt;</button>
+            <button
+                class="expand-btn left-expand-btn absolute top-2 left-0 px-2 py-3 bg-bg-secondary border border-border-color border-l-0 rounded-r text-text-secondary cursor-pointer text-base z-10 transition-all hover:text-text-primary hover:bg-bg-tertiary hidden"
+                id="expandLeft" title="Show sidebar">&gt;</button>
 
             <div class="flex-1 bg-bg-primary overflow-hidden flex flex-col">
                 <div id="pdfViewer" class="pdf-viewer">
@@ -95,12 +110,17 @@
                 </div>
             </div>
 
-            <button class="expand-btn right-expand-btn absolute top-2 right-0 px-2 py-3 bg-bg-secondary border border-border-color border-r-0 rounded-l text-text-secondary cursor-pointer text-base z-10 transition-all hover:text-text-primary hover:bg-bg-tertiary hidden" id="expandRight" title="Show properties">&lt;</button>
+            <button
+                class="expand-btn right-expand-btn absolute top-2 right-0 px-2 py-3 bg-bg-secondary border border-border-color border-r-0 rounded-l text-text-secondary cursor-pointer text-base z-10 transition-all hover:text-text-primary hover:bg-bg-tertiary hidden"
+                id="expandRight" title="Show properties">&lt;</button>
 
-            <div class="flex flex-col bg-bg-secondary border-l border-border-color w-64 transition-all right-sidebar" id="rightSidebar">
+            <div class="flex flex-col bg-bg-secondary border-l border-border-color w-64 transition-all right-sidebar"
+                id="rightSidebar">
                 <div class="flex justify-between items-center p-4 border-b border-border-color">
                     <h3 class="text-sm font-semibold uppercase text-text-secondary">Properties</h3>
-                    <button class="px-2 py-2 bg-transparent border-none text-text-secondary cursor-pointer text-base transition-all hover:text-text-primary hover:bg-hover-color" id="collapseRight" title="Hide properties">&gt;</button>
+                    <button
+                        class="px-2 py-2 bg-transparent border-none text-text-secondary cursor-pointer text-base transition-all hover:text-text-primary hover:bg-hover-color"
+                        id="collapseRight" title="Hide properties">&gt;</button>
                 </div>
                 <div id="properties" class="p-4">
                     <div class="mb-4">
@@ -125,7 +145,8 @@
             </div>
         </main>
 
-        <footer class="flex justify-between items-center px-4 py-2 bg-bg-secondary border-t border-border-color text-xs text-text-secondary">
+        <footer
+            class="flex justify-between items-center px-4 py-2 bg-bg-secondary border-t border-border-color text-xs text-text-secondary">
             <div class="flex items-center gap-2">
                 <span id="statusText">Ready</span>
             </div>
@@ -173,8 +194,10 @@
                 <h2>Select Certificate for Signing</h2>
                 <div style="display: flex; gap: 0.5rem; align-items: center;">
                     <button class="modal-refresh" id="certDialogRefresh" title="Refresh certificate list">
-                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M14 2v4h-4M2 14v-4h4M14.2 6c-.4-1.6-1.4-3-2.8-3.9-1.4-.9-3.1-1.2-4.7-.8C5 1.7 3.5 2.7 2.5 4M1.8 10c.4 1.6 1.4 3 2.8 3.9 1.4.9 3.1 1.2 4.7.8 1.7-.4 3.2-1.4 4.2-2.9"/>
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path
+                                d="M14 2v4h-4M2 14v-4h4M14.2 6c-.4-1.6-1.4-3-2.8-3.9-1.4-.9-3.1-1.2-4.7-.8C5 1.7 3.5 2.7 2.5 4M1.8 10c.4 1.6 1.4 3 2.8 3.9 1.4.9 3.1 1.2 4.7.8 1.7-.4 3.2-1.4 4.2-2.9" />
                         </svg>
                     </button>
                     <button class="modal-close" id="certDialogClose">&times;</button>
@@ -204,8 +227,10 @@
             <div class="modal-body">
                 <p id="pinDialogMessage" style="margin-bottom: 1rem; color: var(--text-secondary);"></p>
                 <div style="margin-bottom: 1rem;">
-                    <label for="pinDialogInput" style="display: block; margin-bottom: 0.5rem; font-weight: 500;">PIN/Password:</label>
-                    <input type="password" id="pinDialogInput" class="setting-input" placeholder="Enter your PIN" autocomplete="off" style="width: 100%;">
+                    <label for="pinDialogInput"
+                        style="display: block; margin-bottom: 0.5rem; font-weight: 500;">PIN/Password:</label>
+                    <input type="password" id="pinDialogInput" class="setting-input" placeholder="Enter your PIN"
+                        autocomplete="off" style="width: 100%;">
                 </div>
             </div>
             <div class="modal-footer">
@@ -283,7 +308,8 @@
 
                         <div class="setting-group">
                             <label class="setting-label" for="settingAccentColor">Accent Color</label>
-                            <input type="color" id="settingAccentColor" class="setting-input setting-input-color" value="#007acc">
+                            <input type="color" id="settingAccentColor" class="setting-input setting-input-color"
+                                value="#007acc">
                             <p class="setting-hint">Primary highlight color for buttons and interactive elements</p>
                         </div>
 
@@ -309,7 +335,8 @@
                         <div class="setting-group">
                             <label class="setting-label" for="settingDefaultZoom">Default Zoom Level</label>
                             <div class="setting-input-group">
-                                <input type="number" id="settingDefaultZoom" class="setting-input setting-input-number" min="10" max="400" value="100" step="10">
+                                <input type="number" id="settingDefaultZoom" class="setting-input setting-input-number"
+                                    min="10" max="400" value="100" step="10">
                                 <span class="setting-unit">%</span>
                             </div>
                             <p class="setting-hint">Initial zoom level when opening PDFs (10-400%)</p>
@@ -340,7 +367,8 @@
                         <div class="setting-group">
                             <label class="setting-label" for="settingRecentFilesLength">Recent Files List Length</label>
                             <div class="setting-input-group">
-                                <input type="number" id="settingRecentFilesLength" class="setting-input setting-input-number" min="0" max="50" value="10">
+                                <input type="number" id="settingRecentFilesLength"
+                                    class="setting-input setting-input-number" min="0" max="50" value="10">
                                 <span class="setting-unit">files</span>
                             </div>
                             <p class="setting-hint">Number of recent files to display (0-50)</p>
@@ -349,7 +377,8 @@
                         <div class="setting-group">
                             <label class="setting-label" for="settingAutosaveInterval">Auto-save Interval</label>
                             <div class="setting-input-group">
-                                <input type="number" id="settingAutosaveInterval" class="setting-input setting-input-number" min="0" max="600" value="0">
+                                <input type="number" id="settingAutosaveInterval"
+                                    class="setting-input setting-input-number" min="0" max="600" value="0">
                                 <span class="setting-unit">seconds</span>
                             </div>
                             <p class="setting-hint">Automatically save changes (0 = disabled)</p>
@@ -379,20 +408,64 @@
 
                     <!-- Certificates Settings -->
                     <div class="settings-section" id="certificatesSection">
-                        <h3 class="settings-section-title">Certificates</h3>
-                        <p class="settings-section-description">Configure certificate stores and PKCS#11 tokens</p>
+                        <h3 class="settings-section-title">Certificate Sources</h3>
+                        <p class="settings-section-description">Configure where to find signing certificates</p>
 
+                        <!-- Certificate Stores -->
                         <div class="setting-group">
-                            <label class="setting-label">Certificate Stores</label>
-                            <div id="certificateStoresList" class="setting-info-box">
-                                <p class="setting-hint">Configure certificate store locations</p>
+                            <div class="flex justify-between items-center mb-4">
+                                <label class="setting-label m-0">Certificate Stores</label>
+                                <div class="flex gap-2">
+                                    <button id="restoreDefaultStoresBtn" class="btn btn-secondary btn-small">
+                                        Restore Defaults
+                                    </button>
+                                    <button id="addCertStoreBtn" class="btn btn-primary btn-small">
+                                        <span class="text-lg leading-none">+</span> Add Store
+                                    </button>
+                                </div>
                             </div>
+                            <div id="storesList" class="signature-profiles-list">
+                                <div class="empty-state">
+                                    <p>Loading...</p>
+                                </div>
+                            </div>
+                            <p class="setting-hint">Directories containing certificates. Click "Save" below to apply changes.</p>
                         </div>
 
+                        <!-- PKCS#11 Libraries -->
                         <div class="setting-group">
-                            <label class="setting-label">PKCS#11 Token Libraries</label>
-                            <div id="tokenLibrariesList" class="setting-info-box">
-                                <p class="setting-hint">Configure PKCS#11 library paths for hardware tokens</p>
+                            <div class="flex justify-between items-center mb-4">
+                                <label class="setting-label m-0">PKCS#11 Token Libraries</label>
+                                <div class="flex gap-2">
+                                    <button id="restoreDefaultLibsBtn" class="btn btn-secondary btn-small">
+                                        Restore Defaults
+                                    </button>
+                                    <button id="addTokenLibBtn" class="btn btn-primary btn-small">
+                                        <span class="text-lg leading-none">+</span> Add Library
+                                    </button>
+                                </div>
+                            </div>
+                            <div id="librariesList" class="signature-profiles-list">
+                                <div class="empty-state">
+                                    <p>Loading...</p>
+                                </div>
+                            </div>
+                            <p class="setting-hint">Shared libraries (.so/.dll) for hardware security tokens. Click "Save" below to apply changes.</p>
+                        </div>
+
+                        <!-- Detected Certificates -->
+                        <div class="setting-group">
+                            <div class="flex justify-between items-center mb-4">
+                                <label class="setting-label m-0">Detected Certificates</label>
+                                <button id="refreshCertsBtn" class="btn btn-secondary btn-small">
+                                    <span>🔄</span> Refresh
+                                </button>
+                            </div>
+                            <div id="certificatesList" class="cert-table-wrapper">
+                                <div class="empty-state">
+                                    <div class="loading-spinner-small hidden" id="certsLoadingSpinner"></div>
+                                    <p id="certsLoadingText">Click refresh to scan for certificates</p>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -403,32 +476,38 @@
                         <p class="settings-section-description">Customize keyboard shortcuts for common actions</p>
 
                         <div class="setting-group">
-                            <p class="setting-hint mb-4">Click on any shortcut field to set a new key combination. Use modifiers like Control, Alt, Shift with letters or special keys.</p>
+                            <p class="setting-hint mb-4">Click on any shortcut field to set a new key combination. Use
+                                modifiers like Control, Alt, Shift with letters or special keys.</p>
 
                             <div class="shortcuts-list">
                                 <div class="shortcut-item">
                                     <label class="setting-label" for="settingShortcutOpenFile">Open File</label>
-                                    <input type="text" id="settingShortcutOpenFile" class="setting-input shortcut-input" placeholder="Control+o" readonly>
+                                    <input type="text" id="settingShortcutOpenFile" class="setting-input shortcut-input"
+                                        placeholder="Control+o" readonly>
                                 </div>
 
                                 <div class="shortcut-item">
                                     <label class="setting-label" for="settingShortcutSign">Sign Document</label>
-                                    <input type="text" id="settingShortcutSign" class="setting-input shortcut-input" placeholder="Alt+s" readonly>
+                                    <input type="text" id="settingShortcutSign" class="setting-input shortcut-input"
+                                        placeholder="Alt+s" readonly>
                                 </div>
 
                                 <div class="shortcut-item">
                                     <label class="setting-label" for="settingShortcutZoomIn">Zoom In</label>
-                                    <input type="text" id="settingShortcutZoomIn" class="setting-input shortcut-input" placeholder="Control+Plus" readonly>
+                                    <input type="text" id="settingShortcutZoomIn" class="setting-input shortcut-input"
+                                        placeholder="Control+Plus" readonly>
                                 </div>
 
                                 <div class="shortcut-item">
                                     <label class="setting-label" for="settingShortcutZoomOut">Zoom Out</label>
-                                    <input type="text" id="settingShortcutZoomOut" class="setting-input shortcut-input" placeholder="Control+Minus" readonly>
+                                    <input type="text" id="settingShortcutZoomOut" class="setting-input shortcut-input"
+                                        placeholder="Control+Minus" readonly>
                                 </div>
 
                                 <div class="shortcut-item">
                                     <label class="setting-label" for="settingShortcutNextTab">Next Tab</label>
-                                    <input type="text" id="settingShortcutNextTab" class="setting-input shortcut-input" placeholder="Control+Tab" readonly>
+                                    <input type="text" id="settingShortcutNextTab" class="setting-input shortcut-input"
+                                        placeholder="Control+Tab" readonly>
                                 </div>
                             </div>
 
@@ -480,134 +559,149 @@
             <div class="modal-body">
                 <div class="profile-editor-container">
                     <div class="profile-editor-form">
-                    <div class="setting-group">
-                        <label for="profileName">Profile Name <span style="color: var(--error-red);">*</span></label>
-                        <input type="text" id="profileName" class="setting-input" placeholder="e.g., My Visible Signature" required>
-                    </div>
-
-                    <div class="setting-group">
-                        <label for="profileDescription">Description</label>
-                        <textarea id="profileDescription" class="setting-input" placeholder="Optional description" rows="2"></textarea>
-                    </div>
-
-                    <div class="setting-group">
-                        <label for="profileVisibility">Signature Type <span style="color: var(--error-red);">*</span></label>
-                        <select id="profileVisibility" class="setting-input">
-                            <option value="invisible">Invisible - Digital signature only, no visual mark</option>
-                            <option value="visible">Visible - Shows signature information on the PDF</option>
-                        </select>
-                    </div>
-
-                    <div id="visibleProfileSettings" class="visible-profile-settings hidden">
-                        <h4 style="margin: 1.5rem 0 1rem 0; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem;">Signature Appearance</h4>
-
                         <div class="setting-group">
-                            <label style="display: flex; align-items: center; gap: 0.5rem;">
-                                <input type="checkbox" id="profileShowSignerName" class="setting-checkbox" checked>
-                                Include certificate subject (signer name)
-                            </label>
+                            <label for="profileName">Profile Name <span
+                                    style="color: var(--error-red);">*</span></label>
+                            <input type="text" id="profileName" class="setting-input"
+                                placeholder="e.g., My Visible Signature" required>
                         </div>
 
                         <div class="setting-group">
-                            <label style="display: flex; align-items: center; gap: 0.5rem;">
-                                <input type="checkbox" id="profileShowSigningTime" class="setting-checkbox" checked>
-                                Include timestamp (local time)
-                            </label>
+                            <label for="profileDescription">Description</label>
+                            <textarea id="profileDescription" class="setting-input" placeholder="Optional description"
+                                rows="2"></textarea>
                         </div>
 
                         <div class="setting-group">
-                            <label style="display: flex; align-items: center; gap: 0.5rem;">
-                                <input type="checkbox" id="profileShowLocation" class="setting-checkbox">
-                                Include signing location (based on IP geolocation)
-                            </label>
+                            <label for="profileVisibility">Signature Type <span
+                                    style="color: var(--error-red);">*</span></label>
+                            <select id="profileVisibility" class="setting-input">
+                                <option value="invisible">Invisible - Digital signature only, no visual mark</option>
+                                <option value="visible">Visible - Shows signature information on the PDF</option>
+                            </select>
                         </div>
 
-                        <div class="setting-group">
-                            <label for="profileCustomText">Custom Text</label>
-                            <textarea id="profileCustomText" class="setting-input" placeholder="Optional custom text to display on signature" rows="3"></textarea>
-                        </div>
+                        <div id="visibleProfileSettings" class="visible-profile-settings hidden">
+                            <h4
+                                style="margin: 1.5rem 0 1rem 0; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem;">
+                                Signature Appearance</h4>
 
-                        <div class="setting-group">
-                            <label style="display: flex; align-items: center; gap: 0.5rem;">
-                                <input type="checkbox" id="profileShowIcon" class="setting-checkbox">
-                                Include icon in signature
-                            </label>
-                        </div>
-
-                        <div id="profileIconSettings" class="hidden">
                             <div class="setting-group">
-                                <label for="profileIconFile">Select Icon</label>
-                                <input type="file" id="profileIconFile" accept="image/*" class="setting-input" style="padding: 0.5rem;">
-                                <p class="setting-hint" style="margin-top: 0.25rem;">Supported formats: PNG, JPG, SVG (max 2MB)</p>
+                                <label style="display: flex; align-items: center; gap: 0.5rem;">
+                                    <input type="checkbox" id="profileShowSignerName" class="setting-checkbox" checked>
+                                    Include certificate subject (signer name)
+                                </label>
                             </div>
 
                             <div class="setting-group">
-                                <label for="profileIconPosition">Icon Position</label>
-                                <select id="profileIconPosition" class="setting-input">
-                                    <option value="left">Left of text</option>
-                                    <option value="top">Above text</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        <div class="setting-group">
-                            <label style="display: flex; align-items: center; gap: 0.5rem;">
-                                <input type="checkbox" id="profileDefinePosition" class="setting-checkbox">
-                                Define signature position
-                            </label>
-                        </div>
-
-                        <div id="profilePositionSettings" class="hidden">
-                            <div class="setting-group">
-                                <label for="profilePage">Default Page</label>
-                                <select id="profilePage" class="setting-input">
-                                    <option value="0">Last Page</option>
-                                    <option value="1">First Page</option>
-                                </select>
+                                <label style="display: flex; align-items: center; gap: 0.5rem;">
+                                    <input type="checkbox" id="profileShowSigningTime" class="setting-checkbox" checked>
+                                    Include timestamp (local time)
+                                </label>
                             </div>
 
                             <div class="setting-group">
-                                <label>Default Position & Size</label>
-                                <p class="setting-hint" style="margin-bottom: 0.5rem;">These are defaults - you can adjust when signing</p>
-                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
-                                    <div>
-                                        <label style="font-size: 0.875rem;">X Position (pts)</label>
-                                        <input type="number" id="profileX" class="setting-input" value="360" min="0">
-                                    </div>
-                                    <div>
-                                        <label style="font-size: 0.875rem;">Y Position (pts)</label>
-                                        <input type="number" id="profileY" class="setting-input" value="50" min="0">
-                                    </div>
-                                    <div>
-                                        <label style="font-size: 0.875rem;">Width (pts)</label>
-                                        <input type="number" id="profileWidth" class="setting-input" value="200" min="50">
-                                    </div>
-                                    <div>
-                                        <label style="font-size: 0.875rem;">Height (pts)</label>
-                                        <input type="number" id="profileHeight" class="setting-input" value="80" min="30">
+                                <label style="display: flex; align-items: center; gap: 0.5rem;">
+                                    <input type="checkbox" id="profileShowLocation" class="setting-checkbox">
+                                    Include signing location (based on IP geolocation)
+                                </label>
+                            </div>
+
+                            <div class="setting-group">
+                                <label for="profileCustomText">Custom Text</label>
+                                <textarea id="profileCustomText" class="setting-input"
+                                    placeholder="Optional custom text to display on signature" rows="3"></textarea>
+                            </div>
+
+                            <div class="setting-group">
+                                <label style="display: flex; align-items: center; gap: 0.5rem;">
+                                    <input type="checkbox" id="profileShowIcon" class="setting-checkbox">
+                                    Include icon in signature
+                                </label>
+                            </div>
+
+                            <div id="profileIconSettings" class="hidden">
+                                <div class="setting-group">
+                                    <label for="profileIconFile">Select Icon</label>
+                                    <input type="file" id="profileIconFile" accept="image/*" class="setting-input"
+                                        style="padding: 0.5rem;">
+                                    <p class="setting-hint" style="margin-top: 0.25rem;">Supported formats: PNG, JPG,
+                                        SVG (max 2MB)</p>
+                                </div>
+
+                                <div class="setting-group">
+                                    <label for="profileIconPosition">Icon Position</label>
+                                    <select id="profileIconPosition" class="setting-input">
+                                        <option value="left">Left of text</option>
+                                        <option value="top">Above text</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="setting-group">
+                                <label style="display: flex; align-items: center; gap: 0.5rem;">
+                                    <input type="checkbox" id="profileDefinePosition" class="setting-checkbox">
+                                    Define signature position
+                                </label>
+                            </div>
+
+                            <div id="profilePositionSettings" class="hidden">
+                                <div class="setting-group">
+                                    <label for="profilePage">Default Page</label>
+                                    <select id="profilePage" class="setting-input">
+                                        <option value="0">Last Page</option>
+                                        <option value="1">First Page</option>
+                                    </select>
+                                </div>
+
+                                <div class="setting-group">
+                                    <label>Default Position & Size</label>
+                                    <p class="setting-hint" style="margin-bottom: 0.5rem;">These are defaults - you can
+                                        adjust when signing</p>
+                                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
+                                        <div>
+                                            <label style="font-size: 0.875rem;">X Position (pts)</label>
+                                            <input type="number" id="profileX" class="setting-input" value="360"
+                                                min="0">
+                                        </div>
+                                        <div>
+                                            <label style="font-size: 0.875rem;">Y Position (pts)</label>
+                                            <input type="number" id="profileY" class="setting-input" value="50" min="0">
+                                        </div>
+                                        <div>
+                                            <label style="font-size: 0.875rem;">Width (pts)</label>
+                                            <input type="number" id="profileWidth" class="setting-input" value="200"
+                                                min="50">
+                                        </div>
+                                        <div>
+                                            <label style="font-size: 0.875rem;">Height (pts)</label>
+                                            <input type="number" id="profileHeight" class="setting-input" value="80"
+                                                min="30">
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
+
+                        <div class="setting-group">
+                            <label style="display: flex; align-items: center; gap: 0.5rem;">
+                                <input type="checkbox" id="profileIsDefault" class="setting-checkbox">
+                                Set as default profile
+                            </label>
+                        </div>
                     </div>
 
-                    <div class="setting-group">
-                        <label style="display: flex; align-items: center; gap: 0.5rem;">
-                            <input type="checkbox" id="profileIsDefault" class="setting-checkbox">
-                            Set as default profile
-                        </label>
-                    </div>
-                </div>
-
-                <div class="profile-preview-container" id="profilePreviewContainer">
-                    <h4 style="margin: 0 0 1rem 0; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem;">Preview</h4>
-                    <div class="signature-preview" id="signaturePreview">
-                        <div class="preview-empty">
-                            Select "Visible" signature type to see preview
+                    <div class="profile-preview-container" id="profilePreviewContainer">
+                        <h4
+                            style="margin: 0 0 1rem 0; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem;">
+                            Preview</h4>
+                        <div class="signature-preview" id="signaturePreview">
+                            <div class="preview-empty">
+                                Select "Visible" signature type to see preview
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
             </div>
             <div class="modal-footer">
                 <button id="profileEditorCancel" class="btn">Cancel</button>
@@ -625,8 +719,11 @@
             </div>
             <div class="modal-body">
                 <p>Press the new keyboard combination you want to assign.</p>
-                <div id="shortcutCaptureAction" style="font-size:0.95rem; color:var(--accent-blue); margin-top:0.25rem; text-align:center;"></div>
-                <div id="shortcutCaptureDisplay" style="font-weight:600; font-size:1.1rem; padding:0.5rem; border:1px dashed var(--accent-blue); margin-top:0.5rem; text-align:center;">Waiting for input...</div>
+                <div id="shortcutCaptureAction"
+                    style="font-size:0.95rem; color:var(--accent-blue); margin-top:0.25rem; text-align:center;"></div>
+                <div id="shortcutCaptureDisplay"
+                    style="font-weight:600; font-size:1.1rem; padding:0.5rem; border:1px dashed var(--accent-blue); margin-top:0.5rem; text-align:center;">
+                    Waiting for input...</div>
             </div>
             <div class="modal-footer">
                 <button id="shortcutCaptureCancel" class="btn">Cancel</button>
@@ -635,5 +732,5 @@
         </div>
     </div>
 </body>
-</html>
 
+</html>

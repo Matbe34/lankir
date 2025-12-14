@@ -5,6 +5,9 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+
+	"github.com/ferran/pdf_app/internal/signature/pkcs11"
+	"github.com/ferran/pdf_app/internal/signature/pkcs12"
 )
 
 // Config represents application configuration
@@ -47,6 +50,11 @@ func NewService() (*Service, error) {
 	}
 
 	configDir := filepath.Join(homeDir, ".config", "pdf-editor-pro")
+	return NewServiceWithDir(configDir)
+}
+
+// NewServiceWithDir creates a new configuration service with a custom directory
+func NewServiceWithDir(configDir string) (*Service, error) {
 	os.MkdirAll(configDir, 0755)
 
 	service := &Service{
@@ -56,10 +64,13 @@ func NewService() (*Service, error) {
 
 	// Load existing config or create default
 	if err := service.Load(); err != nil {
-		// If file doesn't exist, save default config
 		if os.IsNotExist(err) {
+			service.populateDefaults()
 			service.Save()
 		}
+	} else {
+		service.populateDefaults()
+		service.Save()
 	}
 
 	return service, nil
@@ -141,4 +152,24 @@ func (s *Service) Reset() error {
 	s.mu.Unlock()
 
 	return s.Save()
+}
+
+// populateDefaults fills in default certificate stores and libraries if empty
+func (s *Service) populateDefaults() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if len(s.config.CertificateStores) == 0 {
+		homeDir, _ := os.UserHomeDir()
+
+		s.config.CertificateStores = append(s.config.CertificateStores, pkcs12.DefaultSystemCertDirs...)
+
+		for _, relDir := range pkcs12.DefaultUserCertDirs {
+			s.config.CertificateStores = append(s.config.CertificateStores, filepath.Join(homeDir, relDir))
+		}
+	}
+
+	if len(s.config.TokenLibraries) == 0 {
+		s.config.TokenLibraries = append(s.config.TokenLibraries, pkcs11.DefaultModules...)
+	}
 }

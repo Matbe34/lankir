@@ -48,7 +48,7 @@ func runGUI() {
 	recentFilesService := pdf.NewRecentFilesService()
 
 	// Create signature service
-	signatureService := signature.NewSignatureService()
+	signatureService := signature.NewSignatureService(configService)
 
 	// Create startup function that initializes all services
 	onStartup := func(ctx context.Context) {

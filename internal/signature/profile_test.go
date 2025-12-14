@@ -1,6 +1,7 @@
 package signature
 
 import (
+	"os"
 	"testing"
 	"time"
 )
@@ -45,7 +46,13 @@ func TestSignatureProfileDefaults(t *testing.T) {
 }
 
 func TestProfileManager(t *testing.T) {
-	pm := NewProfileManager()
+	tmpDir, err := os.MkdirTemp("", "profile-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	pm := NewProfileManagerWithDir(tmpDir)
 
 	// Test listing profiles
 	profiles, err := pm.ListProfiles()
@@ -82,7 +89,13 @@ func TestProfileManager(t *testing.T) {
 }
 
 func TestProfileValidation(t *testing.T) {
-	pm := NewProfileManager()
+	tmpDir, err := os.MkdirTemp("", "profile-validation-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	pm := NewProfileManagerWithDir(tmpDir)
 
 	// Valid invisible profile
 	validInvisible := &SignatureProfile{
@@ -185,26 +198,5 @@ func TestCreateSignatureAppearance(t *testing.T) {
 	if visibleAppearance.UpperRightX != expectedUpperX {
 		t.Errorf("Upper X position not calculated correctly: expected %f, got %f",
 			expectedUpperX, visibleAppearance.UpperRightX)
-	}
-}
-
-func TestCalculatePageNumber(t *testing.T) {
-	tests := []struct {
-		input    int
-		expected int
-	}{
-		{-1, 1},  // First page
-		{0, -1},  // Last page
-		{1, 1},   // Specific page 1
-		{5, 5},   // Specific page 5
-		{10, 10}, // Specific page 10
-	}
-
-	for _, test := range tests {
-		result := calculatePageNumber(test.input)
-		if result != test.expected {
-			t.Errorf("calculatePageNumber(%d) = %d, expected %d",
-				test.input, result, test.expected)
-		}
 	}
 }

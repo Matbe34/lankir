@@ -7,6 +7,7 @@ import (
 	"os"
 	"syscall"
 
+	"github.com/ferran/pdf_app/internal/config"
 	"github.com/ferran/pdf_app/internal/signature"
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
@@ -46,7 +47,11 @@ var signPDFCmd = &cobra.Command{
 			ExitWithError("certificate fingerprint is required (use --cert flag)", nil)
 		}
 
-		service := signature.NewSignatureService()
+		cfgService, err := config.NewService()
+		if err != nil {
+			ExitWithError("failed to initialize config service", err)
+		}
+		service := signature.NewSignatureService(cfgService)
 		service.Startup(context.Background())
 
 		certs, err := service.ListCertificates()
@@ -135,7 +140,11 @@ var signVerifyCmd = &cobra.Command{
 			ExitWithError("PDF file not found", err)
 		}
 
-		service := signature.NewSignatureService()
+		cfgService, err := config.NewService()
+		if err != nil {
+			ExitWithError("failed to initialize config service", err)
+		}
+		service := signature.NewSignatureService(cfgService)
 		service.Startup(context.Background())
 
 		GetLogger().Info("verifying signatures", "file", pdfPath)
@@ -189,7 +198,11 @@ var signProfileListCmd = &cobra.Command{
 	Short: "List signature profiles",
 	Long:  `List all available signature profiles.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		service := signature.NewSignatureService()
+		cfgService, err := config.NewService()
+		if err != nil {
+			ExitWithError("failed to initialize config service", err)
+		}
+		service := signature.NewSignatureService(cfgService)
 		service.Startup(context.Background())
 
 		GetLogger().Info("listing signature profiles")
@@ -241,7 +254,11 @@ var signProfileInfoCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		profileID := args[0]
 
-		service := signature.NewSignatureService()
+		cfgService, err := config.NewService()
+		if err != nil {
+			ExitWithError("failed to initialize config service", err)
+		}
+		service := signature.NewSignatureService(cfgService)
 		service.Startup(context.Background())
 
 		GetLogger().Info("retrieving profile info", "id", profileID)

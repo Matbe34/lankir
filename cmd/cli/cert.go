@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/ferran/pdf_app/internal/config"
 	"github.com/ferran/pdf_app/internal/signature"
 	"github.com/spf13/cobra"
 )
@@ -28,7 +29,11 @@ var certListCmd = &cobra.Command{
 	Short: "List available certificates",
 	Long:  `List all available certificates from system stores, user stores, and PKCS#11 tokens.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		service := signature.NewSignatureService()
+		cfgService, err := config.NewService()
+		if err != nil {
+			ExitWithError("failed to initialize config service", err)
+		}
+		service := signature.NewSignatureService(cfgService)
 		service.Startup(context.Background())
 
 		GetLogger().Info("listing certificates", "source", certSource, "valid_only", certValidOnly)
@@ -97,7 +102,11 @@ var certSearchCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		query := args[0]
 
-		service := signature.NewSignatureService()
+		cfgService, err := config.NewService()
+		if err != nil {
+			ExitWithError("failed to initialize config service", err)
+		}
+		service := signature.NewSignatureService(cfgService)
 		service.Startup(context.Background())
 
 		GetLogger().Info("searching certificates", "query", query)
@@ -141,7 +150,11 @@ var certInfoCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		fingerprint := args[0]
 
-		service := signature.NewSignatureService()
+		cfgService, err := config.NewService()
+		if err != nil {
+			ExitWithError("failed to initialize config service", err)
+		}
+		service := signature.NewSignatureService(cfgService)
 		service.Startup(context.Background())
 
 		GetLogger().Info("retrieving certificate info", "fingerprint", fingerprint)

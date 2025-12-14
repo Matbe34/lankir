@@ -423,19 +423,6 @@ func splitIntoWords(text string) []string {
 	return words
 }
 
-// calculatePageNumber converts the profile page setting to actual page number
-// 0 = last page, -1 = first page, positive = specific page
-// For pdfsign library: 0 means use as-is (will be set dynamically), positive = specific page
-func calculatePageNumber(page int) int {
-	if page == -1 {
-		return 1 // First page
-	}
-	if page <= 0 {
-		return 0 // Will be set to last page or dynamically
-	}
-	return page
-}
-
 // getLocationString retrieves the location string
 func getLocationString() (string, error) {
 	endpoint := "http://ipinfo.io/json"

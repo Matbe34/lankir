@@ -29,6 +29,8 @@ type Certificate struct {
 	KeyUsage     []string `json:"keyUsage"`
 	IsValid      bool     `json:"isValid"`
 	FilePath     string   `json:"filePath,omitempty"`
+	RequiresPin  bool     `json:"requiresPin"`
+	PinOptional  bool     `json:"pinOptional"`
 }
 
 // Signer implements crypto.Signer for PKCS#12 files
@@ -55,19 +57,17 @@ func (ps *Signer) Certificate() *x509.Certificate {
 	return ps.cert
 }
 
+// DefaultSystemCertDirs contains common system certificate directories on Linux
+var DefaultSystemCertDirs = []string{
+	"/etc/ssl/certs",
+}
+
 // LoadCertificatesFromSystemStore loads certificates from system certificate store
 // On Linux, this typically includes /etc/ssl/certs and similar locations
 func LoadCertificatesFromSystemStore() ([]Certificate, error) {
 	var certs []Certificate
 
-	// Common system certificate directories on Linux
-	certDirs := []string{
-		"/etc/ssl/certs",
-		"/etc/pki/tls/certs",
-		"/usr/share/ca-certificates",
-	}
-
-	for _, dir := range certDirs {
+	for _, dir := range DefaultSystemCertDirs {
 		if _, err := os.Stat(dir); os.IsNotExist(err) {
 			continue
 		}
@@ -81,6 +81,11 @@ func LoadCertificatesFromSystemStore() ([]Certificate, error) {
 	return certs, nil
 }
 
+// DefaultUserCertDirs contains common user certificate directories
+var DefaultUserCertDirs = []string{
+	".pki/nssdb",
+}
+
 // LoadCertificatesFromUserStore loads certificates from user's certificate store
 // On Linux, this includes common user certificate locations
 func LoadCertificatesFromUserStore() ([]Certificate, error) {
@@ -91,15 +96,8 @@ func LoadCertificatesFromUserStore() ([]Certificate, error) {
 		return certs, err
 	}
 
-	// Common user certificate directories
-	certDirs := []string{
-		filepath.Join(homeDir, ".pki", "nssdb"),
-		filepath.Join(homeDir, ".mozilla", "certificates"),
-		filepath.Join(homeDir, ".config", "certificates"),
-		filepath.Join(homeDir, "certificates"),
-	}
-
-	for _, dir := range certDirs {
+	for _, relDir := range DefaultUserCertDirs {
+		dir := filepath.Join(homeDir, relDir)
 		if _, err := os.Stat(dir); os.IsNotExist(err) {
 			continue
 		}
@@ -292,4 +290,88 @@ func convertX509Certificate(cert *x509.Certificate, source string, filename stri
 		KeyUsage:     keyUsage,
 		IsValid:      isValid,
 	}
+}
+
+// LoadCertificateFromPKCS12File loads certificate metadata from a PKCS#12 file
+// If the file requires a password, it returns a certificate with basic info and RequiresPin=true
+func LoadCertificateFromPKCS12File(filePath string) (*Certificate, error) {
+	name := filepath.Base(filePath)
+
+	cert := &Certificate{
+		Name:     name,
+		FilePath: filePath,
+		Source:   "User File",
+	}
+
+	// Check if we can open it without password
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return nil, err
+	}
+
+	privateKey, x509Cert, _, err := goPkcs12.DecodeChain(data, "")
+	if err == nil && x509Cert != nil {
+		// We can read it!
+		c := convertX509Certificate(x509Cert, "User File", name)
+		c.FilePath = filePath
+		// If we have private key, it can sign
+		if privateKey != nil {
+			// It technically doesn't require PIN if we opened it with empty string,
+			// but usually we treat empty password as "no PIN".
+			// However, for consistency with other parts, let's see.
+		}
+		return &c, nil
+	}
+
+	// If we can't open it, assume it requires PIN
+	// We can't get details, but we return the file info
+	cert.RequiresPin = true
+	// We mark it as valid for listing purposes, but it can't be used without PIN
+	cert.IsValid = true
+
+	return cert, nil
+}
+
+// LoadCertificatesFromPath loads certificates from a file or directory
+func LoadCertificatesFromPath(path string) ([]Certificate, error) {
+	info, err := os.Stat(path)
+	if err != nil {
+		return nil, err
+	}
+
+	if info.IsDir() {
+		return loadCertificatesFromDirectory(path, "User Store")
+	}
+
+	// It's a file
+	ext := strings.ToLower(filepath.Ext(path))
+	if ext == ".p12" || ext == ".pfx" {
+		cert, err := LoadCertificateFromPKCS12File(path)
+		if err != nil {
+			return nil, err
+		}
+		if cert != nil {
+			return []Certificate{*cert}, nil
+		}
+		return nil, nil
+	}
+
+	// Try loading as normal cert
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+
+	cert, err := parseCertificate(data)
+	if err != nil {
+		return nil, err
+	}
+
+	if isCertificateValidForSigning(cert) {
+		c := convertX509Certificate(cert, "User File", filepath.Base(path))
+		c.FilePath = path
+		return []Certificate{c}, nil
+	}
+
+	return nil, nil
 }

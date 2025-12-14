@@ -1,6 +1,7 @@
 import { showMessage } from './messageDialog.js';
 import { initSignatureProfiles, loadSignatureProfiles } from './signatureProfiles.js';
 import { themeManager } from './themeManager.js';
+import { initCertificatesSettings } from './certificates.js';
 
 const DEFAULT_SETTINGS = {
     theme: 'dark',
@@ -12,7 +13,9 @@ const DEFAULT_SETTINGS = {
     recentFilesLength: 5,
     autosaveInterval: 0,
     debugMode: false,
-    hardwareAccel: true
+    hardwareAccel: true,
+    certificateStores: [],
+    tokenLibraries: []
 };
 
 DEFAULT_SETTINGS.shortcuts = {
@@ -29,6 +32,7 @@ export async function initSettings() {
     await loadSettings();
     setupSettingsModal();
     initSignatureProfiles();
+    initCertificatesSettings();
 }
 
 async function loadSettings() {
@@ -120,7 +124,6 @@ function setupSettingsModal() {
     settingsSave.addEventListener('click', () => {
         if (saveSettingsFromModal()) {
             showMessage('Settings saved successfully', 'Success', 'success');
-            closeModal();
         } else {
             showMessage('Failed to save settings', 'Error', 'error');
         }
@@ -326,6 +329,10 @@ async function saveSettingsFromModal() {
         currentSettings.autosaveInterval = parseInt(document.getElementById('settingAutosaveInterval').value);
         currentSettings.debugMode = document.getElementById('settingDebugMode').checked;
         currentSettings.hardwareAccel = document.getElementById('settingHardwareAccel').checked;
+
+        // Note: certificateStores and tokenLibraries are updated directly via setSetting in certificates.js
+        // so we don't need to read them from DOM here, but we should make sure they are preserved
+        // currentSettings already has them if setSetting updated it.
 
         try {
             currentSettings.shortcuts = currentSettings.shortcuts || {};

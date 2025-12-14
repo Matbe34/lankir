@@ -108,10 +108,14 @@ type ProfileManager struct {
 
 // NewProfileManager creates a new profile manager
 func NewProfileManager() *ProfileManager {
-	// Prepare for future file-based storage
 	homeDir, _ := os.UserHomeDir()
 	configDir := filepath.Join(homeDir, ".config", "pdf_app", "signature_profiles")
 
+	return NewProfileManagerWithDir(configDir)
+}
+
+// NewProfileManagerWithDir creates a new profile manager with a custom directory
+func NewProfileManagerWithDir(configDir string) *ProfileManager {
 	return &ProfileManager{
 		configDir: configDir,
 	}

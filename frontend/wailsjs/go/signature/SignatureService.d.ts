@@ -3,9 +3,17 @@
 import {signature} from '../models';
 import {context} from '../models';
 
+export function AddCertificateStore(arg1:string):Promise<void>;
+
+export function AddTokenLibrary(arg1:string):Promise<void>;
+
 export function DeleteSignatureProfile(arg1:string):Promise<void>;
 
+export function GetDefaultCertificateSources():Promise<Record<string, Array<string>>>;
+
 export function GetDefaultSignatureProfile():Promise<signature.SignatureProfile>;
+
+export function GetDefaultTokenLibraries():Promise<Array<string>>;
 
 export function GetSignatureProfile(arg1:string):Promise<signature.SignatureProfile>;
 
@@ -14,6 +22,10 @@ export function ListCertificates():Promise<Array<signature.Certificate>>;
 export function ListCertificatesFiltered(arg1:signature.CertificateFilter):Promise<Array<signature.Certificate>>;
 
 export function ListSignatureProfiles():Promise<Array<signature.SignatureProfile>>;
+
+export function RemoveCertificateStore(arg1:string):Promise<void>;
+
+export function RemoveTokenLibrary(arg1:string):Promise<void>;
 
 export function SaveSignatureProfile(arg1:signature.SignatureProfile):Promise<void>;
 
