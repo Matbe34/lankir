@@ -24,8 +24,16 @@ import (
 )
 
 const (
-	DefaultSignatureWidth  = 200
-	DefaultSignatureHeight = 80
+	DefaultSignatureWidth    = 200
+	DefaultSignatureHeight   = 80
+	SignatureRenderScale     = 4.0
+	SignatureFontSizeDefault = 12
+	SignatureMaxIterations   = 20
+	SignatureFontDPI         = 72
+	SignatureLineSpacing     = 1.2
+	LocationCacheTTL         = 1 * time.Hour
+	LocationAPITimeout       = 2 * time.Second
+	LocationAPIEndpoint      = "https://ipinfo.io/json"
 )
 
 // CreateSignatureAppearance configures the signature appearance for visible signatures
@@ -260,7 +268,7 @@ func (g *SignatureImageGenerator) calculateOptimalFontSize(ttf *opentype.Font, m
 		}
 	}()
 
-	for range 20 {
+	for range SignatureMaxIterations {
 		// Close previous face before creating new one
 		if face != nil {
 			face.Close()
@@ -269,7 +277,7 @@ func (g *SignatureImageGenerator) calculateOptimalFontSize(ttf *opentype.Font, m
 
 		face, err = opentype.NewFace(ttf, &opentype.FaceOptions{
 			Size: fontSize,
-			DPI:  72,
+			DPI:  SignatureFontDPI,
 		})
 		if err != nil {
 			return 0, nil, nil
@@ -277,7 +285,7 @@ func (g *SignatureImageGenerator) calculateOptimalFontSize(ttf *opentype.Font, m
 
 		wrappedLines = g.wrapLines(g.textLines, face, maxWidth)
 
-		lineSpacing := int(fontSize * 1.2)
+		lineSpacing := int(fontSize * SignatureLineSpacing)
 		requiredHeight := int(fontSize) + (len(wrappedLines)-1)*lineSpacing
 
 		if requiredHeight <= maxHeight || fontSize <= minSize {
@@ -450,13 +458,12 @@ var (
 	locationCache      string
 	locationCacheTime  time.Time
 	locationCacheMutex sync.RWMutex
-	locationCacheTTL   = 1 * time.Hour
 )
 
 // getLocationString retrieves the location string with caching and rate limiting
 func getLocationString() (string, error) {
 	locationCacheMutex.RLock()
-	if time.Since(locationCacheTime) < locationCacheTTL && locationCache != "" {
+	if time.Since(locationCacheTime) < LocationCacheTTL && locationCache != "" {
 		cached := locationCache
 		locationCacheMutex.RUnlock()
 		return cached, nil
@@ -466,7 +473,7 @@ func getLocationString() (string, error) {
 	locationCacheMutex.Lock()
 	defer locationCacheMutex.Unlock()
 
-	if time.Since(locationCacheTime) < locationCacheTTL && locationCache != "" {
+	if time.Since(locationCacheTime) < LocationCacheTTL && locationCache != "" {
 		return locationCache, nil
 	}
 
@@ -486,11 +493,10 @@ func getLocationString() (string, error) {
 
 // fetchLocationFromAPI performs the actual HTTP request to ipinfo.io
 func fetchLocationFromAPI() (string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), LocationAPITimeout)
 	defer cancel()
 
-	endpoint := "https://ipinfo.io/json"
-	req, err := http.NewRequestWithContext(ctx, "GET", endpoint, nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", LocationAPIEndpoint, nil)
 	if err != nil {
 		return "", err
 	}

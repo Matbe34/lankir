@@ -16,6 +16,7 @@ type SignatureVisibility string
 const (
 	VisibilityInvisible SignatureVisibility = "invisible"
 	VisibilityVisible   SignatureVisibility = "visible"
+	MaxProfileFiles                         = 50
 )
 
 // SignaturePosition defines where a visible signature appears on the page
@@ -254,9 +255,8 @@ func (pm *ProfileManager) loadCustomProfiles(profiles *[]*SignatureProfile) erro
 		return fmt.Errorf("failed to list profile files: %w", err)
 	}
 
-	const maxProfileFiles = 100
-	if len(files) > maxProfileFiles {
-		return fmt.Errorf("too many profile files (%d) in directory, maximum allowed is %d", len(files), maxProfileFiles)
+	if len(files) > MaxProfileFiles {
+		return fmt.Errorf("too many profile files (%d) in directory, maximum allowed is %d", len(files), MaxProfileFiles)
 	}
 
 	for _, file := range files {

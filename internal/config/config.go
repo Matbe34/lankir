@@ -76,16 +76,20 @@ func NewServiceWithDir(configDir string) (*Service, error) {
 	}
 
 	certStores, tokenLibs := getCertificatesDefaults()
+	configChanged := false
+
 	if len(service.config.CertificateStores) == 0 {
 		service.config.CertificateStores = certStores
-		if err := service.Save(); err != nil {
-			return nil, fmt.Errorf("failed to save certificate defaults: %w", err)
-		}
+		configChanged = true
 	}
 	if len(service.config.TokenLibraries) == 0 {
 		service.config.TokenLibraries = tokenLibs
+		configChanged = true
+	}
+
+	if configChanged {
 		if err := service.Save(); err != nil {
-			return nil, fmt.Errorf("failed to save token library defaults: %w", err)
+			return nil, fmt.Errorf("failed to save configuration defaults: %w", err)
 		}
 	}
 
