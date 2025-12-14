@@ -43,3 +43,5 @@ pdf-app-*
 # C library build artifacts
 go-fitz-include
 go-fitz-libs
+
+.gopls.yaml
