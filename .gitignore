@@ -34,3 +34,12 @@ Thumbs.db
 
 # test
 samples/
+
+# Application binaries
+pdf_app
+pdf-app
+pdf-app-*
+
+# C library build artifacts
+go-fitz-include
+go-fitz-libs
