@@ -11,27 +11,9 @@ import (
 	"strings"
 
 	"github.com/ferran/pdf_app/internal/signature/certutil"
+	"github.com/ferran/pdf_app/internal/signature/types"
 	goPkcs12 "software.sslmate.com/src/go-pkcs12"
 )
-
-// Certificate represents a digital certificate with metadata
-// This is an alias for the main signature.Certificate type to avoid circular imports
-type Certificate struct {
-	Name         string   `json:"name"`
-	Issuer       string   `json:"issuer"`
-	Subject      string   `json:"subject"`
-	SerialNumber string   `json:"serialNumber"`
-	ValidFrom    string   `json:"validFrom"`
-	ValidTo      string   `json:"validTo"`
-	Fingerprint  string   `json:"fingerprint"`
-	Source       string   `json:"source"`
-	KeyUsage     []string `json:"keyUsage"`
-	IsValid      bool     `json:"isValid"`
-	FilePath     string   `json:"filePath,omitempty"`
-	CanSign      bool     `json:"canSign"`
-	RequiresPin  bool     `json:"requiresPin"`
-	PinOptional  bool     `json:"pinOptional"`
-}
 
 // Signer implements crypto.Signer for PKCS#12 files
 type Signer struct {
@@ -62,10 +44,9 @@ var DefaultSystemCertDirs = []string{
 	"/etc/ssl/certs",
 }
 
-// LoadCertificatesFromSystemStore loads certificates from system certificate store
-// On Linux, this typically includes /etc/ssl/certs and similar locations
-func LoadCertificatesFromSystemStore() ([]Certificate, error) {
-	var certs []Certificate
+// LoadCertificatesFromSystemStore loads certificates from system certificate store.
+func LoadCertificatesFromSystemStore() ([]types.Certificate, error) {
+	var certs []types.Certificate
 
 	for _, dir := range DefaultSystemCertDirs {
 		if _, err := os.Stat(dir); os.IsNotExist(err) {
@@ -86,10 +67,9 @@ var DefaultUserCertDirs = []string{
 	".pki/nssdb",
 }
 
-// LoadCertificatesFromUserStore loads certificates from user's certificate store
-// On Linux, this includes common user certificate locations
-func LoadCertificatesFromUserStore() ([]Certificate, error) {
-	var certs []Certificate
+// LoadCertificatesFromUserStore loads certificates from user's certificate store.
+func LoadCertificatesFromUserStore() ([]types.Certificate, error) {
+	var certs []types.Certificate
 
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
@@ -112,8 +92,8 @@ func LoadCertificatesFromUserStore() ([]Certificate, error) {
 }
 
 // loadCertificatesFromDirectory loads certificates from a directory
-func loadCertificatesFromDirectory(dir string, source string) ([]Certificate, error) {
-	var certs []Certificate
+func loadCertificatesFromDirectory(dir string, source string) ([]types.Certificate, error) {
+	var certs []types.Certificate
 
 	entries, err := os.ReadDir(dir)
 	if err != nil {
@@ -133,8 +113,10 @@ func loadCertificatesFromDirectory(dir string, source string) ([]Certificate, er
 		if ext == ".crt" || ext == ".cer" || ext == ".pem" || ext == ".p12" || ext == ".pfx" {
 			// Handle PKCS#12 files differently
 			if ext == ".p12" || ext == ".pfx" {
-				// PKCS#12 files require password, skip for listing
-				// They will be handled separately when signing
+				cert, err := LoadCertificateFromPKCS12File(filePath)
+				if err == nil && cert != nil {
+					certs = append(certs, *cert)
+				}
 				continue
 			}
 
@@ -149,8 +131,8 @@ func loadCertificatesFromDirectory(dir string, source string) ([]Certificate, er
 				continue
 			}
 
-			if isCertificateValidForSigning(cert) {
-				c := convertX509Certificate(cert, source, fileName)
+			if certutil.IsCertificateValidForSigning(cert) {
+				c := certutil.ConvertX509Certificate(cert, source, fileName)
 				c.FilePath = filePath
 				certs = append(certs, c)
 			}
@@ -257,45 +239,12 @@ func GetSignerFromPKCS12File(filePath string, password string) (*Signer, error) 
 	}, nil
 }
 
-// isCertificateValidForSigning checks if a certificate can be used for signing
-func isCertificateValidForSigning(cert *x509.Certificate) bool {
-	// Check if certificate has digital signature key usage
-	if cert.KeyUsage&x509.KeyUsageDigitalSignature == 0 {
-		return false
-	}
-
-	// Optionally filter out CA certificates
-	if cert.IsCA {
-		return false
-	}
-
-	return true
-}
-
-// convertX509Certificate converts x509.Certificate to our Certificate type
-func convertX509Certificate(cert *x509.Certificate, source string, filename string) Certificate {
-	data := certutil.ConvertX509Certificate(cert, source, filename)
-	return Certificate{
-		Name:         data.Name,
-		Issuer:       data.Issuer,
-		Subject:      data.Subject,
-		SerialNumber: data.SerialNumber,
-		ValidFrom:    data.ValidFrom,
-		ValidTo:      data.ValidTo,
-		Fingerprint:  data.Fingerprint,
-		Source:       data.Source,
-		KeyUsage:     data.KeyUsage,
-		IsValid:      data.IsValid,
-		CanSign:      data.CanSign,
-	}
-}
-
 // LoadCertificateFromPKCS12File loads certificate metadata from a PKCS#12 file
 // If the file requires a password, it returns a certificate with basic info and RequiresPin=true
-func LoadCertificateFromPKCS12File(filePath string) (*Certificate, error) {
+func LoadCertificateFromPKCS12File(filePath string) (*types.Certificate, error) {
 	name := filepath.Base(filePath)
 
-	cert := &Certificate{
+	cert := &types.Certificate{
 		Name:     name,
 		FilePath: filePath,
 		Source:   "User File",
@@ -310,13 +259,15 @@ func LoadCertificateFromPKCS12File(filePath string) (*Certificate, error) {
 	privateKey, x509Cert, _, err := goPkcs12.DecodeChain(data, "")
 	if err == nil && x509Cert != nil {
 		// We can read it!
-		c := convertX509Certificate(x509Cert, "User File", name)
+		c := certutil.ConvertX509Certificate(x509Cert, "User File", name)
 		c.FilePath = filePath
 		// If we have private key, it can sign
 		if privateKey != nil {
 			// It technically doesn't require PIN if we opened it with empty string,
 			// but usually we treat empty password as "no PIN".
 			// However, for consistency with other parts, let's see.
+			c.RequiresPin = false
+			c.PinOptional = true
 		}
 		return &c, nil
 	}
@@ -331,7 +282,7 @@ func LoadCertificateFromPKCS12File(filePath string) (*Certificate, error) {
 }
 
 // LoadCertificatesFromPath loads certificates from a file or directory
-func LoadCertificatesFromPath(path string) ([]Certificate, error) {
+func LoadCertificatesFromPath(path string) ([]types.Certificate, error) {
 	info, err := os.Stat(path)
 	if err != nil {
 		return nil, err
@@ -349,7 +300,7 @@ func LoadCertificatesFromPath(path string) ([]Certificate, error) {
 			return nil, err
 		}
 		if cert != nil {
-			return []Certificate{*cert}, nil
+			return []types.Certificate{*cert}, nil
 		}
 		return nil, nil
 	}
@@ -365,10 +316,10 @@ func LoadCertificatesFromPath(path string) ([]Certificate, error) {
 		return nil, err
 	}
 
-	if isCertificateValidForSigning(cert) {
-		c := convertX509Certificate(cert, "User File", filepath.Base(path))
+	if certutil.IsCertificateValidForSigning(cert) {
+		c := certutil.ConvertX509Certificate(cert, "User File", filepath.Base(path))
 		c.FilePath = path
-		return []Certificate{c}, nil
+		return []types.Certificate{c}, nil
 	}
 
 	return nil, nil

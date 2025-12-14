@@ -14,6 +14,7 @@ import (
 	"github.com/ferran/pdf_app/internal/signature/nss"
 	"github.com/ferran/pdf_app/internal/signature/pkcs11"
 	"github.com/ferran/pdf_app/internal/signature/pkcs12"
+	"github.com/ferran/pdf_app/internal/signature/types"
 	"github.com/google/uuid"
 )
 
@@ -90,7 +91,7 @@ func (s *SignatureService) SignPDFWithProfileAndPosition(pdfPath string, certFin
 		return "", fmt.Errorf("failed to list certificates: %w", err)
 	}
 
-	var selectedCert *Certificate
+	var selectedCert *types.Certificate
 	for _, cert := range certs {
 		if cert.Fingerprint == certFingerprint {
 			selectedCert = &cert
@@ -168,7 +169,7 @@ func getDefaultPKCS11ModulePath() string {
 	return ""
 }
 
-func (s *SignatureService) signWithPKCS11(pdfPath string, cert *Certificate, pin string, profile *SignatureProfile) (string, error) {
+func (s *SignatureService) signWithPKCS11(pdfPath string, cert *types.Certificate, pin string, profile *SignatureProfile) (string, error) {
 	outputPath := generateSignedPDFPath(pdfPath)
 
 	modulePath := cert.PKCS11Module
@@ -194,7 +195,7 @@ func (s *SignatureService) signWithPKCS11(pdfPath string, cert *Certificate, pin
 	return outputPath, nil
 }
 
-func (s *SignatureService) signWithNSS(pdfPath string, cert *Certificate, password string, profile *SignatureProfile) (string, error) {
+func (s *SignatureService) signWithNSS(pdfPath string, cert *types.Certificate, password string, profile *SignatureProfile) (string, error) {
 	outputPath := generateSignedPDFPath(pdfPath)
 
 	if cert.NSSNickname == "" {
@@ -214,7 +215,7 @@ func (s *SignatureService) signWithNSS(pdfPath string, cert *Certificate, passwo
 	return outputPath, nil
 }
 
-func (s *SignatureService) signWithPKCS12(pdfPath string, cert *Certificate, password string, profile *SignatureProfile) (string, error) {
+func (s *SignatureService) signWithPKCS12(pdfPath string, cert *types.Certificate, password string, profile *SignatureProfile) (string, error) {
 	outputPath := generateSignedPDFPath(pdfPath)
 
 	if cert.FilePath == "" {
@@ -251,7 +252,7 @@ func (s *SignatureService) signWithPKCS12(pdfPath string, cert *Certificate, pas
 	return outputPath, nil
 }
 
-func (s *SignatureService) signPDFWithSigner(inputPath, outputPath string, signer CertificateSigner, cert *Certificate, profile *SignatureProfile) error {
+func (s *SignatureService) signPDFWithSigner(inputPath, outputPath string, signer CertificateSigner, cert *types.Certificate, profile *SignatureProfile) error {
 	signingTime := time.Now().Local()
 
 	// Create appearance based on profile

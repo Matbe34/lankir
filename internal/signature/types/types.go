@@ -1,4 +1,4 @@
-package signature
+package types
 
 import "strings"
 
@@ -37,16 +37,11 @@ func (c *Certificate) HasKeyUsage(usage string) bool {
 }
 
 // HasSigningCapability checks if the certificate can be used for digital signatures
-// This is a more robust check than string matching
 func (c *Certificate) HasSigningCapability() bool {
-	// Primary check: use the CanSign flag which is set by certificate loaders
-	// based on proper X.509 key usage bit flags
 	if c.CanSign {
 		return true
 	}
 
-	// Fallback: check key usage strings for backwards compatibility
-	// This handles cases where CanSign might not be set correctly
 	return c.HasKeyUsage("Digital Signature") || c.HasKeyUsage("Non Repudiation")
 }
 

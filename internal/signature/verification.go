@@ -7,9 +7,10 @@ import (
 	"time"
 
 	"github.com/digitorus/pdfsign/verify"
+	"github.com/ferran/pdf_app/internal/signature/types"
 )
 
-func (s *SignatureService) VerifySignatures(pdfPath string) ([]SignatureInfo, error) {
+func (s *SignatureService) VerifySignatures(pdfPath string) ([]types.SignatureInfo, error) {
 	file, err := os.Open(pdfPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open PDF: %w", err)
@@ -21,16 +22,16 @@ func (s *SignatureService) VerifySignatures(pdfPath string) ([]SignatureInfo, er
 		errMsg := err.Error()
 
 		if strings.Contains(errMsg, "no digital signature in document") {
-			return []SignatureInfo{}, nil
+			return []types.SignatureInfo{}, nil
 		}
 		return nil, fmt.Errorf("verification failed: %w", err)
 	}
 
 	if len(response.Signers) == 0 {
-		return []SignatureInfo{}, nil
+		return []types.SignatureInfo{}, nil
 	}
 
-	var signatures []SignatureInfo
+	var signatures []types.SignatureInfo
 	for _, signer := range response.Signers {
 		sigInfo := s.convertSignerToInfo(signer, response.Error)
 		signatures = append(signatures, sigInfo)
@@ -39,8 +40,8 @@ func (s *SignatureService) VerifySignatures(pdfPath string) ([]SignatureInfo, er
 	return signatures, nil
 }
 
-func (s *SignatureService) convertSignerToInfo(signer verify.Signer, responseError string) SignatureInfo {
-	info := SignatureInfo{
+func (s *SignatureService) convertSignerToInfo(signer verify.Signer, responseError string) types.SignatureInfo {
+	info := types.SignatureInfo{
 		SignerName:       signer.Name,
 		Reason:           signer.Reason,
 		Location:         signer.Location,

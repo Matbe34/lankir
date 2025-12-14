@@ -6,25 +6,24 @@ import (
 	"encoding/hex"
 	"path/filepath"
 	"time"
+
+	"github.com/ferran/pdf_app/internal/signature/types"
 )
 
-// CertificateData contains the common fields for all Certificate types
-type CertificateData struct {
-	Name         string
-	Issuer       string
-	Subject      string
-	SerialNumber string
-	ValidFrom    string
-	ValidTo      string
-	Fingerprint  string
-	Source       string
-	KeyUsage     []string
-	IsValid      bool
-	CanSign      bool
+func IsCertificateValidForSigning(cert *x509.Certificate) bool {
+	if cert.KeyUsage&x509.KeyUsageDigitalSignature == 0 {
+		return false
+	}
+
+	if cert.IsCA {
+		return false
+	}
+
+	return true
 }
 
-// ConvertX509Certificate converts an x509.Certificate to common certificate data
-func ConvertX509Certificate(cert *x509.Certificate, source string, filename string) CertificateData {
+// ConvertX509Certificate converts an x509.Certificate to types.Certificate
+func ConvertX509Certificate(cert *x509.Certificate, source string, filename string) types.Certificate {
 	var keyUsage []string
 	if cert.KeyUsage&x509.KeyUsageDigitalSignature != 0 {
 		keyUsage = append(keyUsage, "Digital Signature")
@@ -55,7 +54,7 @@ func ConvertX509Certificate(cert *x509.Certificate, source string, filename stri
 	// Check if certificate has digital signature capability
 	canSign := cert.KeyUsage&x509.KeyUsageDigitalSignature != 0
 
-	return CertificateData{
+	return types.Certificate{
 		Name:         name,
 		Issuer:       cert.Issuer.CommonName,
 		Subject:      cert.Subject.CommonName,

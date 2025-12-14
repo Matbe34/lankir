@@ -1,34 +1,32 @@
 package signature
 
 import (
-	"crypto/sha256"
-	"crypto/x509"
-	"encoding/hex"
 	"log/slog"
 	"path/filepath"
 	"strings"
-	"time"
 
+	"github.com/ferran/pdf_app/internal/signature/certutil"
 	"github.com/ferran/pdf_app/internal/signature/nss"
 	"github.com/ferran/pdf_app/internal/signature/pkcs11"
 	"github.com/ferran/pdf_app/internal/signature/pkcs12"
+	"github.com/ferran/pdf_app/internal/signature/types"
 )
 
 // CertificateFilter defines criteria for filtering certificates
 type CertificateFilter struct {
-	Source            string // Filter by source (system, user, pkcs11)
-	Search            string // Search in name, subject, issuer
-	ValidOnly         bool   // Only return valid (non-expired) certificates
-	RequiredKeyUsage  string // Require specific key usage (e.g., "digitalSignature")
+	Source           string // Filter by source (system, user, pkcs11)
+	Search           string // Search in name, subject, issuer
+	ValidOnly        bool   // Only return valid (non-expired) certificates
+	RequiredKeyUsage string // Require specific key usage (e.g., "digitalSignature")
 }
 
-func (s *SignatureService) ListCertificates() ([]Certificate, error) {
+func (s *SignatureService) ListCertificates() ([]types.Certificate, error) {
 	return s.ListCertificatesFiltered(CertificateFilter{})
 }
 
 // ListCertificatesFiltered returns certificates matching the filter criteria
-func (s *SignatureService) ListCertificatesFiltered(filter CertificateFilter) ([]Certificate, error) {
-	var allCerts []Certificate
+func (s *SignatureService) ListCertificatesFiltered(filter CertificateFilter) ([]types.Certificate, error) {
+	var allCerts []types.Certificate
 	seenFingerprints := make(map[string]bool)
 
 	// Load certificates from configured stores only
@@ -40,42 +38,17 @@ func (s *SignatureService) ListCertificatesFiltered(filter CertificateFilter) ([
 			storeCerts, err := pkcs12.LoadCertificatesFromPath(storePath)
 			if err == nil {
 				for _, sc := range storeCerts {
-					cert := Certificate{
-						Name:         sc.Name,
-						Issuer:       sc.Issuer,
-						Subject:      sc.Subject,
-						SerialNumber: sc.SerialNumber,
-						ValidFrom:    sc.ValidFrom,
-						ValidTo:      sc.ValidTo,
-						Fingerprint:  sc.Fingerprint,
-						Source:       sc.Source,
-						KeyUsage:     sc.KeyUsage,
-						IsValid:      sc.IsValid,
-						FilePath:     sc.FilePath,
-						RequiresPin:  sc.RequiresPin,
-						PinOptional:  sc.PinOptional,
-					}
-
 					if sc.FilePath != "" {
 						ext := strings.ToLower(filepath.Ext(sc.FilePath))
 						inNSSDB := strings.Contains(sc.FilePath, ".pki/nssdb")
 
 						if ext == ".p12" || ext == ".pfx" {
-							cert.CanSign = true
-							requiresPin, err := pkcs12.CheckPKCS12RequiresPassword(sc.FilePath)
-							if err == nil {
-								cert.RequiresPin = requiresPin
-								cert.PinOptional = !requiresPin
-							} else {
-								cert.RequiresPin = true
-								cert.PinOptional = false
-							}
-							allCerts = append(allCerts, cert)
+							allCerts = append(allCerts, sc)
 						} else if !inNSSDB {
-							allCerts = append(allCerts, cert)
+							allCerts = append(allCerts, sc)
 						}
 					} else {
-						allCerts = append(allCerts, cert)
+						allCerts = append(allCerts, sc)
 					}
 				}
 			}
@@ -86,25 +59,7 @@ func (s *SignatureService) ListCertificatesFiltered(filter CertificateFilter) ([
 		if err != nil {
 			slog.Warn("failed to load PKCS#11 certificates", "error", err)
 		} else {
-			for _, pc := range pkcs11Certs {
-				allCerts = append(allCerts, Certificate{
-					Name:         pc.Name,
-					Issuer:       pc.Issuer,
-					Subject:      pc.Subject,
-					SerialNumber: pc.SerialNumber,
-					ValidFrom:    pc.ValidFrom,
-					ValidTo:      pc.ValidTo,
-					Fingerprint:  pc.Fingerprint,
-					Source:       pc.Source,
-					KeyUsage:     pc.KeyUsage,
-					IsValid:      pc.IsValid,
-					PKCS11Module: pc.PKCS11Module,
-					PKCS11URL:    pc.PKCS11URL,
-					CanSign:      true,
-					RequiresPin:  true,
-					PinOptional:  false,
-				})
-			}
+			allCerts = append(allCerts, pkcs11Certs...)
 		}
 	}
 
@@ -115,7 +70,7 @@ func (s *SignatureService) ListCertificatesFiltered(filter CertificateFilter) ([
 		allCerts = append(allCerts, nssCerts...)
 	}
 
-	uniqueCerts := make([]Certificate, 0, len(allCerts))
+	uniqueCerts := make([]types.Certificate, 0, len(allCerts))
 	for _, cert := range allCerts {
 		if !seenFingerprints[cert.Fingerprint] {
 			seenFingerprints[cert.Fingerprint] = true
@@ -130,14 +85,14 @@ func (s *SignatureService) ListCertificatesFiltered(filter CertificateFilter) ([
 }
 
 // SearchCertificates searches for certificates matching the query
-func (s *SignatureService) SearchCertificates(query string) ([]Certificate, error) {
+func (s *SignatureService) SearchCertificates(query string) ([]types.Certificate, error) {
 	return s.ListCertificatesFiltered(CertificateFilter{
 		Search: query,
 	})
 }
 
 // matchesFilter checks if a certificate matches the given filter criteria
-func (s *SignatureService) matchesFilter(cert Certificate, filter CertificateFilter) bool {
+func (s *SignatureService) matchesFilter(cert types.Certificate, filter CertificateFilter) bool {
 	if filter.ValidOnly && !cert.IsValid {
 		return false
 	}
@@ -178,72 +133,24 @@ func (s *SignatureService) matchesFilter(cert Certificate, filter CertificateFil
 }
 
 // LoadNSSCertificates loads certificates from NSS database using NSS APIs
-func LoadNSSCertificates() ([]Certificate, error) {
+func LoadNSSCertificates() ([]types.Certificate, error) {
 	nssCerts, err := nss.ListCertificates()
 	if err != nil {
 		return nil, err
 	}
 
-	var certs []Certificate
+	var certs []types.Certificate
 	for _, nc := range nssCerts {
 		if !nc.HasPrivateKey {
 			continue
 		}
 
-		cert := nc.X509Cert
-		fingerprint := sha256.Sum256(cert.Raw)
-		fingerprintHex := hex.EncodeToString(fingerprint[:])
+		c := certutil.ConvertX509Certificate(nc.X509Cert, "NSS Database", nc.X509Cert.Subject.CommonName)
+		c.NSSNickname = nc.Nickname
+		c.RequiresPin = false
+		c.PinOptional = true
 
-		isValid := time.Now().After(cert.NotBefore) && time.Now().Before(cert.NotAfter)
-
-		var keyUsages []string
-		if cert.KeyUsage&x509.KeyUsageDigitalSignature != 0 {
-			keyUsages = append(keyUsages, "Digital Signature")
-		}
-		if cert.KeyUsage&x509.KeyUsageContentCommitment != 0 {
-			keyUsages = append(keyUsages, "Non Repudiation")
-		}
-		if cert.KeyUsage&x509.KeyUsageKeyEncipherment != 0 {
-			keyUsages = append(keyUsages, "Key Encipherment")
-		}
-		if cert.KeyUsage&x509.KeyUsageDataEncipherment != 0 {
-			keyUsages = append(keyUsages, "Data Encipherment")
-		}
-		if cert.KeyUsage&x509.KeyUsageKeyAgreement != 0 {
-			keyUsages = append(keyUsages, "Key Agreement")
-		}
-		if cert.KeyUsage&x509.KeyUsageCertSign != 0 {
-			keyUsages = append(keyUsages, "Certificate Sign")
-		}
-		if cert.KeyUsage&x509.KeyUsageCRLSign != 0 {
-			keyUsages = append(keyUsages, "CRL Sign")
-		}
-		if cert.KeyUsage&x509.KeyUsageEncipherOnly != 0 {
-			keyUsages = append(keyUsages, "Encipher Only")
-		}
-		if cert.KeyUsage&x509.KeyUsageDecipherOnly != 0 {
-			keyUsages = append(keyUsages, "Decipher Only")
-		}
-
-		canSign := (cert.KeyUsage&x509.KeyUsageDigitalSignature != 0) ||
-			(cert.KeyUsage&x509.KeyUsageContentCommitment != 0)
-
-		certs = append(certs, Certificate{
-			Name:         cert.Subject.CommonName,
-			Issuer:       cert.Issuer.CommonName,
-			Subject:      cert.Subject.String(),
-			SerialNumber: cert.SerialNumber.String(),
-			ValidFrom:    cert.NotBefore.Format("2006-01-02"),
-			ValidTo:      cert.NotAfter.Format("2006-01-02"),
-			Fingerprint:  fingerprintHex,
-			Source:       "NSS Database",
-			KeyUsage:     keyUsages,
-			IsValid:      isValid,
-			NSSNickname:  nc.Nickname,
-			CanSign:      canSign,
-			RequiresPin:  false,
-			PinOptional:  true,
-		})
+		certs = append(certs, c)
 	}
 
 	return certs, nil

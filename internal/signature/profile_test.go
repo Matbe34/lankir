@@ -4,13 +4,17 @@ import (
 	"os"
 	"testing"
 	"time"
+
+	"github.com/ferran/pdf_app/internal/signature/types"
+	"github.com/google/uuid"
 )
 
 func TestSignatureProfileDefaults(t *testing.T) {
 	// Test default invisible profile
 	invisible := DefaultInvisibleProfile()
-	if invisible.ID != "default-invisible" {
-		t.Errorf("Expected default-invisible, got %s", invisible.ID)
+	expectedInvisibleID := uuid.MustParse("00000000-0000-0000-0000-000000000001")
+	if invisible.ID != expectedInvisibleID {
+		t.Errorf("Expected %s, got %s", expectedInvisibleID, invisible.ID)
 	}
 	if invisible.Visibility != VisibilityInvisible {
 		t.Errorf("Expected invisible visibility, got %s", invisible.Visibility)
@@ -21,8 +25,9 @@ func TestSignatureProfileDefaults(t *testing.T) {
 
 	// Test default visible profile
 	visible := DefaultVisibleProfile()
-	if visible.ID != "default-visible" {
-		t.Errorf("Expected default-visible, got %s", visible.ID)
+	expectedVisibleID := uuid.MustParse("00000000-0000-0000-0000-000000000002")
+	if visible.ID != expectedVisibleID {
+		t.Errorf("Expected %s, got %s", expectedVisibleID, visible.ID)
 	}
 	if visible.Visibility != VisibilityVisible {
 		t.Errorf("Expected visible visibility, got %s", visible.Visibility)
@@ -64,7 +69,8 @@ func TestProfileManager(t *testing.T) {
 	}
 
 	// Test getting profile by ID
-	invisible, err := pm.GetProfile("default-invisible")
+	invisibleID := uuid.MustParse("00000000-0000-0000-0000-000000000001")
+	invisible, err := pm.GetProfile(invisibleID)
 	if err != nil {
 		t.Fatalf("Failed to get invisible profile: %v", err)
 	}
@@ -82,7 +88,7 @@ func TestProfileManager(t *testing.T) {
 	}
 
 	// Test getting non-existent profile
-	_, err = pm.GetProfile("non-existent")
+	_, err = pm.GetProfile(uuid.New())
 	if err == nil {
 		t.Error("Expected error when getting non-existent profile")
 	}
@@ -99,7 +105,7 @@ func TestProfileValidation(t *testing.T) {
 
 	// Valid invisible profile
 	validInvisible := &SignatureProfile{
-		ID:         "test-invisible",
+		ID:         uuid.New(),
 		Name:       "Test Invisible",
 		Visibility: VisibilityInvisible,
 	}
@@ -109,7 +115,7 @@ func TestProfileValidation(t *testing.T) {
 
 	// Valid visible profile
 	validVisible := &SignatureProfile{
-		ID:         "test-visible",
+		ID:         uuid.New(),
 		Name:       "Test Visible",
 		Visibility: VisibilityVisible,
 		Position: SignaturePosition{
@@ -132,7 +138,7 @@ func TestProfileValidation(t *testing.T) {
 
 	// Invalid: no name
 	invalidNoName := &SignatureProfile{
-		ID:         "test",
+		ID:         uuid.New(),
 		Visibility: VisibilityInvisible,
 	}
 	if err := pm.ValidateProfile(invalidNoName); err == nil {
@@ -141,7 +147,7 @@ func TestProfileValidation(t *testing.T) {
 
 	// Invalid: visible without dimensions
 	invalidNoDimensions := &SignatureProfile{
-		ID:         "test",
+		ID:         uuid.New(),
 		Name:       "Test",
 		Visibility: VisibilityVisible,
 		Position: SignaturePosition{
@@ -155,7 +161,7 @@ func TestProfileValidation(t *testing.T) {
 
 	// Invalid: wrong visibility type
 	invalidVisibility := &SignatureProfile{
-		ID:         "test",
+		ID:         uuid.New(),
 		Name:       "Test",
 		Visibility: "wrong",
 	}
@@ -165,7 +171,7 @@ func TestProfileValidation(t *testing.T) {
 }
 
 func TestCreateSignatureAppearance(t *testing.T) {
-	cert := &Certificate{
+	cert := &types.Certificate{
 		Name:         "Test User",
 		Subject:      "CN=Test User, O=Test Org",
 		Issuer:       "CN=Test CA",

@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/digitorus/pdfsign/sign"
+	"github.com/ferran/pdf_app/internal/signature/types"
 	"golang.org/x/image/font"
 	"golang.org/x/image/font/gofont/goregular"
 	"golang.org/x/image/font/opentype"
@@ -29,7 +30,7 @@ const (
 
 // CreateSignatureAppearance configures the signature appearance for visible signatures
 // based on the profile settings. It returns a sign.Appearance that can be used with SignData.
-func CreateSignatureAppearance(profile *SignatureProfile, cert *Certificate, signingTime time.Time) *sign.Appearance {
+func CreateSignatureAppearance(profile *SignatureProfile, cert *types.Certificate, signingTime time.Time) *sign.Appearance {
 	appearance := &sign.Appearance{
 		Visible: profile.Visibility == VisibilityVisible,
 	}

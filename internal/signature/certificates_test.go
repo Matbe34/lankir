@@ -34,8 +34,12 @@ func generateTestP12(t *testing.T, dir string, name string) string {
 }
 
 func TestCertificateManagement(t *testing.T) {
-	// Setup temp config dir
-	tmpDir, err := os.MkdirTemp("", "cert-test")
+	// Setup temp config dir in home directory
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+	tmpDir, err := os.MkdirTemp(homeDir, "cert-test")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -54,7 +58,7 @@ func TestCertificateManagement(t *testing.T) {
 	p12Path := generateTestP12(t, tmpDir, "test.p12")
 
 	// Test AddCertificateStore
-	err = service.AddCertificateStore(p12Path)
+	err = service.AddCertificateStore(tmpDir)
 	if err != nil {
 		t.Errorf("AddCertificateStore failed: %v", err)
 	}
@@ -63,7 +67,7 @@ func TestCertificateManagement(t *testing.T) {
 	cfg := cfgService.Get()
 	found := false
 	for _, store := range cfg.CertificateStores {
-		if store == p12Path {
+		if store == tmpDir {
 			found = true
 			break
 		}
@@ -99,7 +103,7 @@ func TestCertificateManagement(t *testing.T) {
 	}
 
 	// Test RemoveCertificateStore
-	err = service.RemoveCertificateStore(p12Path)
+	err = service.RemoveCertificateStore(tmpDir)
 	if err != nil {
 		t.Errorf("RemoveCertificateStore failed: %v", err)
 	}
@@ -108,7 +112,7 @@ func TestCertificateManagement(t *testing.T) {
 	cfg = cfgService.Get()
 	found = false
 	for _, store := range cfg.CertificateStores {
-		if store == p12Path {
+		if store == tmpDir {
 			found = true
 			break
 		}
