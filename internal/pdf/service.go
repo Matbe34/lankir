@@ -109,12 +109,19 @@ func (s *PDFService) OpenPDFByPath(filePath string) (*PDFMetadata, error) {
 	resultChan := make(chan openResult, 1)
 	go func() {
 		doc, err := fitz.New(filePath)
+		defer func() {
+			select {
+			case <-ctx.Done():
+				if doc != nil && err == nil {
+					doc.Close()
+				}
+			default:
+			}
+		}()
+
 		select {
 		case resultChan <- openResult{doc: doc, err: err}:
 		case <-ctx.Done():
-			if doc != nil {
-				doc.Close()
-			}
 		}
 	}()
 
