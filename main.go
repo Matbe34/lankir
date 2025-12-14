@@ -21,14 +21,12 @@ import (
 var assets embed.FS
 
 func main() {
-	cli.RunGUIFunc = runGUI
-
-	if len(os.Args) > 1 {
-		cli.Execute()
+	if len(os.Args) == 1 {
+		runGUI()
 		return
 	}
 
-	runGUI()
+	cli.Execute(runGUI)
 }
 
 func runGUI() {
@@ -60,7 +58,7 @@ func runGUI() {
 
 	// Create application with options
 	err = wails.Run(&options.App{
-		Title:  "PDF Editor Pro",
+		Title:  "PDF App",
 		Width:  1400,
 		Height: 900,
 		AssetServer: &assetserver.Options{
