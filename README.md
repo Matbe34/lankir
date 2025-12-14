@@ -1,4 +1,4 @@
-# PDF Editor Pro
+# PDF App
 
 A modern, high-performance PDF editor for Linux built with Go and Wails.
 
@@ -171,7 +171,7 @@ This is the initial project setup. The following components are in place:
 
 ## 💻 Command Line Interface (CLI)
 
-PDF Editor Pro includes a powerful CLI built with Cobra and slog. The same binary works as both GUI and CLI:
+PDF App includes a powerful CLI built with Cobra and slog. The same binary works as both GUI and CLI:
 
 - **Run without arguments**: Launches the GUI
 - **Run with arguments**: Executes CLI commands
@@ -335,3 +335,4 @@ Add configurable settings:
 
 
 option for watermark background signature
+add libraries for certificates loading
