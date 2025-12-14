@@ -4,7 +4,9 @@ import (
 	"crypto"
 	"crypto/x509"
 	"fmt"
+	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
@@ -12,7 +14,16 @@ import (
 	"github.com/ferran/pdf_app/internal/signature/nss"
 	"github.com/ferran/pdf_app/internal/signature/pkcs11"
 	"github.com/ferran/pdf_app/internal/signature/pkcs12"
+	"github.com/google/uuid"
 )
+
+// generateSignedPDFPath generates the output path for a signed PDF
+// Handles case-insensitive file extensions properly
+func generateSignedPDFPath(pdfPath string) string {
+	ext := filepath.Ext(pdfPath)
+	base := strings.TrimSuffix(pdfPath, ext)
+	return base + "_signed.pdf"
+}
 
 // SignPDF signs a PDF using the specified certificate and PIN
 // Uses the default invisible signature profile for backward compatibility
@@ -21,17 +32,22 @@ func (s *SignatureService) SignPDF(pdfPath string, certFingerprint string, pin s
 	if err != nil {
 		return "", fmt.Errorf("failed to get default profile: %w", err)
 	}
-	return s.SignPDFWithProfile(pdfPath, certFingerprint, pin, defaultProfile.ID)
+	return s.SignPDFWithProfile(pdfPath, certFingerprint, pin, defaultProfile.ID.String())
 }
 
 // SignPDFWithProfile signs a PDF using the specified certificate, PIN, and signature profile
-func (s *SignatureService) SignPDFWithProfile(pdfPath string, certFingerprint string, pin string, profileID string) (string, error) {
-	return s.SignPDFWithProfileAndPosition(pdfPath, certFingerprint, pin, profileID, nil)
+func (s *SignatureService) SignPDFWithProfile(pdfPath string, certFingerprint string, pin string, profileIDStr string) (string, error) {
+	return s.SignPDFWithProfileAndPosition(pdfPath, certFingerprint, pin, profileIDStr, nil)
 }
 
 // SignPDFWithProfileAndPosition signs a PDF with optional position override for visible signatures
 // If positionOverride is provided, it will be used instead of the profile's default position
-func (s *SignatureService) SignPDFWithProfileAndPosition(pdfPath string, certFingerprint string, pin string, profileID string, positionOverride *SignaturePosition) (string, error) {
+func (s *SignatureService) SignPDFWithProfileAndPosition(pdfPath string, certFingerprint string, pin string, profileIDStr string, positionOverride *SignaturePosition) (string, error) {
+	profileID, err := uuid.Parse(profileIDStr)
+	if err != nil {
+		return "", fmt.Errorf("invalid profile ID format: %w", err)
+	}
+
 	// Get the signature profile
 	profile, err := s.profileManager.GetProfile(profileID)
 	if err != nil {
@@ -42,14 +58,25 @@ func (s *SignatureService) SignPDFWithProfileAndPosition(pdfPath string, certFin
 	if positionOverride != nil && profile.Visibility == VisibilityVisible {
 		// Ensure the override has valid dimensions
 		if positionOverride.Width <= 0 {
-			positionOverride.Width = 200
+			positionOverride.Width = DefaultSignatureWidth
 		}
 		if positionOverride.Height <= 0 {
-			positionOverride.Height = 80
+			positionOverride.Height = DefaultSignatureHeight
 		}
 		if positionOverride.Page <= 0 {
 			positionOverride.Page = 1
 		}
+
+		const maxSignatureDimension = 2000.0
+		if positionOverride.Width > maxSignatureDimension {
+			return "", fmt.Errorf("signature width too large: %.2f points (maximum %.2f)",
+				positionOverride.Width, maxSignatureDimension)
+		}
+		if positionOverride.Height > maxSignatureDimension {
+			return "", fmt.Errorf("signature height too large: %.2f points (maximum %.2f)",
+				positionOverride.Height, maxSignatureDimension)
+		}
+
 		profile.Position = *positionOverride
 	}
 
@@ -72,29 +99,21 @@ func (s *SignatureService) SignPDFWithProfileAndPosition(pdfPath string, certFin
 	}
 
 	if selectedCert == nil {
-		return "", fmt.Errorf("certificate not found")
+		return "", fmt.Errorf("certificate with fingerprint %s not found", certFingerprint)
 	}
 
 	if !selectedCert.IsValid {
-		return "", fmt.Errorf("certificate is not valid")
+		return "", fmt.Errorf("certificate '%s' is not valid (expired or not yet valid)", selectedCert.Name)
 	}
 
-	hasSigningCapability := false
-	for _, usage := range selectedCert.KeyUsage {
-		if strings.Contains(usage, "Digital Signature") || strings.Contains(usage, "Non Repudiation") {
-			hasSigningCapability = true
-			break
-		}
-	}
-
-	if !hasSigningCapability {
-		return "", fmt.Errorf("certificate does not have digital signature capability")
+	if !selectedCert.HasSigningCapability() {
+		return "", fmt.Errorf("certificate '%s' does not have digital signature capability", selectedCert.Name)
 	}
 
 	switch selectedCert.Source {
 	case "pkcs11":
 		return s.signWithPKCS11(pdfPath, selectedCert, pin, profile)
-	case "User NSS DB":
+	case "User NSS DB", "NSS Database":
 		return s.signWithNSS(pdfPath, selectedCert, pin, profile)
 	case "user", "system":
 		if selectedCert.FilePath == "" {
@@ -110,19 +129,52 @@ func (s *SignatureService) SignPDFWithProfileAndPosition(pdfPath string, certFin
 			return s.signWithNSS(pdfPath, selectedCert, pin, profile)
 		}
 
-		return "", fmt.Errorf("cannot sign with certificate file '%s': certificate-only files do not contain private keys. To sign documents, use:\n• A smart card/USB token (PKCS#11)\n• A PKCS#12 file (.p12 or .pfx) that contains both certificate and private key", filepath.Base(selectedCert.FilePath))
+		return "", fmt.Errorf("cannot sign with certificate file '%s': missing private key (use PKCS#11 token or PKCS#12 file)", filepath.Base(selectedCert.FilePath))
 	default:
 		return "", fmt.Errorf("unsupported certificate source: %s", selectedCert.Source)
 	}
 }
 
+// getDefaultPKCS11ModulePath returns the default PKCS#11 module path for the current platform
+func getDefaultPKCS11ModulePath() string {
+	var candidates []string
+
+	switch runtime.GOOS {
+	case "linux":
+		candidates = []string{
+			"/usr/lib/x86_64-linux-gnu/pkcs11/p11-kit-client.so",
+			"/usr/lib/pkcs11/p11-kit-client.so",
+			"/usr/lib64/pkcs11/p11-kit-client.so",
+			"/usr/lib/x86_64-linux-gnu/p11-kit-proxy.so",
+		}
+	case "darwin":
+		candidates = []string{
+			"/usr/local/lib/p11-kit-client.dylib",
+			"/opt/homebrew/lib/p11-kit-client.dylib",
+		}
+	case "windows":
+		candidates = []string{
+			"p11-kit-client.dll",
+		}
+	}
+
+	// Return the first existing module
+	for _, path := range candidates {
+		if _, err := os.Stat(path); err == nil {
+			return path
+		}
+	}
+
+	return ""
+}
+
 func (s *SignatureService) signWithPKCS11(pdfPath string, cert *Certificate, pin string, profile *SignatureProfile) (string, error) {
-	outputPath := strings.TrimSuffix(pdfPath, ".pdf") + "_signed.pdf"
+	outputPath := generateSignedPDFPath(pdfPath)
 
 	modulePath := cert.PKCS11Module
 
 	if modulePath == "" && cert.Source == "NSS Database" {
-		modulePath = "/usr/lib/x86_64-linux-gnu/pkcs11/p11-kit-client.so"
+		modulePath = getDefaultPKCS11ModulePath()
 	}
 
 	if modulePath == "" {
@@ -143,61 +195,15 @@ func (s *SignatureService) signWithPKCS11(pdfPath string, cert *Certificate, pin
 }
 
 func (s *SignatureService) signWithNSS(pdfPath string, cert *Certificate, password string, profile *SignatureProfile) (string, error) {
-	outputPath := strings.TrimSuffix(pdfPath, ".pdf") + "_signed.pdf"
+	outputPath := generateSignedPDFPath(pdfPath)
 
-	nickname := cert.NSSNickname
-	if nickname == "" {
-		if cert.FilePath != "" {
-			base := filepath.Base(cert.FilePath)
-			nickname = strings.TrimSuffix(base, filepath.Ext(base))
-		}
-	}
-	if nickname == "" {
-		nickname = cert.Name
+	if cert.NSSNickname == "" {
+		return "", fmt.Errorf("NSS certificate is missing nickname field")
 	}
 
-	var signer *nss.NSSSigner
-	var err error
-
-	// If PIN is optional and no password provided, try empty password first
-	if cert.PinOptional && password == "" {
-		signer, err = nss.GetNSSSigner(nickname, "")
-		if err != nil && !strings.HasPrefix(nickname, "CERTIFICADO ") {
-			parts := strings.Fields(nickname)
-			if len(parts) > 0 {
-				lastPart := parts[len(parts)-1]
-				nickname = "CERTIFICADO " + lastPart
-				signer, err = nss.GetNSSSigner(nickname, "")
-			}
-		}
-		if err == nil {
-			// Successfully loaded with empty password
-			defer signer.Close()
-			if err := s.signPDFWithSigner(pdfPath, outputPath, signer, cert, profile); err != nil {
-				return "", fmt.Errorf("failed to sign PDF: %w", err)
-			}
-			return outputPath, nil
-		}
-		// If empty password failed and user provided no password, return error
-		if password == "" {
-			return "", fmt.Errorf("NSS database requires a password")
-		}
-	}
-
-	// Try with provided password
-	signer, err = nss.GetNSSSigner(nickname, password)
+	signer, err := nss.GetNSSSigner(cert.NSSNickname, password)
 	if err != nil {
-		if !strings.HasPrefix(nickname, "CERTIFICADO ") {
-			parts := strings.Fields(nickname)
-			if len(parts) > 0 {
-				lastPart := parts[len(parts)-1]
-				nickname = "CERTIFICADO " + lastPart
-				signer, err = nss.GetNSSSigner(nickname, password)
-			}
-		}
-		if err != nil {
-			return "", fmt.Errorf("failed to access NSS certificate: %w", err)
-		}
+		return "", fmt.Errorf("failed to access NSS certificate with nickname '%s': %w", cert.NSSNickname, err)
 	}
 	defer signer.Close()
 
@@ -209,7 +215,7 @@ func (s *SignatureService) signWithNSS(pdfPath string, cert *Certificate, passwo
 }
 
 func (s *SignatureService) signWithPKCS12(pdfPath string, cert *Certificate, password string, profile *SignatureProfile) (string, error) {
-	outputPath := strings.TrimSuffix(pdfPath, ".pdf") + "_signed.pdf"
+	outputPath := generateSignedPDFPath(pdfPath)
 
 	if cert.FilePath == "" {
 		return "", fmt.Errorf("certificate does not have file path information")
@@ -222,19 +228,17 @@ func (s *SignatureService) signWithPKCS12(pdfPath string, cert *Certificate, pas
 	if cert.PinOptional && password == "" {
 		signer, err = pkcs12.GetSignerFromPKCS12File(cert.FilePath, "")
 		if err == nil {
-			// Successfully loaded with empty password
 			if err := s.signPDFWithSigner(pdfPath, outputPath, signer, cert, profile); err != nil {
 				return "", fmt.Errorf("failed to sign PDF: %w", err)
 			}
 			return outputPath, nil
 		}
-		// If empty password failed and user provided no password, return error
-		if password == "" {
-			return "", fmt.Errorf("PKCS#12 file requires a password")
-		}
+		// Empty password didn't work, but certificate is marked as optional
+		// This means it actually requires a password despite being marked optional
+		return "", fmt.Errorf("PKCS#12 file requires a password")
 	}
 
-	// Try with provided password
+	// Password was provided, or PIN is required
 	signer, err = pkcs12.GetSignerFromPKCS12File(cert.FilePath, password)
 	if err != nil {
 		return "", fmt.Errorf("failed to load PKCS#12 certificate: %w", err)
@@ -282,7 +286,14 @@ func (s *SignatureService) signPDFWithSigner(inputPath, outputPath string, signe
 
 	err := sign.SignFile(inputPath, outputPath, signData)
 	if err != nil {
+		if _, statErr := os.Stat(outputPath); statErr == nil {
+			os.Remove(outputPath)
+		}
 		return fmt.Errorf("failed to sign PDF: %w", err)
+	}
+
+	if _, err := os.Stat(outputPath); err != nil {
+		return fmt.Errorf("signing completed but output file not found: %w", err)
 	}
 
 	return nil

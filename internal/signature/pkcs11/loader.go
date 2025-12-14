@@ -28,6 +28,65 @@ type Certificate struct {
 	PKCS11URL    string   `json:"pkcs11Url,omitempty"`
 }
 
+var DefaultModules = []string{
+	"/usr/lib/x86_64-linux-gnu/pkcs11/p11-kit-client.so",
+	"/usr/lib/x86_64-linux-gnu/opensc-pkcs11.so",
+}
+
+// LoadCertificatesFromModules loads certificates from a list of PKCS#11 module paths
+func LoadCertificatesFromModules(modulePaths []string) ([]Certificate, error) {
+	var certs []Certificate
+
+	for _, modulePath := range modulePaths {
+		if err := validatePKCS11Module(modulePath); err != nil {
+			continue
+		}
+
+		moduleCerts, err := loadCertificatesFromModule(modulePath)
+		if err == nil {
+			certs = append(certs, moduleCerts...)
+		}
+	}
+
+	return certs, nil
+}
+
+// validatePKCS11Module validates that a PKCS#11 module file is safe to load
+func validatePKCS11Module(modulePath string) error {
+	fileInfo, err := os.Stat(modulePath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return fmt.Errorf("module does not exist")
+		}
+		return fmt.Errorf("failed to stat module: %w", err)
+	}
+
+	if !fileInfo.Mode().IsRegular() {
+		return fmt.Errorf("module is not a regular file (mode: %s)", fileInfo.Mode())
+	}
+
+	file, err := os.Open(modulePath)
+	if err != nil {
+		return fmt.Errorf("module is not readable: %w", err)
+	}
+	file.Close()
+
+	const minModuleSize = 1024              // 1KB minimum
+	const maxModuleSize = 200 * 1024 * 1024 // 200MB maximum
+
+	if fileInfo.Size() < minModuleSize {
+		return fmt.Errorf("module file too small (%d bytes, expected at least %d)",
+			fileInfo.Size(), minModuleSize)
+	}
+
+	if fileInfo.Size() > maxModuleSize {
+		return fmt.Errorf("module file too large (%d bytes, maximum %d)",
+			fileInfo.Size(), maxModuleSize)
+	}
+
+	return nil
+}
+
 func LoadCertificates() ([]Certificate, error) {
 	var certs []Certificate
 
@@ -41,7 +100,8 @@ func LoadCertificates() ([]Certificate, error) {
 	}
 
 	for _, modulePath := range modules {
-		if _, err := os.Stat(modulePath); os.IsNotExist(err) {
+		// Validate module file before attempting to load
+		if err := validatePKCS11Module(modulePath); err != nil {
 			continue
 		}
 

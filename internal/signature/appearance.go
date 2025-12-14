@@ -2,6 +2,7 @@ package signature
 
 import (
 	"bytes"
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -11,6 +12,7 @@ import (
 	"image/png"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/digitorus/pdfsign/sign"
@@ -18,6 +20,11 @@ import (
 	"golang.org/x/image/font/gofont/goregular"
 	"golang.org/x/image/font/opentype"
 	"golang.org/x/image/math/fixed"
+)
+
+const (
+	DefaultSignatureWidth  = 200
+	DefaultSignatureHeight = 80
 )
 
 // CreateSignatureAppearance configures the signature appearance for visible signatures
@@ -43,10 +50,10 @@ func CreateSignatureAppearance(profile *SignatureProfile, cert *Certificate, sig
 	appearance.UpperRightY = profile.Position.Y + profile.Position.Height
 
 	if appearance.UpperRightX <= appearance.LowerLeftX {
-		appearance.UpperRightX = appearance.LowerLeftX + 200
+		appearance.UpperRightX = appearance.LowerLeftX + DefaultSignatureWidth
 	}
 	if appearance.UpperRightY <= appearance.LowerLeftY {
-		appearance.UpperRightY = appearance.LowerLeftY + 80
+		appearance.UpperRightY = appearance.LowerLeftY + DefaultSignatureHeight
 	}
 
 	var textLines []string
@@ -246,7 +253,19 @@ func (g *SignatureImageGenerator) calculateOptimalFontSize(ttf *opentype.Font, m
 	var wrappedLines []string
 	var err error
 
+	defer func() {
+		if err != nil && face != nil {
+			face.Close()
+		}
+	}()
+
 	for range 20 {
+		// Close previous face before creating new one
+		if face != nil {
+			face.Close()
+			face = nil
+		}
+
 		face, err = opentype.NewFace(ttf, &opentype.FaceOptions{
 			Size: fontSize,
 			DPI:  72,
@@ -264,8 +283,11 @@ func (g *SignatureImageGenerator) calculateOptimalFontSize(ttf *opentype.Font, m
 			return fontSize, wrappedLines, face
 		}
 
-		face.Close()
 		fontSize *= 0.9
+	}
+
+	if face != nil {
+		face.Close()
 	}
 
 	face, _ = opentype.NewFace(ttf, &opentype.FaceOptions{
@@ -423,10 +445,57 @@ func splitIntoWords(text string) []string {
 	return words
 }
 
-// getLocationString retrieves the location string
+var (
+	locationCache      string
+	locationCacheTime  time.Time
+	locationCacheMutex sync.RWMutex
+	locationCacheTTL   = 1 * time.Hour
+)
+
+// getLocationString retrieves the location string with caching and rate limiting
 func getLocationString() (string, error) {
-	endpoint := "http://ipinfo.io/json"
-	resp, err := http.Get(endpoint)
+	locationCacheMutex.RLock()
+	if time.Since(locationCacheTime) < locationCacheTTL && locationCache != "" {
+		cached := locationCache
+		locationCacheMutex.RUnlock()
+		return cached, nil
+	}
+	locationCacheMutex.RUnlock()
+
+	locationCacheMutex.Lock()
+	defer locationCacheMutex.Unlock()
+
+	if time.Since(locationCacheTime) < locationCacheTTL && locationCache != "" {
+		return locationCache, nil
+	}
+
+	location, err := fetchLocationFromAPI()
+	if err != nil {
+		if locationCache != "" {
+			return locationCache, nil
+		}
+		return "", err
+	}
+
+	locationCache = location
+	locationCacheTime = time.Now()
+
+	return location, nil
+}
+
+// fetchLocationFromAPI performs the actual HTTP request to ipinfo.io
+func fetchLocationFromAPI() (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	endpoint := "https://ipinfo.io/json"
+	req, err := http.NewRequestWithContext(ctx, "GET", endpoint, nil)
+	if err != nil {
+		return "", err
+	}
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
 	if err != nil {
 		return "", err
 	}

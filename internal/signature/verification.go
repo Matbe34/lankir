@@ -1,7 +1,9 @@
 package signature
 
 import (
+	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/digitorus/pdfsign/verify"
@@ -10,13 +12,18 @@ import (
 func (s *SignatureService) VerifySignature(pdfPath string) ([]SignatureInfo, error) {
 	file, err := os.Open(pdfPath)
 	if err != nil {
-		return []SignatureInfo{}, nil
+		return nil, fmt.Errorf("failed to open PDF: %w", err)
 	}
 	defer file.Close()
 
 	response, err := verify.VerifyFile(file)
 	if err != nil {
-		return []SignatureInfo{}, nil
+		errMsg := err.Error()
+
+		if strings.Contains(errMsg, "no digital signature in document") {
+			return []SignatureInfo{}, nil
+		}
+		return nil, fmt.Errorf("verification failed: %w", err)
 	}
 
 	if len(response.Signers) == 0 {

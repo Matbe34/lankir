@@ -3,8 +3,11 @@ package signature
 import (
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
+
+	"github.com/google/uuid"
 )
 
 // SignatureVisibility defines whether a signature is visible or invisible
@@ -41,7 +44,7 @@ type SignatureAppearance struct {
 // SignatureProfile represents a reusable signing configuration
 // In the future, users can create, save, and manage multiple profiles
 type SignatureProfile struct {
-	ID          string              `json:"id"`          // Unique identifier
+	ID          uuid.UUID           `json:"id"`          // Unique identifier
 	Name        string              `json:"name"`        // User-friendly name
 	Description string              `json:"description"` // Optional description
 	Visibility  SignatureVisibility `json:"visibility"`  // Invisible or visible
@@ -54,7 +57,7 @@ type SignatureProfile struct {
 // This maintains backward compatibility with existing behavior
 func DefaultInvisibleProfile() *SignatureProfile {
 	return &SignatureProfile{
-		ID:          "default-invisible",
+		ID:          uuid.MustParse("00000000-0000-0000-0000-000000000001"),
 		Name:        "Invisible Signature",
 		Description: "Digital signature without visible appearance",
 		Visibility:  VisibilityInvisible,
@@ -78,17 +81,17 @@ func DefaultInvisibleProfile() *SignatureProfile {
 // Shows signer name and timestamp in bottom-right of last page
 func DefaultVisibleProfile() *SignatureProfile {
 	return &SignatureProfile{
-		ID:          "default-visible",
+		ID:          uuid.MustParse("00000000-0000-0000-0000-000000000002"),
 		Name:        "Visible Signature",
 		Description: "Visible signature with signer name and timestamp",
 		Visibility:  VisibilityVisible,
 		IsDefault:   false,
 		Position: SignaturePosition{
-			Page:   0,   // 0 = last page
-			X:      360, // Right side of A4 page (595pt wide)
-			Y:      50,  // Bottom of page
-			Width:  200,
-			Height: 80,
+			Page:   0,
+			X:      360,
+			Y:      50,
+			Width:  DefaultSignatureWidth,
+			Height: DefaultSignatureHeight,
 		},
 		Appearance: SignatureAppearance{
 			ShowSignerName:  true,
@@ -126,8 +129,11 @@ func NewProfileManagerWithDir(configDir string) *ProfileManager {
 func (pm *ProfileManager) ListProfiles() ([]*SignatureProfile, error) {
 	var profiles []*SignatureProfile
 
-	if err := pm.loadCustomProfiles(&profiles); err != nil {
-		fmt.Fprintf(os.Stderr, "Warning: failed to load custom profiles: %v\n", err)
+	loadErr := pm.loadCustomProfiles(&profiles)
+
+	// os.ErrNotExist means first run or directory doesn't exist yet - that's OK
+	if loadErr != nil && !os.IsNotExist(loadErr) {
+		return nil, fmt.Errorf("failed to load profiles: %w", loadErr)
 	}
 
 	if len(profiles) == 0 {
@@ -135,10 +141,10 @@ func (pm *ProfileManager) ListProfiles() ([]*SignatureProfile, error) {
 		defaultVisible := DefaultVisibleProfile()
 
 		if err := pm.SaveProfile(defaultInvisible); err != nil {
-			fmt.Fprintf(os.Stderr, "Warning: failed to save default invisible profile: %v\n", err)
+			slog.Warn("failed to save default invisible profile", "error", err)
 		}
 		if err := pm.SaveProfile(defaultVisible); err != nil {
-			fmt.Fprintf(os.Stderr, "Warning: failed to save default visible profile: %v\n", err)
+			slog.Warn("failed to save default visible profile", "error", err)
 		}
 
 		profiles = []*SignatureProfile{defaultInvisible, defaultVisible}
@@ -148,7 +154,7 @@ func (pm *ProfileManager) ListProfiles() ([]*SignatureProfile, error) {
 }
 
 // GetProfile retrieves a profile by ID
-func (pm *ProfileManager) GetProfile(id string) (*SignatureProfile, error) {
+func (pm *ProfileManager) GetProfile(id uuid.UUID) (*SignatureProfile, error) {
 	profiles, err := pm.ListProfiles()
 	if err != nil {
 		return nil, err
@@ -186,16 +192,16 @@ func (pm *ProfileManager) SaveProfile(profile *SignatureProfile) error {
 		return fmt.Errorf("profile validation failed: %w", err)
 	}
 
-	if err := os.MkdirAll(pm.configDir, 0755); err != nil {
+	if err := os.MkdirAll(pm.configDir, 0700); err != nil {
 		return fmt.Errorf("failed to create config directory: %w", err)
 	}
 
-	profilePath := filepath.Join(pm.configDir, profile.ID+".json")
+	profilePath := filepath.Join(pm.configDir, profile.ID.String()+".json")
 	data, err := json.MarshalIndent(profile, "", "  ")
 	if err != nil {
 		return fmt.Errorf("failed to marshal profile: %w", err)
 	}
-	if err := os.WriteFile(profilePath, data, 0644); err != nil {
+	if err := os.WriteFile(profilePath, data, 0600); err != nil {
 		return fmt.Errorf("failed to write profile: %w", err)
 	}
 
@@ -203,8 +209,8 @@ func (pm *ProfileManager) SaveProfile(profile *SignatureProfile) error {
 }
 
 // DeleteProfile deletes a signature profile from disk
-func (pm *ProfileManager) DeleteProfile(id string) error {
-	profilePath := filepath.Join(pm.configDir, id+".json")
+func (pm *ProfileManager) DeleteProfile(id uuid.UUID) error {
+	profilePath := filepath.Join(pm.configDir, id.String()+".json")
 	if err := os.Remove(profilePath); err != nil {
 		if os.IsNotExist(err) {
 			return fmt.Errorf("profile not found: %s", id)
@@ -217,7 +223,7 @@ func (pm *ProfileManager) DeleteProfile(id string) error {
 
 // ValidateProfile checks if a profile is valid
 func (pm *ProfileManager) ValidateProfile(profile *SignatureProfile) error {
-	if profile.ID == "" {
+	if profile.ID == uuid.Nil {
 		return fmt.Errorf("profile ID is required")
 	}
 	if profile.Name == "" {
@@ -240,7 +246,7 @@ func (pm *ProfileManager) ValidateProfile(profile *SignatureProfile) error {
 // loadCustomProfiles loads custom signature profiles from the config directory
 func (pm *ProfileManager) loadCustomProfiles(profiles *[]*SignatureProfile) error {
 	if _, err := os.Stat(pm.configDir); os.IsNotExist(err) {
-		return nil
+		return os.ErrNotExist // Return ErrNotExist to distinguish from real errors
 	}
 
 	files, err := filepath.Glob(filepath.Join(pm.configDir, "*.json"))
@@ -248,21 +254,26 @@ func (pm *ProfileManager) loadCustomProfiles(profiles *[]*SignatureProfile) erro
 		return fmt.Errorf("failed to list profile files: %w", err)
 	}
 
+	const maxProfileFiles = 100
+	if len(files) > maxProfileFiles {
+		return fmt.Errorf("too many profile files (%d) in directory, maximum allowed is %d", len(files), maxProfileFiles)
+	}
+
 	for _, file := range files {
 		data, err := os.ReadFile(file)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Warning: failed to read profile file %s: %v\n", file, err)
+			slog.Warn("failed to read profile file", "file", file, "error", err)
 			continue
 		}
 
 		var profile SignatureProfile
 		if err := json.Unmarshal(data, &profile); err != nil {
-			fmt.Fprintf(os.Stderr, "Warning: failed to parse profile file %s: %v\n", file, err)
+			slog.Warn("failed to parse profile file", "file", file, "error", err)
 			continue
 		}
 
 		if err := pm.ValidateProfile(&profile); err != nil {
-			fmt.Fprintf(os.Stderr, "Warning: invalid profile in file %s: %v\n", file, err)
+			slog.Warn("invalid profile in file", "file", file, "error", err)
 			continue
 		}
 

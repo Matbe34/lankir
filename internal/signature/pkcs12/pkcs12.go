@@ -2,21 +2,20 @@ package pkcs12
 
 import (
 	"crypto"
-	"crypto/sha256"
 	"crypto/x509"
-	"encoding/hex"
 	"encoding/pem"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
+	"github.com/ferran/pdf_app/internal/signature/certutil"
 	goPkcs12 "software.sslmate.com/src/go-pkcs12"
 )
 
 // Certificate represents a digital certificate with metadata
+// This is an alias for the main signature.Certificate type to avoid circular imports
 type Certificate struct {
 	Name         string   `json:"name"`
 	Issuer       string   `json:"issuer"`
@@ -29,6 +28,7 @@ type Certificate struct {
 	KeyUsage     []string `json:"keyUsage"`
 	IsValid      bool     `json:"isValid"`
 	FilePath     string   `json:"filePath,omitempty"`
+	CanSign      bool     `json:"canSign"`
 	RequiresPin  bool     `json:"requiresPin"`
 	PinOptional  bool     `json:"pinOptional"`
 }
@@ -178,11 +178,11 @@ func parseCertificate(data []byte) (*x509.Certificate, error) {
 }
 
 // CheckPKCS12RequiresPassword checks if a PKCS#12 file requires a password
-// Returns: requiresPassword, canOpenWithoutPassword, error
+// Returns: requiresPassword, error
 func CheckPKCS12RequiresPassword(filePath string) (bool, error) {
 	data, err := os.ReadFile(filePath)
 	if err != nil {
-		return true, fmt.Errorf("failed to read PKCS#12 file: %w", err)
+		return false, fmt.Errorf("failed to read file: %w", err)
 	}
 
 	// Try to decode with empty password
@@ -192,18 +192,42 @@ func CheckPKCS12RequiresPassword(filePath string) (bool, error) {
 		return false, nil
 	}
 
-	// Check if it's a password error or a structural error
-	// If it's a password error, the file requires a password
-	// If it's a structural error, the file might be corrupted
-	errStr := err.Error()
-	if strings.Contains(errStr, "pkcs12: expected exactly two safe bags") ||
-		strings.Contains(errStr, "incorrect password") ||
-		strings.Contains(errStr, "decryption password incorrect") ||
-		strings.Contains(errStr, "MAC verification failed") {
-		return true, nil
+	// Analyze error to distinguish between password errors and structural errors
+	errStr := strings.ToLower(err.Error())
+
+	// Password-related errors indicate the file is valid but needs a password
+	passwordErrors := []string{
+		"password",
+		"mac verification",
+		"decryption",
+		"authentication",
 	}
 
-	// For other errors, assume password is required
+	for _, passwordErr := range passwordErrors {
+		if strings.Contains(errStr, passwordErr) {
+			return true, nil
+		}
+	}
+
+	// Structural errors indicate invalid/corrupted file
+	structuralErrors := []string{
+		"expected",
+		"invalid",
+		"malformed",
+		"corrupt",
+		"bad",
+		"parse",
+		"decode",
+		"asn1",
+	}
+
+	for _, structErr := range structuralErrors {
+		if strings.Contains(errStr, structErr) {
+			return false, fmt.Errorf("invalid PKCS12 file: %w", err)
+		}
+	}
+
+	// Unknown error - be conservative and assume password required
 	return true, nil
 }
 
@@ -250,45 +274,19 @@ func isCertificateValidForSigning(cert *x509.Certificate) bool {
 
 // convertX509Certificate converts x509.Certificate to our Certificate type
 func convertX509Certificate(cert *x509.Certificate, source string, filename string) Certificate {
-	var keyUsage []string
-	if cert.KeyUsage&x509.KeyUsageDigitalSignature != 0 {
-		keyUsage = append(keyUsage, "Digital Signature")
-	}
-	if cert.KeyUsage&x509.KeyUsageContentCommitment != 0 {
-		keyUsage = append(keyUsage, "Non Repudiation")
-	}
-	if cert.KeyUsage&x509.KeyUsageKeyEncipherment != 0 {
-		keyUsage = append(keyUsage, "Key Encipherment")
-	}
-
-	// Get certificate name (CN from subject)
-	name := cert.Subject.CommonName
-	if name == "" && filename != "" {
-		name = filepath.Base(filename)
-	}
-	if name == "" {
-		name = "Unknown Certificate"
-	}
-
-	// Calculate SHA-256 fingerprint
-	hash := sha256.Sum256(cert.Raw)
-	fingerprint := hex.EncodeToString(hash[:])
-
-	// Check if certificate is currently valid
-	now := time.Now()
-	isValid := now.After(cert.NotBefore) && now.Before(cert.NotAfter)
-
+	data := certutil.ConvertX509Certificate(cert, source, filename)
 	return Certificate{
-		Name:         name,
-		Issuer:       cert.Issuer.CommonName,
-		Subject:      cert.Subject.CommonName,
-		SerialNumber: cert.SerialNumber.String(),
-		ValidFrom:    cert.NotBefore.Format("2006-01-02 15:04:05"),
-		ValidTo:      cert.NotAfter.Format("2006-01-02 15:04:05"),
-		Fingerprint:  fingerprint,
-		Source:       source,
-		KeyUsage:     keyUsage,
-		IsValid:      isValid,
+		Name:         data.Name,
+		Issuer:       data.Issuer,
+		Subject:      data.Subject,
+		SerialNumber: data.SerialNumber,
+		ValidFrom:    data.ValidFrom,
+		ValidTo:      data.ValidTo,
+		Fingerprint:  data.Fingerprint,
+		Source:       data.Source,
+		KeyUsage:     data.KeyUsage,
+		IsValid:      data.IsValid,
+		CanSign:      data.CanSign,
 	}
 }
 
