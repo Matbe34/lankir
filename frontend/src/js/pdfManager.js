@@ -13,8 +13,8 @@ export function createPDFTab(filePath, metadata) {
     
     // Initialize sidebar states from settings
     const settings = JSON.parse(localStorage.getItem('pdfEditorSettings') || '{}');
-    pdfData.leftSidebarCollapsed = settings.showLeftSidebar === false;
-    pdfData.rightSidebarCollapsed = settings.showRightSidebar !== true;
+    pdfData.leftSidebarCollapsed = !settings.showLeftSidebar;
+    pdfData.rightSidebarCollapsed = !settings.showRightSidebar;
     
     // Add to open PDFs
     addOpenPDF(tabId, pdfData);
