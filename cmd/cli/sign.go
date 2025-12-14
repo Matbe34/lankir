@@ -149,7 +149,7 @@ var signVerifyCmd = &cobra.Command{
 
 		GetLogger().Info("verifying signatures", "file", SanitizePath(pdfPath))
 
-		signatures, err := service.VerifySignature(pdfPath)
+		signatures, err := service.VerifySignatures(pdfPath)
 		if err != nil {
 			ExitWithError("failed to verify signatures", err)
 		}

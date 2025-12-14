@@ -9,7 +9,7 @@ import (
 	"github.com/digitorus/pdfsign/verify"
 )
 
-func (s *SignatureService) VerifySignature(pdfPath string) ([]SignatureInfo, error) {
+func (s *SignatureService) VerifySignatures(pdfPath string) ([]SignatureInfo, error) {
 	file, err := os.Open(pdfPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open PDF: %w", err)
