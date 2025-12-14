@@ -5,12 +5,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"syscall"
+	"path/filepath"
 
 	"github.com/ferran/pdf_app/internal/config"
 	"github.com/ferran/pdf_app/internal/signature"
+	"github.com/ferran/pdf_app/internal/signature/types"
 	"github.com/spf13/cobra"
-	"golang.org/x/term"
 )
 
 var signCmd = &cobra.Command{
@@ -19,32 +19,17 @@ var signCmd = &cobra.Command{
 	Long:  `Sign PDF documents with digital certificates and manage signature profiles.`,
 }
 
-var (
-	signCertFingerprint string
-	signPin             string
-	signProfile         string
-	signPage            int
-	signX               float64
-	signY               float64
-	signWidth           float64
-	signHeight          float64
-	signOutput          string
-)
-
 var signPDFCmd = &cobra.Command{
-	Use:   "pdf <pdf-file>",
-	Short: "Sign a PDF document",
-	Long:  `Sign a PDF document using a digital certificate. Supports PKCS#11 tokens, PKCS#12 files, and NSS databases.`,
-	Args:  cobra.ExactArgs(1),
+	Use:   "pdf <input-pdf> <output-pdf>",
+	Short: "Sign a PDF file",
+	Long:  `Sign a PDF file using a digital certificate. You can specify the certificate by fingerprint, name, or file path.`,
+	Args:  cobra.ExactArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
-		pdfPath := args[0]
+		inputPath := args[0]
+		outputPath := args[1]
 
-		if _, err := os.Stat(pdfPath); os.IsNotExist(err) {
-			ExitWithError("PDF file not found", err)
-		}
-
-		if signCertFingerprint == "" {
-			ExitWithError("certificate fingerprint is required (use --cert flag)", nil)
+		if _, err := os.Stat(inputPath); os.IsNotExist(err) {
+			ExitWithError(fmt.Sprintf("input file not found: %s", inputPath), nil)
 		}
 
 		cfgService, err := config.NewService()
@@ -54,77 +39,110 @@ var signPDFCmd = &cobra.Command{
 		service := signature.NewSignatureService(cfgService)
 		service.Startup(context.Background())
 
-		certs, err := service.ListCertificates()
-		if err != nil {
-			ExitWithError("failed to list certificates", err)
-		}
+		var cert *types.Certificate
 
-		var cert *signature.Certificate
-		for _, c := range certs {
-			if c.Fingerprint == signCertFingerprint {
-				cert = &c
-				break
-			}
-		}
+		if signCertFile != "" {
+			GetLogger().Info("loading certificate from file", "path", signCertFile)
 
-		if cert == nil {
-			ExitWithError("certificate not found", nil)
-		}
-
-		if cert.RequiresPin && signPin == "" {
-			fmt.Print("Enter PIN: ")
-			pinBytes, err := term.ReadPassword(int(syscall.Stdin))
-			fmt.Println()
+			certs, err := service.ListCertificates()
 			if err != nil {
-				ExitWithError("failed to read PIN", err)
+				ExitWithError("failed to list certificates", err)
 			}
-			signPin = string(pinBytes)
+
+			absPath, _ := filepath.Abs(signCertFile)
+			for _, c := range certs {
+				if c.FilePath == signCertFile || c.FilePath == absPath {
+					cert = &c
+					break
+				}
+			}
+
+			if cert == nil {
+				ExitWithError(fmt.Sprintf("certificate file not found in available sources: %s", signCertFile), nil)
+			}
+		} else if signCertFingerprint != "" {
+			GetLogger().Info("finding certificate by fingerprint", "fingerprint", signCertFingerprint)
+			certs, err := service.ListCertificates()
+			if err != nil {
+				ExitWithError("failed to list certificates", err)
+			}
+
+			for _, c := range certs {
+				if c.Fingerprint == signCertFingerprint {
+					cert = &c
+					break
+				}
+			}
+
+			if cert == nil {
+				ExitWithError(fmt.Sprintf("certificate with fingerprint %s not found", signCertFingerprint), nil)
+			}
+		} else if signCertName != "" {
+			GetLogger().Info("finding certificate by name", "name", signCertName)
+			results, err := service.SearchCertificates(signCertName)
+			if err != nil {
+				ExitWithError("failed to search certificates", err)
+			}
+
+			if len(results) == 0 {
+				ExitWithError(fmt.Sprintf("no certificate found matching name: %s", signCertName), nil)
+			} else if len(results) > 1 {
+				fmt.Printf("Found %d certificates matching '%s'. Please specify fingerprint:\n", len(results), signCertName)
+				for _, c := range results {
+					fmt.Printf("  - %s (Fingerprint: %s)\n", c.Name, c.Fingerprint)
+				}
+				os.Exit(1)
+			}
+
+			cert = &results[0]
+		} else {
+			ExitWithError("please specify a certificate using --file, --fingerprint, or --name", nil)
 		}
 
-		GetLogger().Info("signing PDF", "file", SanitizePath(pdfPath), "cert", SanitizeCertName(cert.Name), "profile", signProfile)
+		GetLogger().Info("using certificate", "name", cert.Name, "fingerprint", cert.Fingerprint)
 
-		var outputPath string
-		var signingErr error
+		if cert.RequiresPin || (cert.PinOptional && signPin != "") {
+			if signPin == "" {
+				fmt.Print("Enter PIN: ")
+				var pin string
+				fmt.Scanln(&pin)
+				signPin = pin
+			}
+		}
 
-		if signPage > 0 || signX > 0 || signY > 0 {
-			position := &signature.SignaturePosition{
+		var profileID string
+		var position *signature.SignaturePosition
+
+		if signVisible {
+			defProfile := signature.DefaultVisibleProfile()
+			profileID = defProfile.ID.String()
+
+			position = &signature.SignaturePosition{
 				Page:   signPage,
 				X:      signX,
 				Y:      signY,
 				Width:  signWidth,
 				Height: signHeight,
 			}
-
-			if signProfile == "" {
-				profile, err := service.GetDefaultSignatureProfile()
-				if err != nil {
-					ExitWithError("failed to get default profile", err)
-				}
-				signProfile = profile.ID.String()
-			}
-
-			outputPath, signingErr = service.SignPDFWithProfileAndPosition(pdfPath, signCertFingerprint, signPin, signProfile, position)
-		} else if signProfile != "" {
-			outputPath, signingErr = service.SignPDFWithProfile(pdfPath, signCertFingerprint, signPin, signProfile)
 		} else {
-			outputPath, signingErr = service.SignPDF(pdfPath, signCertFingerprint, signPin)
+			defProfile := signature.DefaultInvisibleProfile()
+			profileID = defProfile.ID.String()
 		}
 
-		if signingErr != nil {
-			ExitWithError("failed to sign PDF", signingErr)
+		GetLogger().Info("signing PDF", "input", inputPath)
+
+		generatedPath, err := service.SignPDFWithProfileAndPosition(inputPath, cert.Fingerprint, signPin, profileID, position)
+		if err != nil {
+			ExitWithError("failed to sign PDF", err)
 		}
 
-		if signOutput != "" {
-			if err := os.Rename(outputPath, signOutput); err != nil {
-				GetLogger().Warn("failed to rename output file", "error", err)
-				fmt.Printf("Signed PDF saved to: %s (failed to rename to %s)\n", outputPath, signOutput)
-			} else {
-				outputPath = signOutput
+		if generatedPath != outputPath {
+			if err := os.Rename(generatedPath, outputPath); err != nil {
+				ExitWithError(fmt.Sprintf("failed to move signed file from %s to %s", generatedPath, outputPath), err)
 			}
 		}
 
-		GetLogger().Info("PDF signed successfully", "output", SanitizePath(outputPath))
-		fmt.Printf("PDF signed successfully: %s\n", outputPath)
+		fmt.Printf("Successfully signed PDF: %s\n", outputPath)
 	},
 }
 
@@ -313,6 +331,19 @@ var signProfileInfoCmd = &cobra.Command{
 	},
 }
 
+var (
+	signCertFile        string
+	signCertFingerprint string
+	signCertName        string
+	signPin             string
+	signPage            int
+	signX               float64
+	signY               float64
+	signWidth           float64
+	signHeight          float64
+	signVisible         bool
+)
+
 func init() {
 	rootCmd.AddCommand(signCmd)
 	signCmd.AddCommand(signPDFCmd)
@@ -320,23 +351,20 @@ func init() {
 	signCmd.AddCommand(signProfileListCmd)
 	signCmd.AddCommand(signProfileInfoCmd)
 
-	signPDFCmd.Flags().StringVarP(&signCertFingerprint, "cert", "c", "", "certificate fingerprint (required)")
-	signPDFCmd.Flags().StringVarP(&signPin, "pin", "p", "",
-		"⚠️  SECURITY WARNING: PIN/password for certificate (if not provided, will prompt securely)\n"+
-		"    Using this flag exposes your PIN in shell history and process list.\n"+
-		"    For production use, omit this flag to be prompted securely.")
-	signPDFCmd.Flags().StringVar(&signProfile, "profile", "", "signature profile ID")
-	signPDFCmd.Flags().IntVar(&signPage, "page", 0, "page number for visible signature (0 = last page)")
-	signPDFCmd.Flags().Float64Var(&signX, "x", 0, "x position for visible signature")
-	signPDFCmd.Flags().Float64Var(&signY, "y", 0, "y position for visible signature")
-	signPDFCmd.Flags().Float64Var(&signWidth, "width", 200, "width of visible signature")
-	signPDFCmd.Flags().Float64Var(&signHeight, "height", 80, "height of visible signature")
-	signPDFCmd.Flags().StringVarP(&signOutput, "output", "o", "", "output file path (default: <pdf>_signed.pdf)")
-	signPDFCmd.MarkFlagRequired("cert")
+	signPDFCmd.Flags().StringVarP(&signCertFile, "cert-file", "f", "", "path to certificate file (p12/pfx)")
+	signPDFCmd.Flags().StringVar(&signCertFingerprint, "fingerprint", "", "certificate fingerprint")
+	signPDFCmd.Flags().StringVarP(&signCertName, "name", "n", "", "certificate name (partial match)")
+	signPDFCmd.Flags().StringVar(&signPin, "pin", "", "PIN/password for the certificate")
+
+	signPDFCmd.Flags().IntVar(&signPage, "page", 1, "page number to sign (1-based)")
+	signPDFCmd.Flags().Float64Var(&signX, "x", 100, "x coordinate")
+	signPDFCmd.Flags().Float64Var(&signY, "y", 100, "y coordinate")
+	signPDFCmd.Flags().Float64Var(&signWidth, "width", 200, "signature width")
+	signPDFCmd.Flags().Float64Var(&signHeight, "height", 100, "signature height")
+
+	signPDFCmd.Flags().BoolVar(&signVisible, "visible", true, "create a visible signature")
 
 	signVerifyCmd.Flags().BoolVarP(&jsonOutput, "json", "j", false, "output in JSON format")
-
 	signProfileListCmd.Flags().BoolVarP(&jsonOutput, "json", "j", false, "output in JSON format")
-
 	signProfileInfoCmd.Flags().BoolVarP(&jsonOutput, "json", "j", false, "output in JSON format")
 }

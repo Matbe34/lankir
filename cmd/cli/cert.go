@@ -8,6 +8,7 @@ import (
 
 	"github.com/ferran/pdf_app/internal/config"
 	"github.com/ferran/pdf_app/internal/signature"
+	"github.com/ferran/pdf_app/internal/signature/types"
 	"github.com/spf13/cobra"
 )
 
@@ -57,7 +58,7 @@ var certListCmd = &cobra.Command{
 				ExitWithError("failed to marshal certificates to JSON", err)
 			}
 			fmt.Println(string(data))
-		} else{
+		} else {
 			fmt.Printf("Found %d certificate(s):\n\n", len(certs))
 
 			for i, cert := range certs {
@@ -170,7 +171,7 @@ var certInfoCmd = &cobra.Command{
 			ExitWithError("failed to list certificates", err)
 		}
 
-		var targetCert *signature.Certificate
+		var targetCert *types.Certificate
 		for _, cert := range certs {
 			if cert.Fingerprint == fingerprint {
 				targetCert = &cert
