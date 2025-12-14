@@ -458,8 +458,16 @@
     @apply flex gap-2 mb-1;
   }
 
+  .cert-detail-row > span:last-child {
+    @apply break-all overflow-hidden;
+    flex: 1;
+    min-width: 0;
+  }
+
   .cert-detail-label {
-    @apply font-medium min-w-[80px];
+    @apply font-medium;
+    flex-shrink: 0;
+    min-width: 80px;
   }
 
   .cert-capabilities {

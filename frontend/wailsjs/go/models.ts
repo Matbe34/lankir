@@ -202,8 +202,7 @@ export namespace signature {
 	    Source: string;
 	    Search: string;
 	    ValidOnly: boolean;
-	    IncludeCA: boolean;
-	    MinKeyUsage: string;
+	    RequiredKeyUsage: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new CertificateFilter(source);
@@ -214,8 +213,7 @@ export namespace signature {
 	        this.Source = source["Source"];
 	        this.Search = source["Search"];
 	        this.ValidOnly = source["ValidOnly"];
-	        this.IncludeCA = source["IncludeCA"];
-	        this.MinKeyUsage = source["MinKeyUsage"];
+	        this.RequiredKeyUsage = source["RequiredKeyUsage"];
 	    }
 	}
 	export class SignatureAppearance {
@@ -303,7 +301,7 @@ export namespace signature {
 	    }
 	}
 	export class SignatureProfile {
-	    id: string;
+	    id: number[];
 	    name: string;
 	    description: string;
 	    visibility: string;
