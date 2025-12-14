@@ -77,7 +77,6 @@ func validateCertificateStorePath(path string) error {
 		return fmt.Errorf("path cannot be empty")
 	}
 
-	// Must be absolute path
 	if !filepath.IsAbs(path) {
 		return fmt.Errorf("path must be absolute")
 	}
@@ -92,10 +91,6 @@ func validateCertificateStorePath(path string) error {
 	}
 
 	resolvedPath = filepath.Clean(resolvedPath)
-
-	if strings.Contains(resolvedPath, "..") {
-		return fmt.Errorf("path contains invalid directory traversal")
-	}
 
 	homeDir, _ := os.UserHomeDir()
 	allowedPrefixes := []string{
