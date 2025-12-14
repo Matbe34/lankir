@@ -9,21 +9,24 @@ import (
 	"image/png"
 	"os"
 	"sync"
+	"time"
 
 	"github.com/gen2brain/go-fitz"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
-// PDFService handles all PDF operations
+// PDFService handles all PDF operations including opening, rendering, and metadata extraction.
+// It uses go-fitz for PDF rendering and maintains thread-safe access to the current document.
 type PDFService struct {
-	ctx         context.Context
-	currentFile string
-	pageCount   int
-	doc         *fitz.Document
-	mu          sync.RWMutex // Protects doc access
+	ctx                     context.Context
+	currentFile             string
+	pageCount               int
+	doc                     *fitz.Document
+	annotationRenderingFailed bool
+	mu sync.RWMutex
 }
 
-// PageInfo contains information about a PDF page
+// PageInfo contains information about a rendered PDF page including dimensions and image data.
 type PageInfo struct {
 	PageNumber int    `json:"pageNumber"`
 	Width      int    `json:"width"`
@@ -31,7 +34,7 @@ type PageInfo struct {
 	ImageData  string `json:"imageData"` // Base64 encoded PNG
 }
 
-// PDFMetadata contains PDF document metadata
+// PDFMetadata contains metadata extracted from a PDF document.
 type PDFMetadata struct {
 	Title     string `json:"title"`
 	Author    string `json:"author"`
@@ -41,17 +44,19 @@ type PDFMetadata struct {
 	FilePath  string `json:"filePath"`
 }
 
-// NewPDFService creates a new PDF service
+// NewPDFService creates a new PDF service instance.
 func NewPDFService() *PDFService {
 	return &PDFService{}
 }
 
-// Startup is called when the app starts
+// Startup initializes the service with the application context.
+// This is called by the Wails runtime during application startup.
 func (s *PDFService) Startup(ctx context.Context) {
 	s.ctx = ctx
 }
 
-// OpenPDF opens a PDF file dialog and loads the selected file
+// OpenPDF displays a file selection dialog and opens the selected PDF file.
+// Returns metadata about the opened PDF or an error if the operation fails.
 func (s *PDFService) OpenPDF() (*PDFMetadata, error) {
 	filePath, err := runtime.OpenFileDialog(s.ctx, runtime.OpenDialogOptions{
 		Title: "Select PDF File",
@@ -68,88 +73,81 @@ func (s *PDFService) OpenPDF() (*PDFMetadata, error) {
 	}
 
 	if filePath == "" {
-		// User cancelled, return nil without error
 		return nil, nil
 	}
 
-	// Verify file exists
-	if _, err := os.Stat(filePath); os.IsNotExist(err) {
-		return nil, fmt.Errorf("file does not exist: %s", filePath)
-	}
-
-	// Lock for document replacement
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	// Close existing document if any
-	if s.doc != nil {
-		s.doc.Close()
-	}
-
-	// Open the PDF document
-	doc, err := fitz.New(filePath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to open PDF: %w", err)
-	}
-
-	s.doc = doc
-	s.currentFile = filePath
-	s.pageCount = doc.NumPage()
-
-	// Get metadata
-	metadata := &PDFMetadata{
-		Title:     doc.Metadata()["title"],
-		Author:    doc.Metadata()["author"],
-		Subject:   doc.Metadata()["subject"],
-		Creator:   doc.Metadata()["creator"],
-		PageCount: s.pageCount,
-		FilePath:  filePath,
-	}
-
-	return metadata, nil
+	return s.OpenPDFByPath(filePath)
 }
 
 // OpenPDFByPath opens a PDF file by its file path (for recent files)
 func (s *PDFService) OpenPDFByPath(filePath string) (*PDFMetadata, error) {
-	// Verify file exists
-	if _, err := os.Stat(filePath); os.IsNotExist(err) {
-		return nil, fmt.Errorf("file does not exist: %s", filePath)
+	fileInfo, err := os.Stat(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to stat file: %w", err)
 	}
 
-	// Lock for document replacement
+	if fileInfo.Size() > MaxPDFFileSizeBytes {
+		return nil, fmt.Errorf("PDF file too large: %d bytes (max %d bytes)", fileInfo.Size(), MaxPDFFileSizeBytes)
+	}
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	// Close existing document if any
 	if s.doc != nil {
 		s.doc.Close()
 	}
 
-	// Open the PDF document
-	doc, err := fitz.New(filePath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to open PDF: %w", err)
+	// Open PDF with timeout to prevent hanging on malformed files
+	type openResult struct {
+		doc *fitz.Document
+		err error
 	}
 
-	s.doc = doc
-	s.currentFile = filePath
-	s.pageCount = doc.NumPage()
+	ctx, cancel := context.WithTimeout(context.Background(), PDFOpenTimeout)
+	defer cancel()
 
-	// Get metadata
-	metadata := &PDFMetadata{
-		Title:     doc.Metadata()["title"],
-		Author:    doc.Metadata()["author"],
-		Subject:   doc.Metadata()["subject"],
-		Creator:   doc.Metadata()["creator"],
-		PageCount: s.pageCount,
-		FilePath:  filePath,
+	resultChan := make(chan openResult, 1)
+	go func() {
+		doc, err := fitz.New(filePath)
+		select {
+		case resultChan <- openResult{doc: doc, err: err}:
+		case <-ctx.Done():
+			if doc != nil {
+				doc.Close()
+			}
+		}
+	}()
+
+	select {
+	case result := <-resultChan:
+		if result.err != nil {
+			return nil, fmt.Errorf("failed to open PDF: %w", result.err)
+		}
+
+		s.doc = result.doc
+		s.currentFile = filePath
+		s.pageCount = result.doc.NumPage()
+		s.annotationRenderingFailed = false
+
+		return &PDFMetadata{
+			Title:     result.doc.Metadata()["title"],
+			Author:    result.doc.Metadata()["author"],
+			Subject:   result.doc.Metadata()["subject"],
+			Creator:   result.doc.Metadata()["creator"],
+			PageCount: s.pageCount,
+			FilePath:  filePath,
+		}, nil
+
+	case <-ctx.Done():
+		return nil, fmt.Errorf("timeout opening PDF file (exceeded %v)", PDFOpenTimeout)
 	}
-
-	return metadata, nil
 }
 
 // ClosePDF closes the current PDF file
 func (s *PDFService) ClosePDF() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	if s.doc != nil {
 		s.doc.Close()
 		s.doc = nil
@@ -159,14 +157,51 @@ func (s *PDFService) ClosePDF() error {
 	return nil
 }
 
+const (
+	MinDPI              = 10.0
+	MaxDPI              = 600.0
+	PDFOpenTimeout      = 120 * time.Second
+	PDFRenderTimeout    = 300 * time.Second
+	MaxPDFFileSizeBytes = 1 * 1024 * 1024 * 1024 // 1GB maximum file size
+)
+
 // RenderPage renders a specific page and returns it as base64-encoded PNG
 func (s *PDFService) RenderPage(pageNum int, dpi float64) (*PageInfo, error) {
-	// Use the new rendering method that includes annotations
-	return s.renderPageWithAnnotations(pageNum, dpi)
+	if dpi < MinDPI || dpi > MaxDPI {
+		return nil, fmt.Errorf("DPI %.2f out of valid range [%.2f, %.2f]", dpi, MinDPI, MaxDPI)
+	}
+
+	s.mu.RLock()
+	doc := s.doc
+	pageCount := s.pageCount
+	annotFailed := s.annotationRenderingFailed
+	s.mu.RUnlock()
+
+	if doc == nil {
+		return nil, fmt.Errorf("no PDF document is open")
+	}
+
+	if pageNum < 0 || pageNum >= pageCount {
+		return nil, fmt.Errorf("invalid page number: %d (document has %d pages)", pageNum, pageCount)
+	}
+
+	if !annotFailed {
+		result, err := s.renderPageWithAnnotations(pageNum, dpi)
+		if err == nil {
+			return result, nil
+		}
+		s.mu.Lock()
+		s.annotationRenderingFailed = true
+		s.mu.Unlock()
+	}
+
+	return s.renderPageStandard(pageNum, dpi)
 }
 
 // GetPageCount returns the number of pages in the current PDF
 func (s *PDFService) GetPageCount() int {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 	return s.pageCount
 }
 
@@ -202,6 +237,9 @@ func (s *PDFService) GetPageDimensions(pageNum int) (*PageDimensions, error) {
 
 // GetMetadata returns metadata for the current PDF
 func (s *PDFService) GetMetadata() (*PDFMetadata, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
 	if s.doc == nil {
 		return nil, fmt.Errorf("no PDF document is open")
 	}
@@ -220,59 +258,101 @@ func (s *PDFService) GetMetadata() (*PDFMetadata, error) {
 // This is used for recent files preview without opening the full document
 // The thumbnail is cropped to 16:9 aspect ratio showing the top portion
 func (s *PDFService) GenerateThumbnail(filePath string, maxWidth int) (string, error) {
-	// Verify file exists
-	if _, err := os.Stat(filePath); os.IsNotExist(err) {
-		return "", fmt.Errorf("file does not exist: %s", filePath)
-	}
-
-	// Open the PDF document temporarily
-	doc, err := fitz.New(filePath)
+	fileInfo, err := os.Stat(filePath)
 	if err != nil {
-		return "", fmt.Errorf("failed to open PDF: %w", err)
-	}
-	defer doc.Close()
-
-	// Check if document has pages
-	if doc.NumPage() == 0 {
-		return "", fmt.Errorf("PDF has no pages")
+		if os.IsNotExist(err) {
+			return "", fmt.Errorf("file does not exist: %s", filePath)
+		}
+		return "", fmt.Errorf("failed to stat file: %w", err)
 	}
 
-	// Get first page bounds
-	bounds, err := doc.Bound(0)
-	if err != nil {
-		return "", fmt.Errorf("failed to get page bounds: %w", err)
+	if fileInfo.Size() > MaxPDFFileSizeBytes {
+		return "", fmt.Errorf("PDF file too large: %d bytes (max %d bytes)", fileInfo.Size(), MaxPDFFileSizeBytes)
 	}
 
-	// Calculate DPI to achieve desired width
-	pageWidth := float64(bounds.Dx())
-	dpi := (float64(maxWidth) / pageWidth) * 72.0
-
-	// Render first page with go-fitz (simple rendering, no annotations needed for thumbnail)
-	img, err := doc.ImageDPI(0, dpi)
-	if err != nil {
-		return "", fmt.Errorf("failed to render page: %w", err)
+	type thumbnailResult struct {
+		data string
+		err  error
 	}
 
-	// Crop to 16:9 aspect ratio (top portion)
-	imgBounds := img.Bounds()
-	targetWidth := imgBounds.Dx()
-	targetHeight := targetWidth * 9 / 16
+	ctx, cancel := context.WithTimeout(context.Background(), PDFRenderTimeout)
+	defer cancel()
 
-	// If the page is shorter than 16:9, use full height
-	if targetHeight > imgBounds.Dy() {
-		targetHeight = imgBounds.Dy()
+	resultChan := make(chan thumbnailResult, 1)
+	go func() {
+		doc, err := fitz.New(filePath)
+		if err != nil {
+			select {
+			case resultChan <- thumbnailResult{err: fmt.Errorf("failed to open PDF: %w", err)}:
+			case <-ctx.Done():
+			}
+			return
+		}
+		defer doc.Close()
+
+		if doc.NumPage() == 0 {
+			select {
+			case resultChan <- thumbnailResult{err: fmt.Errorf("PDF has no pages")}:
+			case <-ctx.Done():
+			}
+			return
+		}
+
+		bounds, err := doc.Bound(0)
+		if err != nil {
+			select {
+			case resultChan <- thumbnailResult{err: fmt.Errorf("failed to get page bounds: %w", err)}:
+			case <-ctx.Done():
+			}
+			return
+		}
+
+		pageWidth := float64(bounds.Dx())
+		dpi := (float64(maxWidth) / pageWidth) * 72.0
+
+		img, err := doc.ImageDPI(0, dpi)
+		if err != nil {
+			select {
+			case resultChan <- thumbnailResult{err: fmt.Errorf("failed to render page: %w", err)}:
+			case <-ctx.Done():
+			}
+			return
+		}
+
+		imgBounds := img.Bounds()
+		targetWidth := imgBounds.Dx()
+		targetHeight := targetWidth * 9 / 16
+
+		if targetHeight > imgBounds.Dy() {
+			targetHeight = imgBounds.Dy()
+		}
+
+		croppedImg := img.SubImage(image.Rect(0, 0, targetWidth, targetHeight))
+
+		var buf bytes.Buffer
+		if err := png.Encode(&buf, croppedImg); err != nil {
+			select {
+			case resultChan <- thumbnailResult{err: fmt.Errorf("failed to encode PNG: %w", err)}:
+			case <-ctx.Done():
+			}
+			return
+		}
+
+		base64Data := base64.StdEncoding.EncodeToString(buf.Bytes())
+		select {
+		case resultChan <- thumbnailResult{data: "data:image/png;base64," + base64Data}:
+		case <-ctx.Done():
+		}
+	}()
+
+	select {
+	case result := <-resultChan:
+		if result.err != nil {
+			return "", result.err
+		}
+		return result.data, nil
+
+	case <-ctx.Done():
+		return "", fmt.Errorf("timeout rendering PDF thumbnail (exceeded %v)", PDFRenderTimeout)
 	}
-
-	// Create cropped image (top portion only)
-	croppedImg := img.SubImage(image.Rect(0, 0, targetWidth, targetHeight))
-
-	// Convert to PNG bytes
-	var buf bytes.Buffer
-	if err := png.Encode(&buf, croppedImg); err != nil {
-		return "", fmt.Errorf("failed to encode PNG: %w", err)
-	}
-
-	// Convert to base64
-	base64Data := base64.StdEncoding.EncodeToString(buf.Bytes())
-	return "data:image/png;base64," + base64Data, nil
 }
