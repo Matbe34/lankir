@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-echo "Building PDF Editor Pro (Portable Binary)..."
+echo "Building PDF App (Portable Binary)..."
 
 # Build frontend first
 echo "Building frontend..."

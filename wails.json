@@ -1,7 +1,7 @@
 {
   "$schema": "https://wails.io/schemas/config.v2.json",
-  "name": "PDF Editor Pro",
-  "outputfilename": "pdf-editor-pro",
+  "name": "PDF App",
+  "outputfilename": "pdf_app",
   "frontend:install": "echo 'Using embedded frontend'",
   "frontend:build": "./build.sh",
   "author": {
@@ -9,8 +9,8 @@
     "email": "ferran@example.com"
   },
   "info": {
-    "companyName": "PDF Editor Pro",
-    "productName": "PDF Editor Pro",
+    "companyName": "PDF App",
+    "productName": "PDF App",
     "productVersion": "0.1.0",
     "copyright": "Copyright © 2025",
     "comments": "A modern PDF editor for Linux"
