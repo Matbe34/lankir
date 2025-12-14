@@ -12,7 +12,6 @@ require (
 	github.com/spf13/cobra v1.10.1
 	github.com/wailsapp/wails/v2 v2.10.2
 	golang.org/x/image v0.32.0
-	golang.org/x/term v0.37.0
 	software.sslmate.com/src/go-pkcs12 v0.6.0
 )
 
