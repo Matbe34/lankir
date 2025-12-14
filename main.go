@@ -39,8 +39,8 @@ func runGUI() {
 		log.Fatal("Failed to create config service:", err)
 	}
 
-	// Create PDF service
-	pdfService := pdf.NewPDFService()
+	// Create PDF service with config service
+	pdfService := pdf.NewPDFService(configService)
 
 	// Create recent files service
 	recentFilesService := pdf.NewRecentFilesService()

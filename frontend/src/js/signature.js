@@ -2,7 +2,7 @@
 // Handles PDF signing operations and certificate management
 
 import { state, getActivePDF } from './state.js';
-import { updateStatus, escapeHtml, formatDate } from './utils.js';
+import { updateStatus, escapeHtml, formatDate, debugLog } from './utils.js';
 import { createPDFTab, switchToTab } from './pdfManager.js';
 import { loadPageThumbnails, loadSignatureInfo } from './pdfOperations.js';
 import { showMessage, showConfirm } from './messageDialog.js';
@@ -314,7 +314,7 @@ async function convertScreenToPDFCoordinates(rect, viewerRect, activePDF) {
         const width = rect.width * scaleX;
         const height = rect.height * scaleY;
 
-        console.log('Coordinate conversion:', {
+        debugLog('Coordinate conversion:', {
             screen: { x: rect.left, y: rect.top, w: rect.width, h: rect.height },
             img: { x: imgRect.left, y: imgRect.top, w: imgRect.width, h: imgRect.height },
             relative: { x: relativeX, y: relativeY },
@@ -444,7 +444,7 @@ export async function showCertificateDialog(pdfPath) {
         // Count usable certificates
         const usableCerts = signingCerts.filter(c => c.canSign && c.isValid).length;
 
-        console.log(`Found ${signingCerts.length} certificates, ${usableCerts} can be used for signing`);
+        debugLog(`Found ${signingCerts.length} certificates, ${usableCerts} can be used for signing`);
 
         // Render certificate list
         renderCertificateList(signingCerts, pdfPath);

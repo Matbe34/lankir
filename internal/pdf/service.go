@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ferran/pdf_app/internal/config"
 	"github.com/gen2brain/go-fitz"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
@@ -18,12 +19,13 @@ import (
 // PDFService handles all PDF operations including opening, rendering, and metadata extraction.
 // It uses go-fitz for PDF rendering and maintains thread-safe access to the current document.
 type PDFService struct {
-	ctx                     context.Context
-	currentFile             string
-	pageCount               int
-	doc                     *fitz.Document
+	ctx                       context.Context
+	currentFile               string
+	pageCount                 int
+	doc                       *fitz.Document
 	annotationRenderingFailed bool
-	mu sync.RWMutex
+	configService             *config.Service
+	mu                        sync.RWMutex
 }
 
 // PageInfo contains information about a rendered PDF page including dimensions and image data.
@@ -45,14 +47,23 @@ type PDFMetadata struct {
 }
 
 // NewPDFService creates a new PDF service instance.
-func NewPDFService() *PDFService {
-	return &PDFService{}
+func NewPDFService(configService *config.Service) *PDFService {
+	return &PDFService{
+		configService: configService,
+	}
 }
 
 // Startup initializes the service with the application context.
 // This is called by the Wails runtime during application startup.
 func (s *PDFService) Startup(ctx context.Context) {
 	s.ctx = ctx
+
+	if s.configService != nil {
+		cfg := s.configService.Get()
+		if cfg != nil && !cfg.DebugMode {
+			SuppressMuPDFWarnings()
+		}
+	}
 }
 
 // OpenPDF displays a file selection dialog and opens the selected PDF file.

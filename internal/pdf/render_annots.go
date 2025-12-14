@@ -12,6 +12,39 @@ package pdf
 #include <mupdf/fitz.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
+#include <unistd.h>
+#include <fcntl.h>
+
+static int mupdf_warnings_suppressed = 0;
+static int saved_stderr = -1;
+
+// suppress_mupdf_warnings redirects stderr to /dev/null to silence MuPDF warnings
+void suppress_mupdf_warnings() {
+	if (mupdf_warnings_suppressed) return;
+
+	// Save original stderr
+	saved_stderr = dup(STDERR_FILENO);
+
+	// Redirect stderr to /dev/null
+	int devnull = open("/dev/null", O_WRONLY);
+	if (devnull != -1) {
+		dup2(devnull, STDERR_FILENO);
+		close(devnull);
+		mupdf_warnings_suppressed = 1;
+	}
+}
+
+// restore_mupdf_warnings restores stderr to show MuPDF warnings
+void restore_mupdf_warnings() {
+	if (!mupdf_warnings_suppressed || saved_stderr == -1) return;
+
+	// Restore original stderr
+	dup2(saved_stderr, STDERR_FILENO);
+	close(saved_stderr);
+	saved_stderr = -1;
+	mupdf_warnings_suppressed = 0;
+}
 
 // RenderResult contains the result of rendering
 typedef struct {
@@ -156,6 +189,16 @@ import (
 	"image/png"
 	"unsafe"
 )
+
+// SuppressMuPDFWarnings redirects MuPDF warnings to /dev/null
+func SuppressMuPDFWarnings() {
+	C.suppress_mupdf_warnings()
+}
+
+// RestoreMuPDFWarnings restores MuPDF warnings output
+func RestoreMuPDFWarnings() {
+	C.restore_mupdf_warnings()
+}
 
 // renderPageWithAnnotations renders a PDF page including all annotations and signature widgets
 // This uses a completely separate MuPDF context for safety

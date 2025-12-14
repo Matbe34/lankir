@@ -1,5 +1,13 @@
 // Utility Functions
 
+import { getSetting } from './settings.js';
+
+export function debugLog(...args) {
+    if (getSetting('debugMode')) {
+        console.log(...args);
+    }
+}
+
 export function updateStatus(message) {
     const statusText = document.getElementById('statusText');
     if (statusText) {
