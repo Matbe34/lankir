@@ -2,6 +2,8 @@ package nss
 
 /*
 #cgo pkg-config: nss
+#include <stdlib.h>
+#include <string.h>
 #include <nss.h>
 #include <pk11pub.h>
 #include <cert.h>
@@ -11,7 +13,6 @@ package nss
 #include <seccomon.h>
 #include <ssl.h>
 #include <cryptohi.h>
-#include <string.h>
 
 static SECStatus nss_init(const char *configdir) {
     if (NSS_IsInitialized()) {
@@ -55,6 +56,28 @@ static SECStatus sign_digest(SECKEYPrivateKey *key, unsigned char *digest, int d
     }
 
     return rv;
+}
+
+static CERTCertList* get_all_certs() {
+    return PK11_ListCerts(PK11CertListAll, NULL);
+}
+
+static int has_private_key_for_cert(CERTCertificate *cert) {
+    SECKEYPrivateKey *key = PK11_FindKeyByAnyCert(cert, NULL);
+    if (key != NULL) {
+        SECKEY_DestroyPrivateKey(key);
+        return 1;
+    }
+    return 0;
+}
+
+// secure_free_string zeros the memory before freeing
+static void secure_free_string(char *str) {
+    if (str != NULL) {
+        size_t len = strlen(str);
+        memset(str, 0, len);
+        free(str);
+    }
 }
 */
 import "C"
@@ -110,6 +133,61 @@ func (n *NSSSigner) Close() {
 	}
 }
 
+type Certificate struct {
+	Nickname      string
+	X509Cert      *x509.Certificate
+	HasPrivateKey bool
+}
+
+func ListCertificates() ([]Certificate, error) {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return nil, err
+	}
+
+	nssDBPath := filepath.Join(homeDir, ".pki", "nssdb")
+	cPath := C.CString(nssDBPath)
+	defer C.free(unsafe.Pointer(cPath))
+
+	if C.nss_init(cPath) != C.SECSuccess {
+		return nil, fmt.Errorf("NSS initialization failed")
+	}
+
+	certList := C.get_all_certs()
+	if certList == nil {
+		return []Certificate{}, nil
+	}
+	defer C.CERT_DestroyCertList(certList)
+
+	var certs []Certificate
+	for node := certList.list.next; node != &certList.list; node = node.next {
+		certNode := (*C.CERTCertListNode)(unsafe.Pointer(node))
+		cert := certNode.cert
+
+		if cert.nickname == nil {
+			continue
+		}
+
+		nickname := C.GoString(cert.nickname)
+		certDER := C.GoBytes(unsafe.Pointer(cert.derCert.data), C.int(cert.derCert.len))
+
+		x509Cert, err := x509.ParseCertificate(certDER)
+		if err != nil {
+			continue
+		}
+
+		hasPrivKey := C.has_private_key_for_cert(cert) == 1
+
+		certs = append(certs, Certificate{
+			Nickname:      nickname,
+			X509Cert:      x509Cert,
+			HasPrivateKey: hasPrivKey,
+		})
+	}
+
+	return certs, nil
+}
+
 func GetNSSSigner(nickname, pin string) (*NSSSigner, error) {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
@@ -134,11 +212,21 @@ func GetNSSSigner(nickname, pin string) (*NSSSigner, error) {
 
 	if pin != "" {
 		slot := C.PK11_GetInternalKeySlot()
-		if slot != nil {
-			cPin := C.CString(pin)
-			C.PK11_Authenticate(slot, C.PR_TRUE, unsafe.Pointer(cPin))
-			C.free(unsafe.Pointer(cPin))
-			C.PK11_FreeSlot(slot)
+		if slot == nil {
+			C.CERT_DestroyCertificate(cert)
+			return nil, fmt.Errorf("failed to get internal key slot")
+		}
+		defer C.PK11_FreeSlot(slot)
+
+		cPin := C.CString(pin)
+		// Ensure PIN is securely zeroed before freeing using our C helper
+		defer C.secure_free_string(cPin)
+
+		// Authenticate and check result
+		result := C.PK11_Authenticate(slot, C.PR_TRUE, unsafe.Pointer(cPin))
+		if result != C.SECSuccess {
+			C.CERT_DestroyCertificate(cert)
+			return nil, fmt.Errorf("NSS authentication failed: incorrect PIN or authentication error")
 		}
 	}
 
