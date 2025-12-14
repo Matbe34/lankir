@@ -29,7 +29,7 @@ var pdfInfoCmd = &cobra.Command{
 			ExitWithError("PDF file not found", err)
 		}
 
-		service := pdf.NewPDFService()
+		service := pdf.NewPDFService(nil)
 		service.Startup(context.Background())
 
 		metadata, err := service.OpenPDFByPath(pdfPath)
@@ -46,7 +46,7 @@ var pdfInfoCmd = &cobra.Command{
 				ExitWithError("failed to marshal PDF metadata to JSON", err)
 			}
 			fmt.Println(string(data))
-		} else{
+		} else {
 			fmt.Printf("PDF Information:\n")
 			fmt.Printf("  File:       %s\n", metadata.FilePath)
 			fmt.Printf("  Title:      %s\n", metadata.Title)
@@ -70,7 +70,7 @@ var pdfPagesCmd = &cobra.Command{
 			ExitWithError("PDF file not found", err)
 		}
 
-		service := pdf.NewPDFService()
+		service := pdf.NewPDFService(nil)
 		service.Startup(context.Background())
 
 		_, err := service.OpenPDFByPath(pdfPath)
@@ -138,7 +138,7 @@ var pdfRenderCmd = &cobra.Command{
 			ExitWithError("PDF file not found", err)
 		}
 
-		service := pdf.NewPDFService()
+		service := pdf.NewPDFService(nil)
 		service.Startup(context.Background())
 
 		_, err := service.OpenPDFByPath(pdfPath)
@@ -194,7 +194,7 @@ var pdfThumbnailCmd = &cobra.Command{
 			ExitWithError("PDF file not found", err)
 		}
 
-		service := pdf.NewPDFService()
+		service := pdf.NewPDFService(nil)
 		service.Startup(context.Background())
 
 		GetLogger().Info("generating thumbnail", "width", thumbnailSize)
