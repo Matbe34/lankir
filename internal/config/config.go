@@ -2,6 +2,7 @@ package config
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -66,7 +67,7 @@ func NewServiceWithDir(configDir string) (*Service, error) {
 	}
 
 	if err := service.Load(); err != nil {
-		if !os.IsNotExist(err) {
+		if !errors.Is(err, os.ErrNotExist) {
 			return nil, fmt.Errorf("failed to load config: %w", err)
 		}
 		if err := service.Save(); err != nil {
