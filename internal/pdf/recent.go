@@ -27,6 +27,8 @@ type RecentFile struct {
 type RecentFilesService struct {
 	mu         sync.RWMutex
 	ctx        context.Context
+	cancel     context.CancelFunc
+	wg         sync.WaitGroup
 	configPath string
 	files      []RecentFile
 	maxRecent  int
@@ -43,7 +45,11 @@ func NewRecentFilesService() *RecentFilesService {
 		slog.Warn("failed to create config directory", "error", err, "path", configDir)
 	}
 
+	ctx, cancel := context.WithCancel(context.Background())
+
 	return &RecentFilesService{
+		ctx:        ctx,
+		cancel:     cancel,
 		configPath: filepath.Join(configDir, "recent.json"),
 		files:      []RecentFile{},
 		maxRecent:  DefaultMaxRecentFiles,
@@ -105,7 +111,11 @@ func (s *RecentFilesService) GetRecent() []RecentFile {
 
 	if filesChanged {
 		s.files = validFiles
-		go s.saveAsync()
+		s.wg.Add(1)
+		go func() {
+			defer s.wg.Done()
+			s.saveAsync()
+		}()
 	}
 
 	result := make([]RecentFile, len(s.files))
@@ -169,6 +179,13 @@ func (s *RecentFilesService) save() error {
 // saveAsync saves the recent files in the background without holding locks
 // This is called from a goroutine and handles its own error logging
 func (s *RecentFilesService) saveAsync() {
+	select {
+	case <-s.ctx.Done():
+		slog.Debug("saveAsync cancelled due to context")
+		return
+	default:
+	}
+
 	s.mu.RLock()
 	data, err := json.Marshal(s.files)
 	s.mu.RUnlock()
@@ -180,5 +197,23 @@ func (s *RecentFilesService) saveAsync() {
 
 	if err := os.WriteFile(s.configPath, data, 0600); err != nil {
 		slog.Error("failed to save recent files", "error", err)
+	}
+}
+
+// Shutdown gracefully shuts down the service, waiting for pending saves
+func (s *RecentFilesService) Shutdown(timeout time.Duration) error {
+	s.cancel()
+
+	done := make(chan struct{})
+	go func() {
+		s.wg.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		return nil
+	case <-time.After(timeout):
+		return fmt.Errorf("shutdown timeout after %v", timeout)
 	}
 }

@@ -2,6 +2,7 @@ package signature
 
 import (
 	"log/slog"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -36,20 +37,36 @@ func (s *SignatureService) ListCertificatesFiltered(filter CertificateFilter) ([
 		// Load from certificate stores
 		for _, storePath := range cfg.CertificateStores {
 			storeCerts, err := pkcs12.LoadCertificatesFromPath(storePath)
-			if err == nil {
-				for _, sc := range storeCerts {
-					if sc.FilePath != "" {
-						ext := strings.ToLower(filepath.Ext(sc.FilePath))
-						inNSSDB := strings.Contains(sc.FilePath, ".pki/nssdb")
+			if err != nil {
+				// Log different error types with appropriate severity
+				if os.IsNotExist(err) {
+					slog.Debug("certificate store path does not exist",
+						"path", storePath,
+						"error", err)
+				} else if os.IsPermission(err) {
+					slog.Warn("permission denied accessing certificate store",
+						"path", storePath,
+						"error", err)
+				} else {
+					slog.Warn("failed to load certificates from store",
+						"path", storePath,
+						"error", err)
+				}
+				continue
+			}
 
-						if ext == ".p12" || ext == ".pfx" {
-							allCerts = append(allCerts, sc)
-						} else if !inNSSDB {
-							allCerts = append(allCerts, sc)
-						}
-					} else {
+			for _, sc := range storeCerts {
+				if sc.FilePath != "" {
+					ext := strings.ToLower(filepath.Ext(sc.FilePath))
+					inNSSDB := strings.Contains(sc.FilePath, ".pki/nssdb")
+
+					if ext == ".p12" || ext == ".pfx" {
+						allCerts = append(allCerts, sc)
+					} else if !inNSSDB {
 						allCerts = append(allCerts, sc)
 					}
+				} else {
+					allCerts = append(allCerts, sc)
 				}
 			}
 		}
