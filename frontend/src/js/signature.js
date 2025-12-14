@@ -533,6 +533,14 @@ export function renderCertificateList(certificates, pdfPath) {
         });
     });
 
+    if (certItems.length > 0) {
+        const firstItem = certItems[0];
+        firstItem.classList.add('selected');
+        const fingerprint = firstItem.dataset.fingerprint;
+        state.selectedCertificate = certificates.find(c => c.fingerprint === fingerprint);
+        signBtn.disabled = false;
+    }
+
     // Store pdfPath for signing
     signBtn.dataset.pdfPath = pdfPath;
 }
