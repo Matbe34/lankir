@@ -1,7 +1,9 @@
 # Build artifacts
 /build/
 /bin/
-build-static.sh
+
+# Scripts (temporary build files)
+/scripts/
 
 # Go
 *.exe
