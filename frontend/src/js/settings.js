@@ -71,12 +71,32 @@ async function saveSettings() {
         return true;
     } catch (error) {
         console.error('Failed to save settings:', error);
+
+        if (error.name === 'QuotaExceededError' || error.code === 22) {
+            await showMessage(
+                'Unable to save settings: Browser storage quota exceeded.\n\n' +
+                'Please clear some browser data or reduce the number of recent files in settings.',
+                'Storage Full',
+                'error'
+            );
+            return false;
+        }
+
         try {
             localStorage.setItem('pdfEditorSettings', JSON.stringify(currentSettings));
             applySettings();
             return true;
         } catch (e) {
             console.error('Failed to save to localStorage:', e);
+
+            if (e.name === 'QuotaExceededError' || e.code === 22) {
+                await showMessage(
+                    'Unable to save settings: Browser storage quota exceeded.\n\n' +
+                    'Please clear some browser data or reduce the number of recent files in settings.',
+                    'Storage Full',
+                    'error'
+                );
+            }
             return false;
         }
     }
@@ -320,13 +340,19 @@ async function saveSettingsFromModal() {
         currentSettings.secondaryAccent = document.getElementById('settingSecondaryAccent').value;
 
         let defaultZoom = parseInt(document.getElementById('settingDefaultZoom').value);
-        if (isNaN(defaultZoom) || defaultZoom < 10) defaultZoom = 100;
+        if (isNaN(defaultZoom) || defaultZoom < 10 || defaultZoom > 500) defaultZoom = 100;
         currentSettings.defaultZoom = defaultZoom;
 
         currentSettings.showLeftSidebar = document.getElementById('settingShowLeftSidebar').checked;
         currentSettings.showRightSidebar = document.getElementById('settingShowRightSidebar').checked;
-        currentSettings.recentFilesLength = parseInt(document.getElementById('settingRecentFilesLength').value);
-        currentSettings.autosaveInterval = parseInt(document.getElementById('settingAutosaveInterval').value);
+
+        let recentFilesLength = parseInt(document.getElementById('settingRecentFilesLength').value);
+        if (isNaN(recentFilesLength) || recentFilesLength < 0 || recentFilesLength > 100) recentFilesLength = 10;
+        currentSettings.recentFilesLength = recentFilesLength;
+
+        let autosaveInterval = parseInt(document.getElementById('settingAutosaveInterval').value);
+        if (isNaN(autosaveInterval) || autosaveInterval < 0 || autosaveInterval > 3600) autosaveInterval = 60;
+        currentSettings.autosaveInterval = autosaveInterval;
         currentSettings.debugMode = document.getElementById('settingDebugMode').checked;
         currentSettings.hardwareAccel = document.getElementById('settingHardwareAccel').checked;
 

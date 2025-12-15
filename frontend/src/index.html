@@ -4,36 +4,39 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' wails:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' wails:; font-src 'self';">
     <title>PDF App</title>
     <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
-    <div id="app" class="flex flex-col h-screen">
-        <header class="flex justify-between items-center px-4 py-3 bg-bg-secondary border-b border-border-color">
+    <div id="app" class="flex flex-col h-screen" role="application" aria-label="PDF Editor Application">
+        <header class="flex justify-between items-center px-4 py-3 bg-bg-secondary border-b border-border-color" role="banner">
             <div class="flex gap-2">
                 <button id="openBtn"
-                    class="px-4 py-2 rounded-md bg-accent-blue text-text-primary cursor-pointer text-sm flex items-center gap-2 transition-colors hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed">
-                    <span>📂</span> Open PDF
+                    class="px-4 py-2 rounded-md bg-accent-blue text-text-primary cursor-pointer text-sm flex items-center gap-2 transition-colors hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                    aria-label="Open PDF file"
+                    title="Open a PDF document (Ctrl+O)">
+                    <span aria-hidden="true">📂</span> Open PDF
                 </button>
-                <button id="settingsBtn" class="btn">
-                    <span>⚙️</span> Settings
+                <button id="settingsBtn" class="btn" aria-label="Open settings" title="Configure application settings">
+                    <span aria-hidden="true">⚙️</span> Settings
                 </button>
             </div>
             <div>
                 <h1 class="text-xl font-bold">PDF App</h1>
             </div>
             <div class="flex gap-2">
-                <button id="signBtn" class="btn btn-primary" disabled>
-                    <span>🔒</span> Sign
+                <button id="signBtn" class="btn btn-primary" disabled aria-label="Sign PDF" title="Digitally sign the PDF document (Alt+S)">
+                    <span aria-hidden="true">🔒</span> Sign
                 </button>
             </div>
         </header>
 
         <div class="flex bg-bg-secondary border-b border-border-color overflow-x-auto min-h-0 max-h-0 opacity-0 transition-all has-tabs:min-h-10 has-tabs:max-h-10 has-tabs:opacity-100 scrollbar-thin"
-            id="pdfTabsContainer">
-            <div class="pdf-tab active" id="homeTab">
-                <span class="pdf-tab-name">🏠 Home</span>
+            id="pdfTabsContainer" role="tablist" aria-label="Open PDF documents">
+            <div class="pdf-tab active" id="homeTab" role="tab" aria-selected="true" aria-controls="pdfViewer">
+                <span class="pdf-tab-name"><span aria-hidden="true">🏠</span> Home</span>
             </div>
             <!-- PDF tabs will be dynamically added here -->
         </div>
@@ -144,9 +147,10 @@
         </main>
 
         <footer
-            class="flex justify-between items-center px-4 py-2 bg-bg-secondary border-t border-border-color text-xs text-text-secondary">
+            class="flex justify-between items-center px-4 py-2 bg-bg-secondary border-t border-border-color text-xs text-text-secondary"
+            role="contentinfo">
             <div class="flex items-center gap-2">
-                <span id="statusText">Ready</span>
+                <span id="statusText" role="status" aria-live="polite" aria-atomic="true">Ready</span>
             </div>
             <div class="flex items-center gap-3">
                 <span id="pageIndicator">-</span>
@@ -163,11 +167,11 @@
     </div>
 
     <!-- Profile Selection Dialog -->
-    <div id="profileDialog" class="modal-overlay hidden">
+    <div id="profileDialog" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="profileDialogTitle">
         <div class="modal">
             <div class="modal-header">
-                <h2>Choose Signature Type</h2>
-                <button class="modal-close" id="profileDialogClose">&times;</button>
+                <h2 id="profileDialogTitle">Choose Signature Type</h2>
+                <button class="modal-close" id="profileDialogClose" aria-label="Close dialog">&times;</button>
             </div>
             <div class="modal-body">
                 <div class="profile-selection-section">
@@ -186,10 +190,10 @@
     </div>
 
     <!-- Certificate Selection Dialog -->
-    <div id="certDialog" class="modal-overlay hidden">
+    <div id="certDialog" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="certDialogTitle">
         <div class="modal">
             <div class="modal-header">
-                <h2>Select Certificate for Signing</h2>
+                <h2 id="certDialogTitle">Select Certificate for Signing</h2>
                 <div style="display: flex; gap: 0.5rem; align-items: center;">
                     <button class="modal-refresh" id="certDialogRefresh" title="Refresh certificate list">
                         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor"
@@ -216,7 +220,7 @@
         </div>
     </div>
 
-    <div id="pinDialog" class="modal-overlay hidden">
+    <div id="pinDialog" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="pinDialogTitle">
         <div class="modal message-modal">
             <div class="modal-header">
                 <h2 id="pinDialogTitle">Enter PIN</h2>
@@ -239,7 +243,7 @@
     </div>
 
     <!-- Message Dialog -->
-    <div id="messageDialog" class="modal-overlay hidden">
+    <div id="messageDialog" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="messageDialogTitle" aria-describedby="messageDialogContent">
         <div class="modal message-modal">
             <div class="modal-header">
                 <h2 id="messageDialogTitle">Message</h2>
@@ -272,7 +276,7 @@
     </div>
 
     <!-- Settings Modal -->
-    <div id="settingsModal" class="modal-overlay hidden">
+    <div id="settingsModal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="settingsModalTitle">
         <div class="modal settings-modal">
             <div class="modal-header">
                 <h2>Settings</h2>
@@ -548,7 +552,7 @@
     <script type="module" src="js/app.js"></script>
 
     <!-- Profile Editor Modal -->
-    <div id="profileEditorModal" class="modal-overlay hidden">
+    <div id="profileEditorModal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="profileEditorTitle">
         <div class="modal settings-modal">
             <div class="modal-header">
                 <h2 id="profileEditorTitle">Create Signature Profile</h2>
@@ -603,6 +607,9 @@
                                     <input type="checkbox" id="profileShowLocation" class="setting-checkbox">
                                     Include signing location (based on IP geolocation)
                                 </label>
+                                <div style="font-size: 0.75rem; color: #f59e0b; margin-top: 0.25rem; padding: 0.5rem; background: rgba(245, 158, 11, 0.1); border-radius: 4px;">
+                                    ⚠ Privacy Notice: Enabling this feature will send your IP address to a third-party geolocation service to determine your signing location. This information will be embedded in the PDF signature.
+                                </div>
                             </div>
 
                             <div class="setting-group">

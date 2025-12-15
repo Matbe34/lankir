@@ -2,7 +2,7 @@
 // Handles PDF signing operations and certificate management
 
 import { state, getActivePDF } from './state.js';
-import { updateStatus, escapeHtml, formatDate, debugLog } from './utils.js';
+import { updateStatus, escapeHtml, formatDate, debugLog, sanitizeError } from './utils.js';
 import { createPDFTab, switchToTab } from './pdfManager.js';
 import { loadPageThumbnails, loadSignatureInfo } from './pdfOperations.js';
 import { showMessage, showConfirm } from './messageDialog.js';
@@ -238,6 +238,17 @@ async function showSignaturePlacement(pdfPath, profile) {
             // Convert screen coordinates to PDF coordinates
             const pdfCoords = await convertScreenToPDFCoordinates(rect, viewerRect, activePDF);
 
+            // Validate coordinates before storing
+            if (!pdfCoords || typeof pdfCoords.page !== 'number' ||
+                typeof pdfCoords.x !== 'number' || typeof pdfCoords.y !== 'number' ||
+                typeof pdfCoords.width !== 'number' || typeof pdfCoords.height !== 'number' ||
+                isNaN(pdfCoords.page) || isNaN(pdfCoords.x) || isNaN(pdfCoords.y) ||
+                isNaN(pdfCoords.width) || isNaN(pdfCoords.height) ||
+                pdfCoords.page < 1 || pdfCoords.x < 0 || pdfCoords.y < 0 ||
+                pdfCoords.width <= 0 || pdfCoords.height <= 0) {
+                throw new Error('Invalid signature coordinates');
+            }
+
             // Store position in state
             state.signaturePosition = pdfCoords;
 
@@ -247,7 +258,7 @@ async function showSignaturePlacement(pdfPath, profile) {
             await showCertificateDialog(pdfPath);
         } catch (error) {
             console.error('Error confirming placement:', error);
-            updateStatus('Error: ' + error);
+            updateStatus('Error: ' + sanitizeError(error));
             cleanup();
         }
     };
@@ -578,11 +589,17 @@ async function showPINDialog(certName, isOptional) {
 
         const handleOk = () => {
             const pin = input.value;
+            input.value = '';
+            input.type = 'text'; // Reset type to clear internal buffers
+            input.type = 'password';
             cleanup();
             resolve(pin);
         };
 
         const handleCancel = () => {
+            input.value = '';
+            input.type = 'text';
+            input.type = 'password';
             cleanup();
             reject(new Error('PIN entry cancelled'));
         };
