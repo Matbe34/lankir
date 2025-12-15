@@ -9,11 +9,26 @@ import { switchToTab } from './pdfManager.js';
 import { initMessageDialog } from './messageDialog.js';
 import { initSettings, getSetting } from './settings.js';
 import { themeManager } from './themeManager.js';
+import { initLoadingIndicator } from './loadingIndicator.js';
 
 
 document.addEventListener('DOMContentLoaded', async () => {
+    if (!window.go || !window.go.pdf || !window.go.signature) {
+        const errorMsg = 'Backend API not available. This application requires the Wails runtime to function.';
+        console.error(errorMsg);
+        document.body.innerHTML = `
+            <div style="display: flex; align-items: center; justify-content: center; height: 100vh; flex-direction: column; font-family: system-ui; padding: 2rem;">
+                <h1 style="color: #ef4444; margin-bottom: 1rem;">Backend API Error</h1>
+                <p style="color: #666; max-width: 600px; text-align: center;">${errorMsg}</p>
+                <p style="color: #666; margin-top: 1rem;">Please ensure you're running this application through the Wails desktop app, not directly in a browser.</p>
+            </div>
+        `;
+        return;
+    }
+
     initializeUI();
     initMessageDialog();
+    initLoadingIndicator();
     await initSettings();
     await themeManager.init();
     updateStatus('Ready');
@@ -221,13 +236,27 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
 
+    const ZOOM_STEP = 0.1;
+    const ZOOM_THROTTLE_MS = 100;
+
+    let zoomThrottleTimeout = null;
+    let accumulatedZoomDelta = 0;
+
     document.addEventListener('wheel', (e) => {
         if (e.ctrlKey || e.metaKey) {
             e.preventDefault();
 
-            const zoomDelta = e.deltaY > 0 ? -0.1 : 0.1;
+            const zoomDelta = e.deltaY > 0 ? -ZOOM_STEP : ZOOM_STEP;
+            accumulatedZoomDelta += zoomDelta;
 
-            changeZoom(zoomDelta);
+            // Throttle zoom changes to prevent performance issues
+            if (!zoomThrottleTimeout) {
+                zoomThrottleTimeout = setTimeout(() => {
+                    changeZoom(accumulatedZoomDelta);
+                    accumulatedZoomDelta = 0;
+                    zoomThrottleTimeout = null;
+                }, ZOOM_THROTTLE_MS);
+            }
         }
     }, { passive: false });
 });

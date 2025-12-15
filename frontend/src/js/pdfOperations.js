@@ -2,9 +2,10 @@
 // Handles opening PDFs, loading metadata, and managing PDF operations
 
 import { state, getActivePDF } from './state.js';
-import { updateStatus, escapeHtml, formatDate, updatePageIndicator, updateScrollProgress } from './utils.js';
+import { updateStatus, escapeHtml, formatDate, updatePageIndicator, updateScrollProgress, sanitizeError } from './utils.js';
 import { createPDFTab, switchToTab } from './pdfManager.js';
 import { renderPage, renderScrollMode, scrollToPage } from './renderer.js';
+import { showLoading, hideLoading } from './loadingIndicator.js';
 
 /**
  * Check if a PDF is already open and return its tab ID
@@ -24,6 +25,7 @@ function findOpenPDFTab(filePath) {
 export async function openPDFFile() {
     try {
         updateStatus('Opening PDF...');
+        showLoading('Opening PDF file...');
         
         // Call Go backend to open PDF
         const metadata = await window.go.pdf.PDFService.OpenPDF();
@@ -36,6 +38,7 @@ export async function openPDFFile() {
                 // PDF already open, just switch to that tab
                 switchToTab(existingTabId);
                 updateStatus(`Switched to already open PDF: ${metadata.filePath.split('/').pop()}`);
+                hideLoading();
                 return;
             }
             
@@ -56,7 +59,9 @@ export async function openPDFFile() {
         
     } catch (error) {
         console.error('Error opening PDF:', error);
-        updateStatus('Error opening PDF: ' + error);
+        updateStatus('Error opening PDF: ' + sanitizeError(error));
+    } finally {
+        hideLoading();
     }
 }
 
@@ -66,6 +71,7 @@ export async function openPDFFile() {
 export async function openRecentFile(filePath) {
     try {
         updateStatus('Opening ' + filePath.split('/').pop() + '...');
+        showLoading('Opening recent file...');
         
         // Check if this PDF is already open
         const existingTabId = findOpenPDFTab(filePath);
@@ -74,6 +80,7 @@ export async function openRecentFile(filePath) {
             // PDF already open, just switch to that tab
             switchToTab(existingTabId);
             updateStatus(`Switched to already open PDF: ${filePath.split('/').pop()}`);
+            hideLoading();
             return;
         }
         
@@ -95,7 +102,9 @@ export async function openRecentFile(filePath) {
         
     } catch (error) {
         console.error('Error opening recent file:', error);
-        updateStatus('Error opening file: ' + error);
+        updateStatus('Error opening file: ' + sanitizeError(error));
+    } finally {
+        hideLoading();
     }
 }
 
@@ -340,7 +349,7 @@ export async function reloadPDFInBackend(pdfData) {
         }
     } catch (error) {
         console.error('Error reloading PDF in backend:', error);
-        updateStatus('Error switching to tab: ' + error);
+        updateStatus('Error switching to tab: ' + sanitizeError(error));
     }
 }
 

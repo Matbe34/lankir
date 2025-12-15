@@ -1,8 +1,10 @@
 import { state, getActivePDF } from './state.js';
-import { updateStatus } from './utils.js';
+import { updateStatus, sanitizeError } from './utils.js';
 import { updateCurrentPageFromScroll, lazyLoadVisiblePages } from './pageLoader.js';
 
-const DPI_SCALE = 96 / 150;
+const SCREEN_DPI = 96;  // Standard screen DPI
+const RENDER_DPI = 150; // DPI for PDF rendering (higher = better quality but slower)
+const DPI_SCALE = SCREEN_DPI / RENDER_DPI;
 
 export async function renderPage(pageNum) {
     try {
@@ -40,7 +42,7 @@ export async function renderPage(pageNum) {
 
     } catch (error) {
         console.error('Error rendering page:', error);
-        updateStatus('Error rendering page: ' + error);
+        updateStatus('Error rendering page: ' + sanitizeError(error));
     }
 }
 
@@ -74,6 +76,7 @@ export async function renderScrollMode() {
 
         viewer.removeEventListener('scroll', updateCurrentPageFromScroll);
         viewer.addEventListener('scroll', updateCurrentPageFromScroll);
+        viewer.removeEventListener('scroll', lazyLoadVisiblePages);
         viewer.addEventListener('scroll', lazyLoadVisiblePages);
 
         const { loadVisiblePages } = await import('./pageLoader.js');
@@ -86,7 +89,7 @@ export async function renderScrollMode() {
 
     } catch (error) {
         console.error('Error rendering scroll mode:', error);
-        updateStatus('Error loading pages: ' + error);
+        updateStatus('Error loading pages: ' + sanitizeError(error));
     }
 }
 
