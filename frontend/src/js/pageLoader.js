@@ -4,6 +4,11 @@
 import { state, getActivePDF } from './state.js';
 import { updateStatus, updatePageIndicator, updateScrollProgress } from './utils.js';
 
+const LAZY_LOAD_BUFFER = 1000;  // Pixels above/below viewport to preload
+const LAZY_LOAD_DEBOUNCE_MS = 100;  // Debounce delay for scroll events
+const BACKGROUND_LOAD_BATCH_SIZE = 3;  // Pages to load before yielding to UI
+const BACKGROUND_LOAD_DELAY_MS = 10;  // Delay between background load batches
+
 /**
  * Load visible pages in the viewport
  */
@@ -19,7 +24,8 @@ export async function loadVisiblePages() {
     const loadPromises = [];
     pageDivs.forEach((pageDiv, index) => {
         const rect = pageDiv.getBoundingClientRect();
-        const isVisible = rect.top < viewerRect.bottom + 1000 && rect.bottom > viewerRect.top - 1000;
+        const isVisible = rect.top < viewerRect.bottom + LAZY_LOAD_BUFFER && 
+                         rect.bottom > viewerRect.top - LAZY_LOAD_BUFFER;
 
         if (isVisible && !activePDF.renderedPages.has(index) && !state.loadingPages.has(index)) {
             state.loadingPages.add(index);
@@ -82,8 +88,8 @@ export async function loadRemainingPagesInBackground(activePDF) {
                 });
 
                 // Small delay between pages to keep UI responsive
-                if (i % 3 === 0) {
-                    await new Promise(resolve => setTimeout(resolve, 10));
+                if (i % BACKGROUND_LOAD_BATCH_SIZE === 0) {
+                    await new Promise(resolve => setTimeout(resolve, BACKGROUND_LOAD_DELAY_MS));
                 }
             }
         }
@@ -100,11 +106,15 @@ export function updateCurrentPageFromScroll() {
     const viewer = document.getElementById('pdfViewer');
     const pages = viewer.querySelectorAll('.pdf-page');
 
+    const scrollTop = viewer.scrollTop;
+    const scrollHeight = viewer.scrollHeight - viewer.clientHeight;
+
     let closestPage = 0;
     let minDistance = Infinity;
 
-    pages.forEach((page, index) => {
-        const rect = page.getBoundingClientRect();
+    const pageRects = Array.from(pages).map(page => page.getBoundingClientRect());
+
+    pageRects.forEach((rect, index) => {
         const distance = Math.abs(rect.top);
 
         if (distance < minDistance) {
@@ -113,6 +123,7 @@ export function updateCurrentPageFromScroll() {
         }
     });
 
+    // BATCH WRITES: Now perform all DOM modifications
     if (activePDF && closestPage !== activePDF.currentPage) {
         activePDF.currentPage = closestPage;
 
@@ -120,15 +131,13 @@ export function updateCurrentPageFromScroll() {
         document.querySelectorAll('.page-item').forEach((el, idx) => {
             el.classList.toggle('active', idx === activePDF.currentPage);
         });
+
+        // Update status bar
+        updatePageIndicator(activePDF.currentPage + 1, activePDF.totalPages);
     }
 
-    // Update status bar
+    // Calculate and update scroll progress
     if (activePDF) {
-        updatePageIndicator(activePDF.currentPage + 1, activePDF.totalPages);
-
-        // Calculate scroll progress
-        const scrollTop = viewer.scrollTop;
-        const scrollHeight = viewer.scrollHeight - viewer.clientHeight;
         const scrollPercentage = scrollHeight > 0 ? (scrollTop / scrollHeight) * 100 : 0;
         updateScrollProgress(scrollPercentage);
     }
@@ -142,5 +151,5 @@ export function lazyLoadVisiblePages() {
     if (lazyLoadTimeout) clearTimeout(lazyLoadTimeout);
     lazyLoadTimeout = setTimeout(() => {
         loadVisiblePages();
-    }, 100);
+    }, LAZY_LOAD_DEBOUNCE_MS);
 }

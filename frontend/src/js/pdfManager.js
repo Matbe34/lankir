@@ -6,7 +6,14 @@ import { showSidebars, hideSidebars } from './ui.js';
 import { renderCachedPDF } from './renderer.js';
 import { updateUIForPDF, reloadPDFInBackend, reloadPDFInBackendAsync } from './pdfOperations.js';
 import { updateCurrentPageFromScroll, lazyLoadVisiblePages, loadVisiblePages } from './pageLoader.js';
+import { stateEmitter, StateEvents } from './eventEmitter.js';
 
+/**
+ * Create a new PDF tab
+ * @param {string} filePath - Path to the PDF file
+ * @param {Object} metadata - PDF metadata from backend
+ * @returns {number} Tab ID
+ */
 export function createPDFTab(filePath, metadata) {
     const tabId = getNextTabId();
     const pdfData = createPDFData(tabId, filePath, metadata);
@@ -24,15 +31,27 @@ export function createPDFTab(filePath, metadata) {
     const tab = document.createElement('div');
     tab.className = 'pdf-tab';
     tab.dataset.tabId = tabId;
+    tab.setAttribute('role', 'tab');
+    tab.setAttribute('aria-selected', 'false');
+    tab.setAttribute('aria-controls', 'pdfViewer');
+    tab.setAttribute('tabindex', '0');
     
     tab.innerHTML = `
         <span class="pdf-tab-name" title="${pdfData.fileName}">${pdfData.fileName}</span>
-        <button class="pdf-tab-close" title="Close">×</button>
+        <button class="pdf-tab-close" title="Close" aria-label="Close ${pdfData.fileName}">×</button>
     `;
     
     // Tab click handler
     tab.addEventListener('click', (e) => {
         if (!e.target.classList.contains('pdf-tab-close')) {
+            switchToTab(tabId);
+        }
+    });
+    
+    // Keyboard support for tab
+    tab.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
             switchToTab(tabId);
         }
     });
@@ -46,10 +65,17 @@ export function createPDFTab(filePath, metadata) {
     tabsContainer.appendChild(tab);
     tabsContainer.classList.add('has-tabs');
     
+    // Emit event
+    stateEmitter.emit(StateEvents.PDF_OPENED, { tabId, filePath, metadata });
+    
     return tabId;
 }
 
-export function switchToTab(tabId) {
+/**
+ * Switch to a different PDF tab
+ * @param {number} tabId - ID of the tab to switch to
+ */
+export async function switchToTab(tabId) {
     // Save current tab state before switching
     if (state.activeTabId) {
         const currentPDF = state.openPDFs.get(state.activeTabId);
@@ -71,16 +97,23 @@ export function switchToTab(tabId) {
     // Deactivate all tabs
     document.querySelectorAll('.pdf-tab').forEach(tab => {
         tab.classList.remove('active');
+        tab.setAttribute('aria-selected', 'false');
+        tab.setAttribute('tabindex', '-1');
     });
     
     // Activate selected tab
     const tab = document.querySelector(`[data-tab-id="${tabId}"]`);
     if (tab) {
         tab.classList.add('active');
+        tab.setAttribute('aria-selected', 'true');
+        tab.setAttribute('tabindex', '0');
     }
     
     setActiveTab(tabId);
     const pdfData = state.openPDFs.get(tabId);
+    
+    // Emit event
+    stateEmitter.emit(StateEvents.TAB_SWITCHED, { tabId, pdfData });
     
     if (pdfData) {
         // Restore this PDF's zoom level
@@ -97,6 +130,13 @@ export function switchToTab(tabId) {
         
         // Update UI with this PDF's data immediately
         updateUIForPDF(pdfData);
+        
+        // CRITICAL: Always reload PDF in backend when switching tabs
+        // The backend can only have ONE PDF open at a time. Even if we have
+        // cached HTML/pages, the backend needs to be reloaded for signing,
+        // rendering new pages, or any other backend operations.
+        // Do this asynchronously in background to not block UI restoration.
+        reloadPDFInBackendAsync(pdfData);
         
         // Check if we have saved HTML state (fastest)
         if (pdfData.viewerHTML) {
@@ -118,8 +158,8 @@ export function switchToTab(tabId) {
             viewer.addEventListener('scroll', lazyLoadVisiblePages);
             
             updateStatus(`Viewing: ${pdfData.fileName}`);
-            
-            // Continue loading pages in background if needed
+
+            // Load any missing pages in background
             if (pdfData.renderedPages.size < pdfData.totalPages) {
                 loadVisiblePages();
             }
@@ -128,14 +168,9 @@ export function switchToTab(tabId) {
         else if (pdfData.renderedPages.size > 0) {
             // Use cached pages - render immediately (FAST)
             renderCachedPDF(pdfData);
-            
-            // Optionally reload backend in background for future renders
-            if (pdfData.renderedPages.size < pdfData.totalPages) {
-                reloadPDFInBackendAsync(pdfData);
-            }
         } else {
-            // No cache at all, need to load from backend
-            reloadPDFInBackend(pdfData);
+            // No cache at all, need to load from backend (synchronously)
+            await reloadPDFInBackend(pdfData);
         }
     }
 }
@@ -179,10 +214,28 @@ function restoreSidebarStates(pdfData) {
     }
 }
 
+/**
+ * Close a PDF tab and clean up resources
+ * @param {number} tabId - ID of the tab to close
+ */
 export function closePDFTab(tabId) {
     const tab = document.querySelector(`[data-tab-id="${tabId}"]`);
     if (tab) {
         tab.remove();
+    }
+    
+    // CRITICAL: Clear memory before removing from state
+    // Each PDF can have 100+ MB of cached page renders in memory
+    const pdfData = state.openPDFs.get(tabId);
+    if (pdfData) {
+        // Clear all rendered page data to free memory
+        pdfData.renderedPages.clear();
+        // Clear HTML cache
+        pdfData.viewerHTML = null;
+        pdfData.pageListHTML = null;
+        
+        // Emit event before removal
+        stateEmitter.emit(StateEvents.PDF_CLOSED, { tabId, filePath: pdfData.filePath });
     }
     
     // Remove from open PDFs
