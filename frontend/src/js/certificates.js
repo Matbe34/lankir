@@ -1,6 +1,7 @@
 import { getSetting, setSetting } from './settings.js';
 import { showMessage } from './messageDialog.js';
 import { escapeHtml } from './utils.js';
+import { renderCertificateList } from './certificateRenderer.js';
 
 export function initCertificatesSettings() {
     setupStoreManagement();
@@ -237,16 +238,6 @@ async function loadCertificates() {
     }
 }
 
-function getCertTypeName(source) {
-    const types = {
-        'pkcs11': 'Smart Card',
-        'nss': 'NSS Database',
-        'file': 'File',
-        'system': 'System'
-    };
-    return types[source] || source;
-}
-
 function renderCertificates(certs) {
     const container = document.getElementById('certificatesList');
     if (!container) return;
@@ -256,59 +247,11 @@ function renderCertificates(certs) {
         return;
     }
 
-    const html = `
-        <div class="certificate-list">
-            ${certs.map(cert => {
-                const isExpired = !cert.isValid;
-                const expiryDate = new Date(cert.validTo);
-                const now = new Date();
-                const daysUntilExpiry = Math.floor((expiryDate - now) / (1000 * 60 * 60 * 24));
-
-                // Determine status
-                let statusClass = '';
-                let statusText = '';
-                if (isExpired) {
-                    statusClass = 'invalid';
-                    statusText = '✗ Expired';
-                } else if (daysUntilExpiry < 30) {
-                    statusClass = 'valid';
-                    statusText = `✓ Valid (${daysUntilExpiry}d left)`;
-                } else {
-                    statusClass = 'valid';
-                    statusText = '✓ Valid';
-                }
-
-                return `
-                    <div class="certificate-item">
-                        <div class="cert-header">
-                            <div>
-                                <div class="cert-name">${escapeHtml(cert.name || 'Unknown Certificate')}</div>
-                                <span class="cert-type-badge ${cert.source}">${getCertTypeName(cert.source)}</span>
-                                ${!cert.canSign ? '<span class="cert-warning-badge" title="No private key - cannot sign">⚠ View Only</span>' : ''}
-                            </div>
-                            <span class="cert-status ${statusClass}">
-                                ${statusText}
-                            </span>
-                        </div>
-                        <div class="cert-details">
-                            <div class="cert-detail-row">
-                                <span class="cert-detail-label">Subject:</span>
-                                <span>${escapeHtml(cert.subject || 'N/A')}</span>
-                            </div>
-                            <div class="cert-detail-row">
-                                <span class="cert-detail-label">Issuer:</span>
-                                <span>${escapeHtml(cert.issuer || 'Unknown')}</span>
-                            </div>
-                            <div class="cert-detail-row">
-                                <span class="cert-detail-label">Valid Until:</span>
-                                <span>${expiryDate.toLocaleDateString()}</span>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            }).join('')}
-        </div>
-    `;
-
+    const html = renderCertificateList(certs, {
+        selectable: false,
+        showExpiry: true,
+        includeCapabilities: false
+    });
+    
     container.innerHTML = html;
 }

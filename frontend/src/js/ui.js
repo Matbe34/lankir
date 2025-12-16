@@ -2,6 +2,9 @@
 
 import { state, setActiveTab } from './state.js';
 import { switchToHome } from './pdfManager.js';
+import { openPDFFile } from './pdfOperations.js';
+import { signPDF, closeCertificateDialog, showCertificateDialog, performSigning } from './signature.js';
+import { changeZoom, setZoomFromInput } from './zoom.js';
 
 export function setupEventListeners() {
     const openBtn = document.getElementById('openBtn');
@@ -22,42 +25,36 @@ export function setupEventListeners() {
     
     // Use dynamic imports to avoid circular dependencies
     if (openBtn) {
-        openBtn.addEventListener('click', async () => {
-            const { openPDFFile } = await import('./pdfOperations.js');
+        openBtn.addEventListener('click', () => {
             openPDFFile();
         });
     }
     
     if (signBtn) {
-        signBtn.addEventListener('click', async () => {
-            const { signPDF } = await import('./signature.js');
+        signBtn.addEventListener('click', () => {
             signPDF();
         });
     }
     
     if (zoomInBtn) {
-        zoomInBtn.addEventListener('click', async () => {
-            const { changeZoom } = await import('./zoom.js');
+        zoomInBtn.addEventListener('click', () => {
             changeZoom(0.1);
         });
     }
     
     if (zoomOutBtn) {
-        zoomOutBtn.addEventListener('click', async () => {
-            const { changeZoom } = await import('./zoom.js');
+        zoomOutBtn.addEventListener('click', () => {
             changeZoom(-0.1);
         });
     }
     
     if (zoomInput) {
-        zoomInput.addEventListener('change', async () => {
-            const { setZoomFromInput } = await import('./zoom.js');
+        zoomInput.addEventListener('change', () => {
             setZoomFromInput(zoomInput.value);
         });
         
-        zoomInput.addEventListener('keypress', async (e) => {
+        zoomInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
-                const { setZoomFromInput } = await import('./zoom.js');
                 setZoomFromInput(zoomInput.value);
                 zoomInput.blur(); // Remove focus after setting
             }
@@ -76,15 +73,13 @@ export function setupEventListeners() {
     
     // Certificate dialog event listeners
     if (certDialogClose) {
-        certDialogClose.addEventListener('click', async () => {
-            const { closeCertificateDialog } = await import('./signature.js');
+        certDialogClose.addEventListener('click', () => {
             closeCertificateDialog();
         });
     }
     
     if (certDialogRefresh) {
         certDialogRefresh.addEventListener('click', async () => {
-            const { showCertificateDialog } = await import('./signature.js');
             const { getActivePDF } = await import('./state.js');
             
             const activePDF = getActivePDF();
@@ -95,15 +90,13 @@ export function setupEventListeners() {
     }
     
     if (certDialogCancel) {
-        certDialogCancel.addEventListener('click', async () => {
-            const { closeCertificateDialog } = await import('./signature.js');
+        certDialogCancel.addEventListener('click', () => {
             closeCertificateDialog();
         });
     }
     
     if (certDialogSign) {
-        certDialogSign.addEventListener('click', async () => {
-            const { performSigning } = await import('./signature.js');
+        certDialogSign.addEventListener('click', () => {
             performSigning();
         });
     }
@@ -111,9 +104,8 @@ export function setupEventListeners() {
     // Close dialog on overlay click
     const certDialog = document.getElementById('certDialog');
     if (certDialog) {
-        certDialog.addEventListener('click', async (e) => {
+        certDialog.addEventListener('click', (e) => {
             if (e.target === certDialog) {
-                const { closeCertificateDialog } = await import('./signature.js');
                 closeCertificateDialog();
             }
         });
@@ -122,9 +114,8 @@ export function setupEventListeners() {
     // Allow Enter key in PIN input to trigger signing
     const pinInput = document.getElementById('pinInput');
     if (pinInput) {
-        pinInput.addEventListener('keypress', async (e) => {
+        pinInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter' && !certDialogSign.disabled) {
-                const { performSigning } = await import('./signature.js');
                 performSigning();
             }
         });

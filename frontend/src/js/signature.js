@@ -6,20 +6,7 @@ import { updateStatus, escapeHtml, formatDate, debugLog, sanitizeError } from '.
 import { createPDFTab, switchToTab } from './pdfManager.js';
 import { loadPageThumbnails, loadSignatureInfo } from './pdfOperations.js';
 import { showMessage, showConfirm } from './messageDialog.js';
-
-/**
- * Get friendly name for certificate type
- */
-function getCertTypeName(source) {
-    const types = {
-        'pkcs11': 'Smart Card',
-        'nss': 'NSS Database',
-        'file': 'File',
-        'system': 'System'
-    };
-    return types[source] || source;
-}
-
+import { renderCertificateList as renderCertList, attachCertificateHandlers } from './certificateRenderer.js';
 /**
  * Initiate PDF signing workflow
  */
@@ -38,7 +25,12 @@ export async function signPDF() {
 
     } catch (error) {
         console.error('Error signing PDF:', error);
-        updateStatus('Error signing PDF');
+        await showMessage(
+            `Failed to initiate signing:\n\n${sanitizeError(error)}`,
+            'Signing Error',
+            'error'
+        );
+        updateStatus('Ready');
     }
 }
 
@@ -480,77 +472,18 @@ export function renderCertificateList(certificates, pdfPath) {
     const listContainer = document.getElementById('certificateListContainer');
     const signBtn = document.getElementById('certDialogSign');
 
-    const html = `
-        <div class="certificate-list">
-            ${certificates.map(cert => {
-        const canUse = cert.isValid && cert.canSign;
-        const disabledClass = !canUse ? 'invalid' : '';
-        const disabledReason = !cert.isValid ? 'Certificate expired or not yet valid' :
-            !cert.canSign ? 'Certificate does not have private key for signing' : '';
-
-        return `
-                <div class="certificate-item ${disabledClass}" data-fingerprint="${cert.fingerprint}" ${disabledReason ? `title="${disabledReason}"` : ''}>
-                    <div class="cert-header">
-                        <div>
-                            <div class="cert-name">${escapeHtml(cert.name)}</div>
-                            <span class="cert-type-badge ${cert.source}">${getCertTypeName(cert.source)}</span>
-                            ${!cert.canSign ? '<span class="cert-warning-badge" title="No private key - cannot sign">⚠ View Only</span>' : ''}
-                        </div>
-                        <span class="cert-status ${cert.isValid ? 'valid' : 'invalid'}">
-                            ${cert.isValid ? '✓ Valid' : '✗ Invalid'}
-                        </span>
-                    </div>
-                    <div class="cert-details">
-                        <div class="cert-detail-row">
-                            <span class="cert-detail-label">Subject:</span>
-                            <span>${escapeHtml(cert.subject)}</span>
-                        </div>
-                        <div class="cert-detail-row">
-                            <span class="cert-detail-label">Issuer:</span>
-                            <span>${escapeHtml(cert.issuer)}</span>
-                        </div>
-                        <div class="cert-detail-row">
-                            <span class="cert-detail-label">Valid Until:</span>
-                            <span>${formatDate(cert.validTo)}</span>
-                        </div>
-                        ${cert.keyUsage && cert.keyUsage.length > 0 ? `
-                            <div class="cert-capabilities">
-                                ${cert.keyUsage.map(usage => `<span class="cert-capability">${escapeHtml(usage)}</span>`).join('')}
-                            </div>
-                        ` : ''}
-                    </div>
-                </div>
-            `}).join('')}
-        </div>
-    `;
-
+    const html = renderCertList(certificates, {
+        selectable: true,
+        showExpiry: false,
+        includeCapabilities: true
+    });
+    
     listContainer.innerHTML = html;
 
-    // Add click handlers to certificate items (only valid ones with private keys)
-    const certItems = listContainer.querySelectorAll('.certificate-item:not(.invalid)');
-    certItems.forEach(item => {
-        item.addEventListener('click', () => {
-            // Deselect all
-            certItems.forEach(i => i.classList.remove('selected'));
-
-            // Select this one
-            item.classList.add('selected');
-
-            // Store selected certificate
-            const fingerprint = item.dataset.fingerprint;
-            state.selectedCertificate = certificates.find(c => c.fingerprint === fingerprint);
-
-            signBtn.disabled = false;
-        });
-    });
-
-    if (certItems.length > 0) {
-        const firstItem = certItems[0];
-        firstItem.classList.add('selected');
-        const fingerprint = firstItem.dataset.fingerprint;
-        state.selectedCertificate = certificates.find(c => c.fingerprint === fingerprint);
+    attachCertificateHandlers(listContainer, certificates, (cert) => {
+        state.selectedCertificate = cert;
         signBtn.disabled = false;
-    }
+    });
 
     // Store pdfPath for signing
     signBtn.dataset.pdfPath = pdfPath;
