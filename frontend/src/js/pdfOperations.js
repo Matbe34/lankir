@@ -293,26 +293,36 @@ export async function loadSignatureInfo(pdfPath) {
  * Load page thumbnails for sidebar
  */
 export async function loadPageThumbnails(pageCount) {
-    const pageList = document.getElementById('pageList');
-    pageList.innerHTML = '';
-    
-    for (let i = 0; i < pageCount; i++) {
-        const pageItem = document.createElement('div');
-        pageItem.className = 'page-item';
-        if (i === 0) pageItem.classList.add('active');
-        pageItem.innerHTML = `<div class="page-number">Page ${i + 1}</div>`;
-        pageItem.addEventListener('click', async () => {
-            document.querySelectorAll('.page-item').forEach(el => el.classList.remove('active'));
-            pageItem.classList.add('active');
-            
-            const { state } = await import('./state.js');
-            if (state.viewMode === 'single') {
-                renderPage(i);
-            } else {
-                scrollToPage(i);
-            }
-        });
-        pageList.appendChild(pageItem);
+    try {
+        const pageList = document.getElementById('pageList');
+        pageList.innerHTML = '';
+        
+        for (let i = 0; i < pageCount; i++) {
+            const pageItem = document.createElement('div');
+            pageItem.className = 'page-item';
+            if (i === 0) pageItem.classList.add('active');
+            pageItem.innerHTML = `<div class="page-number">Page ${i + 1}</div>`;
+            pageItem.addEventListener('click', async () => {
+                try {
+                    document.querySelectorAll('.page-item').forEach(el => el.classList.remove('active'));
+                    pageItem.classList.add('active');
+                    
+                    const { state } = await import('./state.js');
+                    if (state.viewMode === 'single') {
+                        renderPage(i);
+                    } else {
+                        scrollToPage(i);
+                    }
+                } catch (error) {
+                    console.error(`Error navigating to page ${i + 1}:`, error);
+                    updateStatus('Error navigating to page');
+                }
+            });
+            pageList.appendChild(pageItem);
+        }
+    } catch (error) {
+        console.error('Error loading page thumbnails:', error);
+        // Non-critical error, thumbnails are optional
     }
 }
 

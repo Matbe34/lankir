@@ -1,12 +1,15 @@
 // PDF Tab and Document Management
 
 import { state, getActivePDF, getNextTabId, addOpenPDF, removeOpenPDF, setActiveTab, createPDFData } from './state.js';
-import { updateStatus, updatePageIndicator, updateScrollProgress } from './utils.js';
+import { updateStatus, updatePageIndicator, updateScrollProgress, escapeHtml, sanitizeError } from './utils.js';
 import { showSidebars, hideSidebars } from './ui.js';
-import { renderCachedPDF } from './renderer.js';
+import { renderCachedPDF, cleanupScrollListeners } from './renderer.js';
 import { updateUIForPDF, reloadPDFInBackend, reloadPDFInBackendAsync } from './pdfOperations.js';
-import { updateCurrentPageFromScroll, lazyLoadVisiblePages, loadVisiblePages } from './pageLoader.js';
+import { updateCurrentPageFromScroll, lazyLoadVisiblePages, loadVisiblePages, cancelBackgroundLoading } from './pageLoader.js';
 import { stateEmitter, StateEvents } from './eventEmitter.js';
+
+let tabSwitchInProgress = false;
+let pendingTabSwitch = null;
 
 /**
  * Create a new PDF tab
@@ -37,8 +40,8 @@ export function createPDFTab(filePath, metadata) {
     tab.setAttribute('tabindex', '0');
     
     tab.innerHTML = `
-        <span class="pdf-tab-name" title="${pdfData.fileName}">${pdfData.fileName}</span>
-        <button class="pdf-tab-close" title="Close" aria-label="Close ${pdfData.fileName}">×</button>
+        <span class="pdf-tab-name" title="${escapeHtml(pdfData.fileName)}">${escapeHtml(pdfData.fileName)}</span>
+        <button class="pdf-tab-close" title="Close" aria-label="Close ${escapeHtml(pdfData.fileName)}">×</button>
     `;
     
     // Tab click handler
@@ -76,8 +79,17 @@ export function createPDFTab(filePath, metadata) {
  * @param {number} tabId - ID of the tab to switch to
  */
 export async function switchToTab(tabId) {
-    // Save current tab state before switching
-    if (state.activeTabId) {
+    if (tabSwitchInProgress) {
+        console.log(`Tab switch already in progress, queuing switch to ${tabId}`);
+        pendingTabSwitch = tabId;
+        return;
+    }
+    
+    tabSwitchInProgress = true;
+    
+    try {
+        // Save current tab state before switching
+        if (state.activeTabId) {
         const currentPDF = state.openPDFs.get(state.activeTabId);
         if (currentPDF) {
             const viewer = document.getElementById('pdfViewer');
@@ -173,6 +185,20 @@ export async function switchToTab(tabId) {
             await reloadPDFInBackend(pdfData);
         }
     }
+    } catch (error) {
+        console.error('Error switching tabs:', error);
+        updateStatus(`Error switching to tab: ${sanitizeError(error)}`);
+        switchToHome();
+    } finally {
+        tabSwitchInProgress = false;
+        
+        if (pendingTabSwitch !== null) {
+            const nextTabId = pendingTabSwitch;
+            pendingTabSwitch = null;
+            console.log(`Processing queued tab switch to ${nextTabId}`);
+            setTimeout(() => switchToTab(nextTabId), 0);
+        }
+    }
 }
 
 function restoreSidebarStates(pdfData) {
@@ -224,10 +250,11 @@ export function closePDFTab(tabId) {
         tab.remove();
     }
     
-    // CRITICAL: Clear memory before removing from state
-    // Each PDF can have 100+ MB of cached page renders in memory
     const pdfData = state.openPDFs.get(tabId);
     if (pdfData) {
+        cleanupScrollListeners(tabId);
+        cancelBackgroundLoading(tabId);
+        
         // Clear all rendered page data to free memory
         pdfData.renderedPages.clear();
         // Clear HTML cache
@@ -259,6 +286,11 @@ export function switchToHome() {
     document.querySelectorAll('.pdf-tab').forEach(tab => {
         tab.classList.remove('active');
     });
+    
+    if (state.activeTabId) {
+        cleanupScrollListeners(state.activeTabId);
+        cancelBackgroundLoading(state.activeTabId);
+    }
     
     // Activate home tab
     const homeTab = document.getElementById('homeTab');

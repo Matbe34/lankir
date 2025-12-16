@@ -1,10 +1,11 @@
 import { state, getActivePDF } from './state.js';
 import { updateStatus, sanitizeError } from './utils.js';
 import { updateCurrentPageFromScroll, lazyLoadVisiblePages } from './pageLoader.js';
+import { DPI } from './constants.js';
 
-const SCREEN_DPI = 96;  // Standard screen DPI
-const RENDER_DPI = 150; // DPI for PDF rendering (higher = better quality but slower)
-const DPI_SCALE = SCREEN_DPI / RENDER_DPI;
+const DPI_SCALE = DPI.SCREEN / DPI.RENDER;
+
+const scrollListeners = new Map(); // tabId -> { updateScroll, lazyLoad }
 
 export async function renderPage(pageNum) {
     try {
@@ -13,7 +14,7 @@ export async function renderPage(pageNum) {
 
         updateStatus(`Rendering page ${pageNum + 1}...`);
 
-        const pageInfo = await window.go.pdf.PDFService.RenderPage(pageNum, 150);
+        const pageInfo = await window.go.pdf.PDFService.RenderPage(pageNum, DPI.RENDER);
 
         if (pageInfo) {
             activePDF.currentPage = pageNum;
@@ -55,6 +56,8 @@ export async function renderScrollMode() {
         viewer.className = 'pdf-viewer scroll-mode';
         viewer.innerHTML = '';
 
+        cleanupScrollListeners(activePDF.id);
+
         // Create placeholder divs for all pages first (instant)
         for (let i = 0; i < activePDF.totalPages; i++) {
             const pageDiv = document.createElement('div');
@@ -75,9 +78,15 @@ export async function renderScrollMode() {
         }
 
         viewer.removeEventListener('scroll', updateCurrentPageFromScroll);
-        viewer.addEventListener('scroll', updateCurrentPageFromScroll);
         viewer.removeEventListener('scroll', lazyLoadVisiblePages);
+        
+        viewer.addEventListener('scroll', updateCurrentPageFromScroll);
         viewer.addEventListener('scroll', lazyLoadVisiblePages);
+        scrollListeners.set(activePDF.id, { 
+            updateScroll: updateCurrentPageFromScroll, 
+            lazyLoad: lazyLoadVisiblePages,
+            viewer: viewer
+        });
 
         const { loadVisiblePages } = await import('./pageLoader.js');
         await loadVisiblePages();
@@ -176,10 +185,18 @@ export function renderScrollModeFromCache(pdfData) {
 
     viewer.innerHTML = html;
 
+    cleanupScrollListeners(pdfData.id);
+
     viewer.removeEventListener('scroll', updateCurrentPageFromScroll);
-    viewer.addEventListener('scroll', updateCurrentPageFromScroll);
     viewer.removeEventListener('scroll', lazyLoadVisiblePages);
+    
+    viewer.addEventListener('scroll', updateCurrentPageFromScroll);
     viewer.addEventListener('scroll', lazyLoadVisiblePages);
+    scrollListeners.set(pdfData.id, { 
+        updateScroll: updateCurrentPageFromScroll, 
+        lazyLoad: lazyLoadVisiblePages,
+        viewer: viewer
+    });
 
     import('./pageLoader.js').then(({ loadVisiblePages }) => {
         loadVisiblePages();
@@ -216,6 +233,22 @@ export function scrollToPage(pageNum) {
     const page = viewer.querySelector(`[data-page="${pageNum}"]`);
     if (page) {
         page.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+}
+
+/**
+ * Clean up scroll event listeners for a tab to prevent memory leaks
+ * @param {number} tabId - Tab ID to clean up listeners for
+ */
+export function cleanupScrollListeners(tabId) {
+    const listeners = scrollListeners.get(tabId);
+    if (listeners) {
+        const { updateScroll, lazyLoad, viewer } = listeners;
+        if (viewer) {
+            viewer.removeEventListener('scroll', updateScroll);
+            viewer.removeEventListener('scroll', lazyLoad);
+        }
+        scrollListeners.delete(tabId);
     }
 }
 
