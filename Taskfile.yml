@@ -1,0 +1,123 @@
+version: '3'
+
+vars:
+  BINARY_NAME: pdf_app
+  BUILD_DIR: build/bin
+  FRONTEND_DIR: frontend
+
+tasks:
+  default:
+    desc: Show available tasks
+    cmds:
+      - task --list
+
+  dev:
+    desc: Run the application in development mode with hot reload
+    cmds:
+      - wails dev
+
+  build:
+    desc: Build the application for production
+    cmds:
+      - echo "Building frontend..."
+      - cd {{.FRONTEND_DIR}} && ./build.sh
+      - echo "Building application..."
+      - wails build -clean
+      - echo "✓ Build complete! Binary at {{.BUILD_DIR}}/{{.BINARY_NAME}}"
+
+  build-static:
+    desc: Build a portable binary for distribution (requires GTK3 on target)
+    cmds:
+      - ./scripts/build-static.sh
+
+  appimage:
+    desc: Build a truly portable AppImage (runs on any Linux distro)
+    cmds:
+      - ./scripts/build-appimage.sh
+
+  clean:
+    desc: Remove all build artifacts and generated files
+    cmds:
+      - echo "Cleaning build artifacts..."
+      - rm -rf {{.BUILD_DIR}}
+      - rm -rf build/
+      - rm -f pdf_app pdf-app pdf-app-*
+      - rm -f {{.FRONTEND_DIR}}/dist/style.css
+      - echo "✓ Clean complete"
+
+  clean-all:
+    desc: Deep clean - remove all generated files including Wails bindings and caches
+    cmds:
+      - echo "Performing deep clean..."
+      - rm -rf {{.BUILD_DIR}}
+      - rm -rf build/
+      - rm -f pdf_app pdf-app pdf-app-*
+      - rm -rf {{.FRONTEND_DIR}}/dist/
+      - rm -rf {{.FRONTEND_DIR}}/wailsjs/
+      - rm -rf {{.FRONTEND_DIR}}/node_modules/.cache/
+      - rm -f coverage.out coverage.html
+      - rm -rf .wails-build-cache/
+      - go clean -cache -testcache -modcache
+      - echo "✓ Deep clean complete"
+
+  frontend:
+    desc: Build only the frontend
+    cmds:
+      - echo "Building frontend..."
+      - cd {{.FRONTEND_DIR}} && ./build.sh
+      - echo "✓ Frontend built"
+
+  test:
+    desc: Run all tests
+    cmds:
+      - echo "Running Go tests..."
+      - go test -v ./...
+
+  test-coverage:
+    desc: Run tests with coverage report
+    cmds:
+      - echo "Running tests with coverage..."
+      - go test -v -coverprofile=coverage.out ./...
+      - go tool cover -html=coverage.out -o coverage.html
+      - echo "✓ Coverage report generated in coverage.html"
+
+  lint:
+    desc: Run linters (requires golangci-lint)
+    cmds:
+      - echo "Running linters..."
+      - golangci-lint run ./...
+
+  deps:
+    desc: Download and verify dependencies
+    cmds:
+      - echo "Downloading Go dependencies..."
+      - go mod download
+      - go mod verify
+      - echo "✓ Dependencies ready"
+
+  tidy:
+    desc: Tidy Go modules
+    cmds:
+      - go mod tidy
+      - echo "✓ Go modules tidied"
+
+  bindings:
+    desc: Generate Wails bindings
+    cmds:
+      - echo "Generating Wails bindings..."
+      - wails generate module
+      - echo "✓ Bindings generated"
+
+  install-deps:
+    desc: Install system dependencies (Ubuntu/Debian)
+    cmds:
+      - echo "Installing system dependencies..."
+      - sudo apt update
+      - sudo apt install -y libgtk-3-dev libwebkit2gtk-4.0-dev libnss3-dev
+      - echo "✓ System dependencies installed"
+
+  run:
+    desc: Build and run the application
+    deps: [build]
+    cmds:
+      - ./{{.BUILD_DIR}}/{{.BINARY_NAME}}

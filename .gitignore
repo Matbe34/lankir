@@ -28,6 +28,8 @@ node_modules/
 *.swp
 *.swo
 *~
+.claude/
+.task/
 
 # OS
 .DS_Store
