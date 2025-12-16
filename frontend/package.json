@@ -2,12 +2,21 @@
   "name": "pdf_app_frontend",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "build:css": "npx tailwindcss -i ./src/style.css -o ./dist/style.css --minify",
     "watch:css": "npx tailwindcss -i ./src/style.css -o ./dist/style.css --watch",
-    "build": "./build.sh"
+    "build": "./build.sh",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:ui": "vitest --ui"
   },
   "devDependencies": {
-    "tailwindcss": "^3.4.0"
+    "@vitest/ui": "^1.0.4",
+    "@vitest/coverage-v8": "^1.0.4",
+    "happy-dom": "^12.10.3",
+    "tailwindcss": "^3.4.0",
+    "vitest": "^1.0.4"
   }
 }
