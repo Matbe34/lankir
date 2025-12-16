@@ -28,7 +28,7 @@ function getFocusableElements(container) {
 export function trapFocus(modalElement) {
     const focusableElements = getFocusableElements(modalElement);
     
-    if (focusableElements.length === 0) return;
+    if (focusableElements.length === 0) return null;
     
     const firstElement = focusableElements[0];
     const lastElement = focusableElements[focusableElements.length - 1];
@@ -58,6 +58,16 @@ export function trapFocus(modalElement) {
     return () => {
         modalElement.removeEventListener('keydown', handleTab);
     };
+}
+
+/**
+ * Release focus trap (call the cleanup function)
+ * @param {Function} cleanupFn - The cleanup function returned by trapFocus
+ */
+export function releaseFocus(cleanupFn) {
+    if (cleanupFn && typeof cleanupFn === 'function') {
+        cleanupFn();
+    }
 }
 
 /**

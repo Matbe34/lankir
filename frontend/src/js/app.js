@@ -2,7 +2,7 @@ import { initializeUI } from './ui.js';
 import { updateStatus } from './utils.js';
 import { loadRecentFilesWelcome } from './recentFiles.js';
 import { openPDFFile, openRecentFile, setViewMode } from './pdfOperations.js';
-import { signPDF } from './signature.js';
+import { signPDF, closeCertificateDialog } from './signature.js';
 import { renderPage, changePage } from './renderer.js';
 import { changeZoom } from './zoom.js';
 import { switchToTab } from './pdfManager.js';
@@ -10,6 +10,7 @@ import { initMessageDialog } from './messageDialog.js';
 import { initSettings, getSetting } from './settings.js';
 import { themeManager } from './themeManager.js';
 import { initLoadingIndicator } from './loadingIndicator.js';
+import { state } from './state.js';
 
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -98,9 +99,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 // Always move to next tab; ignore typing state
                 e.preventDefault();
                 try {
-                    const { state } = await import('./state.js');
-                    const { switchToTab } = await import('./pdfManager.js');
-
                     const tabIds = Array.from(state.openPDFs.keys());
                     if (tabIds.length === 0) return;
 
@@ -119,7 +117,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             // Zoom in
             if (!isTyping && matchShortcut(e, cfg.zoomIn || 'Control+Plus')) {
                 e.preventDefault();
-                const { changeZoom } = await import('./zoom.js');
                 changeZoom(0.1);
                 return;
             }
@@ -127,7 +124,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             // Zoom out
             if (!isTyping && matchShortcut(e, cfg.zoomOut || 'Control+Minus')) {
                 e.preventDefault();
-                const { changeZoom } = await import('./zoom.js');
                 changeZoom(-0.1);
                 return;
             }
@@ -135,7 +131,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             // Open file
             if (!isTyping && matchShortcut(e, cfg.openFile || 'Control+o')) {
                 e.preventDefault();
-                const { openPDFFile } = await import('./pdfOperations.js');
                 openPDFFile();
                 return;
             }
@@ -143,7 +138,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             // Sign PDF
             if (!isTyping && matchShortcut(e, cfg.sign || 'Alt+s')) {
                 e.preventDefault();
-                const { signPDF } = await import('./signature.js');
                 signPDF();
                 return;
             }
@@ -167,12 +161,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 // 2) Certificate dialog
                 const certDialog = document.getElementById('certDialog');
                 if (certDialog && !certDialog.classList.contains('hidden')) {
-                    try {
-                        const { closeCertificateDialog } = await import('./signature.js');
-                        closeCertificateDialog();
-                    } catch (e) {
-                        certDialog.classList.add('hidden');
-                    }
+                    closeCertificateDialog();
                     return;
                 }
 
@@ -185,11 +174,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                     } else {
                         profileDialog.classList.add('hidden');
                         // clear signature-related state if available
-                        try {
-                            const { state } = await import('./state.js');
-                            state.selectedProfile = null;
-                            state.pdfPath = null;
-                        } catch (_) { }
+                        state.selectedProfile = null;
+                        state.pdfPath = null;
                     }
                     return;
                 }
@@ -238,6 +224,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const ZOOM_STEP = 0.1;
     const ZOOM_THROTTLE_MS = 100;
+    const MAX_ACCUMULATED_ZOOM = 0.5;
 
     let zoomThrottleTimeout = null;
     let accumulatedZoomDelta = 0;
@@ -247,14 +234,19 @@ document.addEventListener('DOMContentLoaded', async () => {
             e.preventDefault();
 
             const zoomDelta = e.deltaY > 0 ? -ZOOM_STEP : ZOOM_STEP;
-            accumulatedZoomDelta += zoomDelta;
+            
+            accumulatedZoomDelta = Math.max(
+                -MAX_ACCUMULATED_ZOOM,
+                Math.min(MAX_ACCUMULATED_ZOOM, accumulatedZoomDelta + zoomDelta)
+            );
 
             // Throttle zoom changes to prevent performance issues
             if (!zoomThrottleTimeout) {
                 zoomThrottleTimeout = setTimeout(() => {
-                    changeZoom(accumulatedZoomDelta);
+                    const deltaToApply = accumulatedZoomDelta;
                     accumulatedZoomDelta = 0;
                     zoomThrottleTimeout = null;
+                    changeZoom(deltaToApply);
                 }, ZOOM_THROTTLE_MS);
             }
         }

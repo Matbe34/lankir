@@ -3,6 +3,8 @@
  * Shows/hides loading overlays for async operations
  */
 
+import { UI } from './constants.js';
+
 let loadingOverlay = null;
 let loadingCount = 0;
 
@@ -118,7 +120,7 @@ export function hideLoading() {
 /**
  * Wrap an async function to show loading indicator
  */
-export function withLoading(asyncFn, message = 'Loading...', minDisplayTime = 500) {
+export function withLoading(asyncFn, message = 'Loading...', minDisplayTime = UI.LOADING_MIN_DISPLAY_MS) {
     return async function(...args) {
         showLoading(message);
         const startTime = Date.now();
