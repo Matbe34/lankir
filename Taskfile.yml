@@ -72,14 +72,31 @@ tasks:
     cmds:
       - echo "Running Go tests..."
       - go test -v ./...
+      - echo "Running JavaScript tests..."
+      - cd {{.FRONTEND_DIR}} && npm test
+
+  test-backend:
+    desc: Run Go tests only
+    cmds:
+      - echo "Running Go tests..."
+      - go test -v ./...
+
+  test-frontend:
+    desc: Run JavaScript tests only
+    cmds:
+      - echo "Running JavaScript tests..."
+      - cd {{.FRONTEND_DIR}} && npm test
 
   test-coverage:
     desc: Run tests with coverage report
     cmds:
-      - echo "Running tests with coverage..."
+      - echo "Running Go tests with coverage..."
       - go test -v -coverprofile=coverage.out ./...
       - go tool cover -html=coverage.out -o coverage.html
-      - echo "✓ Coverage report generated in coverage.html"
+      - echo "Go coverage report generated in coverage.html"
+      - echo "Running JavaScript tests with coverage..."
+      - cd {{.FRONTEND_DIR}} && npm run test:coverage
+      - echo "JS coverage report generated in frontend/coverage/index.html"
 
   lint:
     desc: Run linters (requires golangci-lint)
