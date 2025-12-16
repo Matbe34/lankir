@@ -25,6 +25,7 @@ node_modules/
 # IDE
 .idea/
 .vscode/
+.github/
 *.swp
 *.swo
 *~
@@ -38,6 +39,7 @@ Thumbs.db
 # Temporary files
 *.tmp
 *.log
+*.md5
 
 # test
 samples/
