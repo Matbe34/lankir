@@ -1,9 +1,10 @@
 import { state, setZoomLevel, getActivePDF } from './state.js';
 import { updateZoomDisplay } from './utils.js';
+import { ZOOM } from './constants.js';
 
 
 export function changeZoom(delta) {
-    const newZoom = Math.max(0.1, Math.min(3.0, state.zoomLevel + delta));
+    const newZoom = Math.max(ZOOM.MIN, Math.min(ZOOM.MAX, state.zoomLevel + delta));
     state.zoomLevel = newZoom;
 
     const activePDF = getActivePDF();
@@ -32,7 +33,7 @@ export function changeZoom(delta) {
 
 export function setZoomFromInput(value) {
     const percentage = parseInt(value);
-    if (isNaN(percentage) || percentage < 10 || percentage > 300) {
+    if (isNaN(percentage) || percentage < ZOOM.MIN * 100 || percentage > ZOOM.MAX * 100) {
         updateZoomDisplay(state.zoomLevel);
         return;
     }

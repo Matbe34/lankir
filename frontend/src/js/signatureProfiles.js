@@ -56,7 +56,7 @@ function renderProfilesList(profiles, container) {
         const visibilityClass = profile.visibility === 'visible' ? 'visible' : 'invisible';
 
         return `
-            <div class="profile-list-item" data-profile-id="${profile.id}">
+            <div class="profile-list-item" data-profile-id="${escapeHtml(profile.id)}">
                 <div class="profile-info">
                     <div class="profile-name">
                         ${escapeHtml(profile.name)}
@@ -68,10 +68,10 @@ function renderProfilesList(profiles, container) {
                     </div>
                 </div>
                 <div class="profile-actions">
-                    <button class="btn btn-small profile-edit-btn" data-profile-id="${profile.id}" title="Edit profile">
+                    <button class="btn btn-small profile-edit-btn" data-profile-id="${escapeHtml(profile.id)}" title="Edit profile">
                         Edit
                     </button>
-                    <button class="btn btn-small btn-danger profile-delete-btn" data-profile-id="${profile.id}" title="Delete profile">
+                    <button class="btn btn-small btn-danger profile-delete-btn" data-profile-id="${escapeHtml(profile.id)}" title="Delete profile">
                         Delete
                     </button>
                 </div>

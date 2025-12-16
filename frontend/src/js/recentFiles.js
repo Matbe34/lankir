@@ -2,6 +2,7 @@
 // Handles loading and displaying recent files
 
 import { openRecentFile } from './pdfOperations.js';
+import { escapeHtml } from './utils.js';
 
 /**
  * Load and display recent files on welcome screen
@@ -34,7 +35,7 @@ export async function loadRecentFilesWelcome() {
                     <div class="file-thumbnail-loading">Loading...</div>
                 </div>
                 <div class="recent-file-info">
-                    <div class="file-name" title="${file.filePath}">${file.fileName}</div>
+                    <div class="file-name" title="${escapeHtml(file.filePath)}">${escapeHtml(file.fileName)}</div>
                     <div class="file-info">${file.pageCount} pages</div>
                 </div>
             `;
@@ -63,6 +64,10 @@ export async function loadRecentFilesWelcome() {
         
     } catch (error) {
         console.error('Error loading recent files for welcome:', error);
+        const recentGrid = document.getElementById('recentFilesGrid');
+        if (recentGrid) {
+            recentGrid.innerHTML = '<div class="empty-state"><p>Failed to load recent files</p></div>';
+        }
     }
 }
 
