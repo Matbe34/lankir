@@ -6,9 +6,7 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
-// App provides system dialog functionality to the frontend.
-// It wraps the Wails runtime methods with a consistent context
-// for file and directory selection dialogs.
+// App exposes system dialogs to the frontend via Wails bindings.
 type App struct {
 	ctx context.Context
 }
@@ -18,22 +16,19 @@ func NewApp() *App {
 	return &App{}
 }
 
-// startup is called when the app starts. The context is saved
-// so we can call the runtime methods
+// startup stores the app context. Called by Wails on app start.
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
 }
 
-// OpenDirectoryDialog displays a native directory selection dialog.
-// Returns the selected directory path or an empty string if cancelled.
+// OpenDirectoryDialog shows a native directory picker and returns the selected path.
 func (a *App) OpenDirectoryDialog(title string) (string, error) {
 	return runtime.OpenDirectoryDialog(a.ctx, runtime.OpenDialogOptions{
 		Title: title,
 	})
 }
 
-// OpenFileDialog displays a native file selection dialog with optional file type filters.
-// Returns the selected file path or an empty string if cancelled.
+// OpenFileDialog shows a native file picker with optional filters.
 func (a *App) OpenFileDialog(title string, filters []runtime.FileFilter) (string, error) {
 	return runtime.OpenFileDialog(a.ctx, runtime.OpenDialogOptions{
 		Title:   title,
@@ -41,8 +36,7 @@ func (a *App) OpenFileDialog(title string, filters []runtime.FileFilter) (string
 	})
 }
 
-// ShowMessageDialog displays a native message dialog to the user.
-// This is useful for showing alerts, confirmations, or error messages.
+// ShowMessageDialog displays a native info dialog with the given title and message.
 func (a *App) ShowMessageDialog(title, message string) error {
 	_, err := runtime.MessageDialog(a.ctx, runtime.MessageDialogOptions{
 		Type:    runtime.InfoDialog,

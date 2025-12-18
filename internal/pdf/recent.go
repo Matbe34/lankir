@@ -23,7 +23,7 @@ type RecentFile struct {
 	PageCount  int       `json:"pageCount"`
 }
 
-// RecentFilesService manages recently opened files
+// RecentFilesService tracks recently opened PDF files with persistence.
 type RecentFilesService struct {
 	mu         sync.RWMutex
 	ctx        context.Context
@@ -56,13 +56,13 @@ func NewRecentFilesService() *RecentFilesService {
 	}
 }
 
-// Startup is called when the app starts
+// Startup loads persisted recent files. Called by Wails on app start.
 func (s *RecentFilesService) Startup(ctx context.Context) {
 	s.ctx = ctx
 	s.load()
 }
 
-// AddRecent adds a file to the recent files list
+// AddRecent adds or moves a file to the top of the recent files list.
 func (s *RecentFilesService) AddRecent(filePath string, pageCount int) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -93,7 +93,7 @@ func (s *RecentFilesService) AddRecent(filePath string, pageCount int) error {
 	return s.save()
 }
 
-// GetRecent returns the list of recent files, filtering out files that no longer exist
+// GetRecent returns recent files, automatically removing entries for deleted files.
 func (s *RecentFilesService) GetRecent() []RecentFile {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -123,7 +123,7 @@ func (s *RecentFilesService) GetRecent() []RecentFile {
 	return result
 }
 
-// ClearRecent clears all recent files
+// ClearRecent removes all entries from the recent files list.
 func (s *RecentFilesService) ClearRecent() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -132,7 +132,7 @@ func (s *RecentFilesService) ClearRecent() error {
 	return s.save()
 }
 
-// RemoveRecent removes a specific file from recent files list
+// RemoveRecent removes a specific file from the recent files list.
 func (s *RecentFilesService) RemoveRecent(filePath string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -200,7 +200,7 @@ func (s *RecentFilesService) saveAsync() {
 	}
 }
 
-// Shutdown gracefully shuts down the service, waiting for pending saves
+// Shutdown waits for pending saves to complete with the given timeout.
 func (s *RecentFilesService) Shutdown(timeout time.Duration) error {
 	s.cancel()
 

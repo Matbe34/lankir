@@ -2,9 +2,7 @@ package types
 
 import "strings"
 
-// Certificate represents a digital certificate that can be used for PDF signing.
-// It contains metadata about the certificate including its validity, key usage capabilities,
-// and backend-specific information (PKCS#12 file path, PKCS#11 module, or NSS nickname).
+// Certificate represents an X.509 certificate available for PDF signing.
 type Certificate struct {
 	Name         string   `json:"name"`
 	Issuer       string   `json:"issuer"`
@@ -25,8 +23,7 @@ type Certificate struct {
 	PinOptional  bool     `json:"pinOptional"`
 }
 
-// HasKeyUsage checks if the certificate has a specific key usage capability
-// Uses exact string matching against the KeyUsage slice
+// HasKeyUsage returns true if the certificate has the specified key usage.
 func (c *Certificate) HasKeyUsage(usage string) bool {
 	for _, u := range c.KeyUsage {
 		if strings.EqualFold(u, usage) {
@@ -36,7 +33,7 @@ func (c *Certificate) HasKeyUsage(usage string) bool {
 	return false
 }
 
-// HasSigningCapability checks if the certificate can be used for digital signatures
+// HasSigningCapability returns true if the certificate can sign documents.
 func (c *Certificate) HasSigningCapability() bool {
 	if c.CanSign {
 		return true
@@ -45,8 +42,7 @@ func (c *Certificate) HasSigningCapability() bool {
 	return c.HasKeyUsage("Digital Signature") || c.HasKeyUsage("Non Repudiation")
 }
 
-// SignatureInfo contains information about a signature embedded in a PDF document.
-// It includes signer details, timestamps, validation status, and cryptographic algorithm information.
+// SignatureInfo contains validation details for a signature embedded in a PDF.
 type SignatureInfo struct {
 	SignerName                   string `json:"signerName"`
 	SignerDN                     string `json:"signerDN"`

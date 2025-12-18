@@ -36,8 +36,7 @@ const (
 	LocationAPIEndpoint      = "https://ipinfo.io/json"
 )
 
-// CreateSignatureAppearance configures the signature appearance for visible signatures
-// based on the profile settings. It returns a sign.Appearance that can be used with SignData.
+// CreateSignatureAppearance builds a sign.Appearance from profile settings for PDF signing.
 func CreateSignatureAppearance(profile *SignatureProfile, cert *types.Certificate, signingTime time.Time) *sign.Appearance {
 	appearance := &sign.Appearance{
 		Visible: profile.Visibility == VisibilityVisible,

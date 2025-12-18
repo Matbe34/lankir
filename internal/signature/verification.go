@@ -10,6 +10,7 @@ import (
 	"github.com/ferran/pdf_app/internal/signature/types"
 )
 
+// VerifySignatures validates all digital signatures in a PDF and returns their status.
 func (s *SignatureService) VerifySignatures(pdfPath string) ([]types.SignatureInfo, error) {
 	file, err := os.Open(pdfPath)
 	if err != nil {

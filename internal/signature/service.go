@@ -14,9 +14,7 @@ import (
 	"github.com/google/uuid"
 )
 
-// SignatureService manages digital signature operations including certificate discovery,
-// PDF signing, signature verification, and signature profile management.
-// It supports multiple certificate backends: PKCS#12 files, PKCS#11 hardware tokens, and NSS databases.
+// SignatureService handles PDF signing, signature verification, and certificate management.
 type SignatureService struct {
 	ctx            context.Context
 	profileManager *ProfileManager
@@ -31,18 +29,17 @@ func NewSignatureService(cfgService *config.Service) *SignatureService {
 	}
 }
 
-// Startup initializes the service with the application context.
-// This is called by the Wails runtime during application startup.
+// Startup stores the app context. Called by Wails on app start.
 func (s *SignatureService) Startup(ctx context.Context) {
 	s.ctx = ctx
 }
 
-// ListSignatureProfiles returns all available signature profiles
+// ListSignatureProfiles returns all saved signature profiles.
 func (s *SignatureService) ListSignatureProfiles() ([]*SignatureProfile, error) {
 	return s.profileManager.ListProfiles()
 }
 
-// GetSignatureProfile retrieves a profile by ID (accepts string from frontend, parses to UUID)
+// GetSignatureProfile retrieves a signature profile by its UUID string.
 func (s *SignatureService) GetSignatureProfile(profileIDStr string) (*SignatureProfile, error) {
 	profileID, err := uuid.Parse(profileIDStr)
 	if err != nil {
@@ -51,17 +48,17 @@ func (s *SignatureService) GetSignatureProfile(profileIDStr string) (*SignatureP
 	return s.profileManager.GetProfile(profileID)
 }
 
-// GetDefaultSignatureProfile returns the default signature profile
+// GetDefaultSignatureProfile returns the profile marked as default.
 func (s *SignatureService) GetDefaultSignatureProfile() (*SignatureProfile, error) {
 	return s.profileManager.GetDefaultProfile()
 }
 
-// SaveSignatureProfile saves or updates a signature profile
+// SaveSignatureProfile persists a signature profile to disk.
 func (s *SignatureService) SaveSignatureProfile(profile *SignatureProfile) error {
 	return s.profileManager.SaveProfile(profile)
 }
 
-// DeleteSignatureProfile deletes a signature profile by ID (accepts string from frontend, parses to UUID)
+// DeleteSignatureProfile removes a signature profile by its UUID string.
 func (s *SignatureService) DeleteSignatureProfile(profileIDStr string) error {
 	profileID, err := uuid.Parse(profileIDStr)
 	if err != nil {
@@ -125,7 +122,7 @@ func validateCertificateStorePath(path string) error {
 	return nil
 }
 
-// AddCertificateStore adds a new certificate store path
+// AddCertificateStore adds a directory path to scan for PKCS#12 certificates.
 func (s *SignatureService) AddCertificateStore(path string) error {
 	// Validate the path
 	if err := validateCertificateStorePath(path); err != nil {
@@ -145,7 +142,7 @@ func (s *SignatureService) AddCertificateStore(path string) error {
 	return s.configService.Update(cfg)
 }
 
-// RemoveCertificateStore removes a certificate store path
+// RemoveCertificateStore removes a certificate store path from the config.
 func (s *SignatureService) RemoveCertificateStore(path string) error {
 	cfg := s.configService.Get()
 
@@ -208,7 +205,7 @@ func validateTokenLibraryPath(path string) error {
 	return nil
 }
 
-// AddTokenLibrary adds a new PKCS#11 library path
+// AddTokenLibrary adds a PKCS#11 shared library path for hardware token access.
 func (s *SignatureService) AddTokenLibrary(path string) error {
 	if err := validateTokenLibraryPath(path); err != nil {
 		return fmt.Errorf("invalid PKCS#11 library path: %w", err)
@@ -227,7 +224,7 @@ func (s *SignatureService) AddTokenLibrary(path string) error {
 	return s.configService.Update(cfg)
 }
 
-// RemoveTokenLibrary removes a PKCS#11 library path
+// RemoveTokenLibrary removes a PKCS#11 library path from the config.
 func (s *SignatureService) RemoveTokenLibrary(path string) error {
 	cfg := s.configService.Get()
 
@@ -243,7 +240,7 @@ func (s *SignatureService) RemoveTokenLibrary(path string) error {
 	return s.configService.Update(cfg)
 }
 
-// GetDefaultCertificateSources returns the default certificate store paths
+// GetDefaultCertificateSources returns system and user certificate directory paths.
 func (s *SignatureService) GetDefaultCertificateSources() map[string][]string {
 	result := map[string][]string{
 		"system": pkcs12.DefaultSystemCertDirs,
@@ -263,7 +260,7 @@ func (s *SignatureService) GetDefaultCertificateSources() map[string][]string {
 	return result
 }
 
-// GetDefaultTokenLibraries returns the default PKCS#11 module paths
+// GetDefaultTokenLibraries returns common PKCS#11 module paths for the platform.
 func (s *SignatureService) GetDefaultTokenLibraries() []string {
 	return pkcs11.DefaultModules
 }

@@ -54,8 +54,7 @@ type SignatureProfile struct {
 	IsDefault   bool                `json:"isDefault"`   // Whether this is the default profile
 }
 
-// DefaultInvisibleProfile returns the default invisible signature profile
-// This maintains backward compatibility with existing behavior
+// DefaultInvisibleProfile returns the built-in invisible signature profile.
 func DefaultInvisibleProfile() *SignatureProfile {
 	return &SignatureProfile{
 		ID:          uuid.MustParse("00000000-0000-0000-0000-000000000001"),
@@ -78,8 +77,7 @@ func DefaultInvisibleProfile() *SignatureProfile {
 	}
 }
 
-// DefaultVisibleProfile returns a default visible signature profile
-// Shows signer name and timestamp in bottom-right of last page
+// DefaultVisibleProfile returns the built-in visible signature profile.
 func DefaultVisibleProfile() *SignatureProfile {
 	return &SignatureProfile{
 		ID:          uuid.MustParse("00000000-0000-0000-0000-000000000002"),
@@ -103,9 +101,7 @@ func DefaultVisibleProfile() *SignatureProfile {
 	}
 }
 
-// ProfileManager handles storage and retrieval of signature profiles
-// Currently returns built-in profiles, but designed to support
-// future persistence (file-based or database)
+// ProfileManager handles storage and retrieval of signature profiles.
 type ProfileManager struct {
 	configDir string
 }
@@ -125,8 +121,7 @@ func NewProfileManagerWithDir(configDir string) *ProfileManager {
 	}
 }
 
-// ListProfiles returns all available signature profiles
-// Returns custom profiles from config directory, or creates defaults if none exist
+// ListProfiles returns all saved profiles, creating defaults if none exist.
 func (pm *ProfileManager) ListProfiles() ([]*SignatureProfile, error) {
 	var profiles []*SignatureProfile
 
@@ -154,7 +149,7 @@ func (pm *ProfileManager) ListProfiles() ([]*SignatureProfile, error) {
 	return profiles, nil
 }
 
-// GetProfile retrieves a profile by ID
+// GetProfile retrieves a profile by UUID.
 func (pm *ProfileManager) GetProfile(id uuid.UUID) (*SignatureProfile, error) {
 	profiles, err := pm.ListProfiles()
 	if err != nil {
@@ -170,7 +165,7 @@ func (pm *ProfileManager) GetProfile(id uuid.UUID) (*SignatureProfile, error) {
 	return nil, fmt.Errorf("profile not found: %s", id)
 }
 
-// GetDefaultProfile returns the default signature profile
+// GetDefaultProfile returns the profile marked as default.
 func (pm *ProfileManager) GetDefaultProfile() (*SignatureProfile, error) {
 	profiles, err := pm.ListProfiles()
 	if err != nil {
@@ -187,7 +182,7 @@ func (pm *ProfileManager) GetDefaultProfile() (*SignatureProfile, error) {
 	return DefaultInvisibleProfile(), nil
 }
 
-// SaveProfile saves a signature profile to disk
+// SaveProfile validates and persists a profile to disk.
 func (pm *ProfileManager) SaveProfile(profile *SignatureProfile) error {
 	if err := pm.ValidateProfile(profile); err != nil {
 		return fmt.Errorf("profile validation failed: %w", err)
@@ -209,7 +204,7 @@ func (pm *ProfileManager) SaveProfile(profile *SignatureProfile) error {
 	return nil
 }
 
-// DeleteProfile deletes a signature profile from disk
+// DeleteProfile removes a profile from disk.
 func (pm *ProfileManager) DeleteProfile(id uuid.UUID) error {
 	profilePath := filepath.Join(pm.configDir, id.String()+".json")
 	if err := os.Remove(profilePath); err != nil {
@@ -222,7 +217,7 @@ func (pm *ProfileManager) DeleteProfile(id uuid.UUID) error {
 	return nil
 }
 
-// ValidateProfile checks if a profile is valid
+// ValidateProfile checks that a profile has valid ID, name, and dimensions.
 func (pm *ProfileManager) ValidateProfile(profile *SignatureProfile) error {
 	if profile.ID == uuid.Nil {
 		return fmt.Errorf("profile ID is required")

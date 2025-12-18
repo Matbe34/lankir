@@ -53,8 +53,7 @@ func NewPDFService(configService *config.Service) *PDFService {
 	}
 }
 
-// Startup initializes the service with the application context.
-// This is called by the Wails runtime during application startup.
+// Startup stores the app context and configures MuPDF. Called by Wails on app start.
 func (s *PDFService) Startup(ctx context.Context) {
 	s.ctx = ctx
 
@@ -66,8 +65,7 @@ func (s *PDFService) Startup(ctx context.Context) {
 	}
 }
 
-// OpenPDF displays a file selection dialog and opens the selected PDF file.
-// Returns metadata about the opened PDF or an error if the operation fails.
+// OpenPDF shows a file dialog, opens the selected PDF, and returns its metadata.
 func (s *PDFService) OpenPDF() (*PDFMetadata, error) {
 	filePath, err := runtime.OpenFileDialog(s.ctx, runtime.OpenDialogOptions{
 		Title: "Select PDF File",
@@ -90,7 +88,7 @@ func (s *PDFService) OpenPDF() (*PDFMetadata, error) {
 	return s.OpenPDFByPath(filePath)
 }
 
-// OpenPDFByPath opens a PDF file by its file path (for recent files)
+// OpenPDFByPath opens a PDF file from the given path and returns its metadata.
 func (s *PDFService) OpenPDFByPath(filePath string) (*PDFMetadata, error) {
 	fileInfo, err := os.Stat(filePath)
 	if err != nil {
@@ -161,7 +159,7 @@ func (s *PDFService) OpenPDFByPath(filePath string) (*PDFMetadata, error) {
 	}
 }
 
-// ClosePDF closes the current PDF file
+// ClosePDF closes the currently open PDF document and releases resources.
 func (s *PDFService) ClosePDF() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -183,7 +181,7 @@ const (
 	MaxPDFFileSizeBytes = 1 * 1024 * 1024 * 1024 // 1GB maximum file size
 )
 
-// RenderPage renders a specific page and returns it as base64-encoded PNG
+// RenderPage renders the specified page at the given DPI and returns base64-encoded PNG data.
 func (s *PDFService) RenderPage(pageNum int, dpi float64) (*PageInfo, error) {
 	if dpi < MinDPI || dpi > MaxDPI {
 		return nil, fmt.Errorf("DPI %.2f out of valid range [%.2f, %.2f]", dpi, MinDPI, MaxDPI)
@@ -216,7 +214,7 @@ func (s *PDFService) RenderPage(pageNum int, dpi float64) (*PageInfo, error) {
 	return s.renderPageStandard(pageNum, dpi)
 }
 
-// GetPageCount returns the number of pages in the current PDF
+// GetPageCount returns the total number of pages in the open PDF.
 func (s *PDFService) GetPageCount() int {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -229,7 +227,7 @@ type PageDimensions struct {
 	Height float64 `json:"height"`
 }
 
-// GetPageDimensions returns the dimensions of a specific page in points
+// GetPageDimensions returns the width and height of a page in PDF points.
 func (s *PDFService) GetPageDimensions(pageNum int) (*PageDimensions, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -253,7 +251,7 @@ func (s *PDFService) GetPageDimensions(pageNum int) (*PageDimensions, error) {
 	}, nil
 }
 
-// GetMetadata returns metadata for the current PDF
+// GetMetadata returns title, author, and other metadata for the open PDF.
 func (s *PDFService) GetMetadata() (*PDFMetadata, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -272,9 +270,7 @@ func (s *PDFService) GetMetadata() (*PDFMetadata, error) {
 	}, nil
 }
 
-// GenerateThumbnail generates a thumbnail for the first page of a PDF file
-// This is used for recent files preview without opening the full document
-// The thumbnail is cropped to 16:9 aspect ratio showing the top portion
+// GenerateThumbnail generates a 16:9 cropped thumbnail of the first page as base64 PNG.
 func (s *PDFService) GenerateThumbnail(filePath string, maxWidth int) (string, error) {
 	fileInfo, err := os.Stat(filePath)
 	if err != nil {

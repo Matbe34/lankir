@@ -26,8 +26,7 @@ func generateSignedPDFPath(pdfPath string) string {
 	return base + "_signed.pdf"
 }
 
-// SignPDF signs a PDF using the specified certificate and PIN
-// Uses the default invisible signature profile for backward compatibility
+// SignPDF signs a PDF with the specified certificate using the default profile.
 func (s *SignatureService) SignPDF(pdfPath string, certFingerprint string, pin string) (string, error) {
 	defaultProfile, err := s.profileManager.GetDefaultProfile()
 	if err != nil {
@@ -36,13 +35,12 @@ func (s *SignatureService) SignPDF(pdfPath string, certFingerprint string, pin s
 	return s.SignPDFWithProfile(pdfPath, certFingerprint, pin, defaultProfile.ID.String())
 }
 
-// SignPDFWithProfile signs a PDF using the specified certificate, PIN, and signature profile
+// SignPDFWithProfile signs a PDF using the specified certificate and signature profile.
 func (s *SignatureService) SignPDFWithProfile(pdfPath string, certFingerprint string, pin string, profileIDStr string) (string, error) {
 	return s.SignPDFWithProfileAndPosition(pdfPath, certFingerprint, pin, profileIDStr, nil)
 }
 
-// SignPDFWithProfileAndPosition signs a PDF with optional position override for visible signatures
-// If positionOverride is provided, it will be used instead of the profile's default position
+// SignPDFWithProfileAndPosition signs a PDF with optional custom position for visible signatures.
 func (s *SignatureService) SignPDFWithProfileAndPosition(pdfPath string, certFingerprint string, pin string, profileIDStr string, positionOverride *SignaturePosition) (string, error) {
 	profileID, err := uuid.Parse(profileIDStr)
 	if err != nil {

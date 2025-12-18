@@ -12,7 +12,7 @@ import (
 	"github.com/ferran/pdf_app/internal/signature/pkcs12"
 )
 
-// Config represents application configuration
+// Config holds all application settings persisted to disk.
 type Config struct {
 	// Appearance settings
 	Theme       string `json:"theme"`
@@ -37,14 +37,14 @@ type Config struct {
 	HardwareAccel bool `json:"hardwareAccel"`
 }
 
-// Service manages application configuration
+// Service provides thread-safe access to application configuration.
 type Service struct {
 	mu         sync.RWMutex
 	config     *Config
 	configPath string
 }
 
-// NewService creates a new configuration service
+// NewService creates a config service using the default config directory.
 func NewService() (*Service, error) {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
@@ -55,7 +55,7 @@ func NewService() (*Service, error) {
 	return NewServiceWithDir(configDir)
 }
 
-// NewServiceWithDir creates a new configuration service with a custom directory
+// NewServiceWithDir creates a config service using a custom directory.
 func NewServiceWithDir(configDir string) (*Service, error) {
 	if err := os.MkdirAll(configDir, 0700); err != nil {
 		return nil, fmt.Errorf("failed to create config directory: %w", err)
@@ -114,7 +114,7 @@ func getDefaultConfig() *Config {
 	}
 }
 
-// Load reads configuration from disk
+// Load reads configuration from disk into memory.
 func (s *Service) Load() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -133,7 +133,7 @@ func (s *Service) Load() error {
 	return nil
 }
 
-// Save writes configuration to disk atomically
+// Save writes the current configuration to disk atomically.
 func (s *Service) Save() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -162,7 +162,7 @@ func (s *Service) saveUnlocked() error {
 	return nil
 }
 
-// Get returns the current configuration
+// Get returns a copy of the current configuration.
 func (s *Service) Get() *Config {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -173,7 +173,7 @@ func (s *Service) Get() *Config {
 	return &configCopy
 }
 
-// Update updates the configuration and saves it atomically
+// Update replaces the configuration and saves it to disk.
 func (s *Service) Update(config *Config) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -182,7 +182,7 @@ func (s *Service) Update(config *Config) error {
 	return s.saveUnlocked()
 }
 
-// Reset resets configuration to defaults and saves atomically
+// Reset restores default settings and saves to disk.
 func (s *Service) Reset() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()

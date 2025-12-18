@@ -5,7 +5,7 @@ import (
 	"crypto/x509"
 )
 
-// CertificateSigner is an interface for signing with certificates
+// CertificateSigner combines crypto.Signer with access to the signing certificate.
 type CertificateSigner interface {
 	crypto.Signer
 	Certificate() *x509.Certificate

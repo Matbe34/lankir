@@ -21,11 +21,12 @@ type CertificateFilter struct {
 	RequiredKeyUsage string // Require specific key usage (e.g., "digitalSignature")
 }
 
+// ListCertificates returns all available certificates from all configured sources.
 func (s *SignatureService) ListCertificates() ([]types.Certificate, error) {
 	return s.ListCertificatesFiltered(CertificateFilter{})
 }
 
-// ListCertificatesFiltered returns certificates matching the filter criteria
+// ListCertificatesFiltered returns certificates matching the given filter criteria.
 func (s *SignatureService) ListCertificatesFiltered(filter CertificateFilter) ([]types.Certificate, error) {
 	var allCerts []types.Certificate
 	seenFingerprints := make(map[string]bool)
@@ -101,7 +102,7 @@ func (s *SignatureService) ListCertificatesFiltered(filter CertificateFilter) ([
 	return uniqueCerts, nil
 }
 
-// SearchCertificates searches for certificates matching the query
+// SearchCertificates finds certificates matching the query in name, subject, or issuer.
 func (s *SignatureService) SearchCertificates(query string) ([]types.Certificate, error) {
 	return s.ListCertificatesFiltered(CertificateFilter{
 		Search: query,
@@ -149,7 +150,7 @@ func (s *SignatureService) matchesFilter(cert types.Certificate, filter Certific
 	return true
 }
 
-// LoadNSSCertificates loads certificates from NSS database using NSS APIs
+// LoadNSSCertificates retrieves certificates with private keys from the user's NSS database.
 func LoadNSSCertificates() ([]types.Certificate, error) {
 	nssCerts, err := nss.ListCertificates()
 	if err != nil {
