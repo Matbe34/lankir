@@ -30,25 +30,17 @@ func main() {
 }
 
 func runGUI() {
-	// Create an instance of the app structure
 	app := NewApp()
 
-	// Create config service
 	configService, err := config.NewService()
 	if err != nil {
 		log.Fatal("Failed to create config service:", err)
 	}
 
-	// Create PDF service with config service
 	pdfService := pdf.NewPDFService(configService)
-
-	// Create recent files service
 	recentFilesService := pdf.NewRecentFilesService()
-
-	// Create signature service
 	signatureService := signature.NewSignatureService(configService)
 
-	// Create startup function that initializes all services
 	onStartup := func(ctx context.Context) {
 		app.startup(ctx)
 		pdfService.Startup(ctx)
@@ -56,7 +48,6 @@ func runGUI() {
 		signatureService.Startup(ctx)
 	}
 
-	// Create application with options
 	err = wails.Run(&options.App{
 		Title:  "PDF App",
 		Width:  1400,
