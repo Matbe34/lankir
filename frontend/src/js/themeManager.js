@@ -1,3 +1,4 @@
+/** Manages application theme, accent colors, and secondary color palettes. */
 export class ThemeManager {
     constructor() {
         this.currentTheme = 'dark'; // default
@@ -6,6 +7,7 @@ export class ThemeManager {
         this.initialized = false;
     }
 
+    /** Initializes theme settings from localStorage and sets up system theme listener. */
     async init() {
         if (this.initialized) return;
 
@@ -15,6 +17,7 @@ export class ThemeManager {
         this.initialized = true;
     }
 
+    /** Loads theme settings from localStorage and applies them. */
     loadThemeSettings() {
         try {
             const stored = localStorage.getItem('pdfEditorSettings');
@@ -45,6 +48,7 @@ export class ThemeManager {
         }
     }
 
+    /** Listens for system dark mode changes when using auto theme. */
     setupSystemThemeListener() {
         const darkModeQuery = window.matchMedia('(prefers-color-scheme: dark)');
 
@@ -55,6 +59,7 @@ export class ThemeManager {
         });
     }
 
+    /** Applies the specified theme (light, dark, or auto) to the document. */
     applyTheme(theme) {
         const root = document.documentElement;
 
@@ -75,6 +80,7 @@ export class ThemeManager {
         this.currentTheme = theme;
     }
 
+    /** Applies the accent color and computed hover color to CSS variables. */
     applyAccentColor(color) {
         const root = document.documentElement;
         root.style.setProperty('--accent-color', color);
@@ -85,6 +91,7 @@ export class ThemeManager {
         this.currentAccentColor = color;
     }
 
+    /** Applies a secondary color palette (neutral, slate, purple, etc.) to backgrounds. */
     applySecondaryAccent(palette) {
         const palettes = {
             neutral: {

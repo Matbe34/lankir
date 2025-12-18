@@ -1,12 +1,7 @@
-// Recent Files Module
-// Handles loading and displaying recent files
-
 import { openRecentFile } from './pdfOperations.js';
 import { escapeHtml } from './utils.js';
 
-/**
- * Load and display recent files on welcome screen
- */
+/** Loads and displays recent files on the welcome screen. */
 export async function loadRecentFilesWelcome() {
     try {
         const recentFiles = await window.go.pdf.RecentFilesService.GetRecent();
@@ -71,37 +66,29 @@ export async function loadRecentFilesWelcome() {
     }
 }
 
-/**
- * Load thumbnail for a recent file card
- */
+/** Loads a thumbnail image for a recent file card. */
 async function loadThumbnail(filePath, card) {
     try {
         const thumbnailContainer = card.querySelector('.file-thumbnail-container');
         const loadingIndicator = card.querySelector('.file-thumbnail-loading');
         
-        // Generate thumbnail (400px width for better quality on high-DPI screens)
         const thumbnailData = await window.go.pdf.PDFService.GenerateThumbnail(filePath, 400);
         
-        // Create image element
         const img = document.createElement('img');
         img.className = 'file-thumbnail';
         img.src = thumbnailData;
         img.alt = 'PDF Preview';
         
-        // Replace loading indicator with image
         loadingIndicator.remove();
         thumbnailContainer.appendChild(img);
     } catch (error) {
         console.error('Error loading thumbnail:', error);
-        // Show fallback icon
         const thumbnailContainer = card.querySelector('.file-thumbnail-container');
         thumbnailContainer.innerHTML = '<span class="file-icon">📄</span>';
     }
 }
 
-/**
- * Remove a file from recent files list
- */
+/** Removes a file from the recent files list. */
 async function removeRecentFile(filePath) {
     try {
         await window.go.pdf.RecentFilesService.RemoveRecent(filePath);

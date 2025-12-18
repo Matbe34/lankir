@@ -3,6 +3,7 @@ import { showMessage } from './messageDialog.js';
 import { escapeHtml } from './utils.js';
 import { renderCertificateList } from './certificateRenderer.js';
 
+/** Initializes certificate store and token library management UI. */
 export function initCertificatesSettings() {
     setupStoreManagement();
     setupLibraryManagement();
@@ -11,6 +12,7 @@ export function initCertificatesSettings() {
     renderLists();
 }
 
+/** Sets up restore defaults buttons for stores and libraries. */
 function setupRestoreDefaults() {
     const restoreStoresBtn = document.getElementById('restoreDefaultStoresBtn');
     const restoreLibsBtn = document.getElementById('restoreDefaultLibsBtn');
@@ -35,6 +37,7 @@ function setupRestoreDefaults() {
     }
 }
 
+/** Sets up add certificate store button handler. */
 function setupStoreManagement() {
     const addBtn = document.getElementById('addCertStoreBtn');
     if (addBtn) {
@@ -58,6 +61,7 @@ function setupStoreManagement() {
     }
 }
 
+/** Adds a certificate store path to settings if not duplicate. */
 function addStore(path) {
     const stores = getSetting('certificateStores') || [];
     if (stores.includes(path)) {
@@ -68,12 +72,14 @@ function addStore(path) {
     renderStoresList();
 }
 
+/** Removes a certificate store path from settings. */
 function removeStore(path) {
     const stores = getSetting('certificateStores') || [];
     setSetting('certificateStores', stores.filter(s => s !== path));
     renderStoresList();
 }
 
+/** Sets up add PKCS#11 library button handler. */
 function setupLibraryManagement() {
     const addBtn = document.getElementById('addTokenLibBtn');
     if (addBtn) {
@@ -103,6 +109,7 @@ function setupLibraryManagement() {
     }
 }
 
+/** Adds a token library path to settings if not duplicate. */
 function addLibrary(path) {
     const libs = getSetting('tokenLibraries') || [];
     if (libs.includes(path)) {
@@ -113,18 +120,21 @@ function addLibrary(path) {
     renderLibrariesList();
 }
 
+/** Removes a token library path from settings. */
 function removeLibrary(path) {
     const libs = getSetting('tokenLibraries') || [];
     setSetting('tokenLibraries', libs.filter(l => l !== path));
     renderLibrariesList();
 }
 
+/** Renders certificate stores, token libraries, and detected certificates. */
 async function renderLists() {
     await renderStoresList();
     await renderLibrariesList();
     await loadCertificates();
 }
 
+/** Renders the configured certificate stores list. */
 async function renderStoresList() {
     const container = document.getElementById('storesList');
     if (!container) return;

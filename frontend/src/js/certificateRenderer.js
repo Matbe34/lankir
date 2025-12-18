@@ -1,13 +1,6 @@
-/**
- * Certificate Rendering Component
- * Shared rendering logic for certificate lists across the application
- */
-
 import { escapeHtml } from './utils.js';
 
-/**
- * Get human-readable certificate type name
- */
+/** Returns human-readable certificate type name. */
 export function getCertTypeName(source) {
     switch (source) {
         case 'pkcs11': return 'Smart Card';
@@ -17,9 +10,7 @@ export function getCertTypeName(source) {
     }
 }
 
-/**
- * Format date for display
- */
+/** Formats a date string for display. */
 export function formatDate(dateString) {
     if (!dateString) return 'N/A';
     try {
@@ -30,9 +21,7 @@ export function formatDate(dateString) {
     }
 }
 
-/**
- * Calculate days until certificate expiry
- */
+/** Calculates days until certificate expiry. */
 export function getDaysUntilExpiry(validTo) {
     if (!validTo) return null;
     try {
@@ -45,15 +34,7 @@ export function getDaysUntilExpiry(validTo) {
     }
 }
 
-/**
- * Render a single certificate item
- * @param {Object} cert - Certificate object
- * @param {Object} options - Rendering options
- * @param {boolean} options.selectable - Whether certificate is selectable (for signing)
- * @param {boolean} options.showExpiry - Show expiry countdown
- * @param {boolean} options.includeCapabilities - Show key usage capabilities
- * @returns {string} HTML string
- */
+/** Renders a single certificate item as HTML. */
 export function renderCertificateItem(cert, options = {}) {
     const {
         selectable = true,
@@ -129,12 +110,7 @@ export function renderCertificateItem(cert, options = {}) {
     `;
 }
 
-/**
- * Render a list of certificates
- * @param {Array} certificates - Array of certificate objects
- * @param {Object} options - Rendering options (passed to renderCertificateItem)
- * @returns {string} HTML string
- */
+/** Renders a list of certificates as HTML. */
 export function renderCertificateList(certificates, options = {}) {
     if (!certificates || certificates.length === 0) {
         return `
@@ -151,12 +127,7 @@ export function renderCertificateList(certificates, options = {}) {
     `;
 }
 
-/**
- * Attach click handlers to certificate items for selection
- * @param {HTMLElement} container - Container element with certificate items
- * @param {Array} certificates - Array of certificate objects
- * @param {Function} onSelect - Callback when certificate is selected
- */
+/** Attaches click handlers to certificate items for selection. */
 export function attachCertificateHandlers(container, certificates, onSelect) {
     const certItems = container.querySelectorAll('.certificate-item:not(.invalid)');
     

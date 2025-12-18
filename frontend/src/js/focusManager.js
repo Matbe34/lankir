@@ -1,14 +1,6 @@
-/**
- * Focus Management Utility
- * Handles focus trapping and restoration for modal dialogs
- */
-
-// Store the element that had focus before modal opened
 let previouslyFocusedElement = null;
 
-/**
- * Get all focusable elements within a container
- */
+/** Returns all focusable elements within a container. */
 function getFocusableElements(container) {
     const focusableSelectors = [
         'a[href]',
@@ -22,9 +14,7 @@ function getFocusableElements(container) {
     return Array.from(container.querySelectorAll(focusableSelectors));
 }
 
-/**
- * Trap focus within a modal dialog
- */
+/** Traps keyboard focus within a modal dialog. */
 export function trapFocus(modalElement) {
     const focusableElements = getFocusableElements(modalElement);
     
@@ -60,19 +50,14 @@ export function trapFocus(modalElement) {
     };
 }
 
-/**
- * Release focus trap (call the cleanup function)
- * @param {Function} cleanupFn - The cleanup function returned by trapFocus
- */
+/** Releases focus trap by calling the cleanup function. */
 export function releaseFocus(cleanupFn) {
     if (cleanupFn && typeof cleanupFn === 'function') {
         cleanupFn();
     }
 }
 
-/**
- * Open a modal with proper focus management
- */
+/** Opens a modal with focus management and returns cleanup function. */
 export function openModal(modalId) {
     const modal = document.getElementById(modalId);
     if (!modal) return null;
@@ -101,9 +86,7 @@ export function openModal(modalId) {
     return cleanup;
 }
 
-/**
- * Close a modal and restore focus
- */
+/** Closes a modal and restores previous focus. */
 export function closeModal(modalId, cleanupFn) {
     const modal = document.getElementById(modalId);
     if (!modal) return;
@@ -124,9 +107,7 @@ export function closeModal(modalId, cleanupFn) {
     previouslyFocusedElement = null;
 }
 
-/**
- * Handle Escape key for closing modals
- */
+/** Sets up Escape key handler for closing a modal. */
 export function setupModalEscapeHandler(modalId, onClose) {
     const modal = document.getElementById(modalId);
     if (!modal) return null;

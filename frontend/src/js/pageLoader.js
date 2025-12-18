@@ -1,6 +1,3 @@
-// Page Loading Module
-// Handles lazy loading and progressive rendering of PDF pages
-
 import { state, getActivePDF } from './state.js';
 import { updateStatus, updatePageIndicator, updateScrollProgress } from './utils.js';
 import { PERFORMANCE, DPI } from './constants.js';
@@ -12,9 +9,7 @@ const BACKGROUND_LOAD_DELAY_MS = PERFORMANCE.BACKGROUND_LOAD_DELAY_MS;
 
 const backgroundLoadControllers = new Map();
 
-/**
- * Load visible pages in the viewport
- */
+/** Loads pages currently visible in the viewport. */
 export async function loadVisiblePages() {
     try {
         const activePDF = getActivePDF();
@@ -45,6 +40,7 @@ export async function loadVisiblePages() {
 
 const DPI_SCALE = DPI.SCREEN / DPI.RENDER;
 
+/** Loads and renders a single page into its container. */
 export async function loadPage(pageNum, pageDiv, activePDF) {
     try {
         const pageInfo = await window.go.pdf.PDFService.RenderPage(pageNum, DPI.RENDER);
@@ -76,6 +72,7 @@ export async function loadPage(pageNum, pageDiv, activePDF) {
     }
 }
 
+/** Progressively loads remaining pages in background with abort support. */
 export async function loadRemainingPagesInBackground(activePDF) {
     try {
         if (backgroundLoadControllers.has(activePDF.id)) {
@@ -125,9 +122,7 @@ export async function loadRemainingPagesInBackground(activePDF) {
     }
 }
 
-/**
- * Cancel background loading for a specific PDF
- */
+/** Cancels background loading for a specific PDF. */
 export function cancelBackgroundLoading(tabId) {
     if (backgroundLoadControllers.has(tabId)) {
         backgroundLoadControllers.get(tabId).abort();
@@ -138,9 +133,7 @@ export function cancelBackgroundLoading(tabId) {
 
 let rafScheduled = false;
 
-/**
- * Update current page number based on scroll position
- */
+/** Updates current page number based on scroll position. */
 export function updateCurrentPageFromScroll() {
     if (rafScheduled) return;
     
@@ -193,9 +186,7 @@ export function updateCurrentPageFromScroll() {
     });
 }
 
-/**
- * Debounced lazy loading on scroll
- */
+/** Debounced lazy loading triggered on scroll. */
 let lazyLoadTimeout = null;
 export function lazyLoadVisiblePages() {
     if (lazyLoadTimeout) clearTimeout(lazyLoadTimeout);

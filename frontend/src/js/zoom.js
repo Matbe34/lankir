@@ -2,7 +2,7 @@ import { state, setZoomLevel, getActivePDF } from './state.js';
 import { updateZoomDisplay } from './utils.js';
 import { ZOOM } from './constants.js';
 
-
+/** Adjusts zoom level by delta and updates all PDF page containers. */
 export function changeZoom(delta) {
     const newZoom = Math.max(ZOOM.MIN, Math.min(ZOOM.MAX, state.zoomLevel + delta));
     state.zoomLevel = newZoom;
@@ -31,6 +31,7 @@ export function changeZoom(delta) {
     }
 }
 
+/** Sets zoom level from percentage input value (e.g., "150" for 150%). */
 export function setZoomFromInput(value) {
     const percentage = parseInt(value);
     if (isNaN(percentage) || percentage < ZOOM.MIN * 100 || percentage > ZOOM.MAX * 100) {
@@ -65,6 +66,7 @@ export function setZoomFromInput(value) {
     }
 }
 
+/** Updates the zoom display input to reflect current zoom level. */
 export function updateZoomControls() {
     updateZoomDisplay(state.zoomLevel);
 }

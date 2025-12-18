@@ -1,15 +1,10 @@
-// PDF Operations Module
-// Handles opening PDFs, loading metadata, and managing PDF operations
-
 import { state, getActivePDF } from './state.js';
 import { updateStatus, escapeHtml, formatDate, updatePageIndicator, updateScrollProgress, sanitizeError } from './utils.js';
 import { createPDFTab, switchToTab } from './pdfManager.js';
 import { renderPage, renderScrollMode, scrollToPage } from './renderer.js';
 import { showLoading, hideLoading } from './loadingIndicator.js';
 
-/**
- * Check if a PDF is already open and return its tab ID
- */
+/** Returns tab ID if PDF is already open, null otherwise. */
 function findOpenPDFTab(filePath) {
     for (const [tabId, pdfData] of state.openPDFs) {
         if (pdfData.filePath === filePath) {
@@ -19,9 +14,7 @@ function findOpenPDFTab(filePath) {
     return null;
 }
 
-/**
- * Open a PDF file via file dialog
- */
+/** Opens a PDF file via file dialog. */
 export async function openPDFFile() {
     try {
         updateStatus('Opening PDF...');
@@ -65,9 +58,7 @@ export async function openPDFFile() {
     }
 }
 
-/**
- * Open a recent file by path
- */
+/** Opens a recent file by its path. */
 export async function openRecentFile(filePath) {
     try {
         updateStatus('Opening ' + filePath.split('/').pop() + '...');
@@ -108,9 +99,7 @@ export async function openRecentFile(filePath) {
     }
 }
 
-/**
- * Update UI with PDF metadata
- */
+/** Updates UI elements with PDF metadata. */
 export function updateUIForPDF(pdfData) {
     // Enable buttons
     const signBtn = document.getElementById('signBtn');
@@ -131,9 +120,7 @@ export function updateUIForPDF(pdfData) {
     updateScrollProgress(0);
 }
 
-/**
- * Load signature information for a PDF
- */
+/** Loads and displays signature verification info for a PDF. */
 export async function loadSignatureInfo(pdfPath) {
     const signatureInfoContainer = document.getElementById('signatureInfo');
     

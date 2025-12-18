@@ -1,15 +1,11 @@
-// Signature Module
-// Handles PDF signing operations and certificate management
-
 import { state, getActivePDF } from './state.js';
 import { updateStatus, escapeHtml, formatDate, debugLog, sanitizeError } from './utils.js';
 import { createPDFTab, switchToTab } from './pdfManager.js';
 import { loadPageThumbnails, loadSignatureInfo } from './pdfOperations.js';
 import { showMessage, showConfirm } from './messageDialog.js';
 import { renderCertificateList as renderCertList, attachCertificateHandlers } from './certificateRenderer.js';
-/**
- * Initiate PDF signing workflow
- */
+
+/** Initiates PDF signing workflow. */
 export async function signPDF() {
     try {
         updateStatus('Preparing to sign PDF...');
@@ -34,9 +30,7 @@ export async function signPDF() {
     }
 }
 
-/**
- * Show profile selection step
- */
+/** Shows profile selection dialog for signing. */
 async function showProfileSelection(pdfPath) {
     const dialog = document.getElementById('profileDialog');
     const profileSelect = document.getElementById('profileSelectMain');

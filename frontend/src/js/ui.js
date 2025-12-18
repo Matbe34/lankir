@@ -1,11 +1,10 @@
-// UI Setup and Interactions
-
 import { state, setActiveTab } from './state.js';
 import { switchToHome } from './pdfManager.js';
 import { openPDFFile } from './pdfOperations.js';
 import { signPDF, closeCertificateDialog, showCertificateDialog, performSigning } from './signature.js';
 import { changeZoom, setZoomFromInput } from './zoom.js';
 
+/** Binds click handlers to toolbar buttons and dialog controls. */
 export function setupEventListeners() {
     const openBtn = document.getElementById('openBtn');
     const signBtn = document.getElementById('signBtn');
@@ -122,6 +121,7 @@ export function setupEventListeners() {
     }
 }
 
+/** Initializes sidebar tab button click handlers. */
 export function setupTabs() {
     const tabBtns = document.querySelectorAll('.tab-btn');
     tabBtns.forEach(btn => {
@@ -132,6 +132,7 @@ export function setupTabs() {
     });
 }
 
+/** Switches the active sidebar tab and shows corresponding content. */
 export function switchTab(tabName) {
     // Update button states
     document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -149,6 +150,7 @@ export function switchTab(tabName) {
     }
 }
 
+/** Shows or hides the left or right sidebar and saves state to active PDF. */
 export function toggleSidebar(side, show) {
     const sidebar = document.getElementById(side === 'left' ? 'leftSidebar' : 'rightSidebar');
     const expandBtn = document.getElementById(side === 'left' ? 'expandLeft' : 'expandRight');
@@ -172,6 +174,7 @@ export function toggleSidebar(side, show) {
     }
 }
 
+/** Adds click handler to home tab button. */
 export function setupHomeTab() {
     const homeTab = document.getElementById('homeTab');
     if (homeTab) {
@@ -181,6 +184,7 @@ export function setupHomeTab() {
     }
 }
 
+/** Hides both sidebars and their expand buttons. */
 export function hideSidebars() {
     const leftSidebar = document.getElementById('leftSidebar');
     const rightSidebar = document.getElementById('rightSidebar');
@@ -193,6 +197,7 @@ export function hideSidebars() {
     if (expandRight) expandRight.style.display = 'none';
 }
 
+/** Shows sidebars according to PDF state or user settings. */
 export function showSidebars() {
     const leftSidebar = document.getElementById('leftSidebar');
     const rightSidebar = document.getElementById('rightSidebar');
@@ -246,6 +251,7 @@ export function showSidebars() {
     }
 }
 
+/** Initializes all UI event handlers on application startup. */
 export function initializeUI() {
     setupEventListeners();
     setupTabs();

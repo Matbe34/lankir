@@ -1,21 +1,13 @@
-// Utility Functions
-
 import { getSetting } from './settings.js';
 
-/**
- * Log debug messages if debug mode is enabled
- * @param {...any} args - Arguments to log
- */
+/** Logs messages to console if debug mode is enabled. */
 export function debugLog(...args) {
     if (getSetting('debugMode')) {
         console.log(...args);
     }
 }
 
-/**
- * Update the application status bar with a message
- * @param {string} message - Status message to display
- */
+/** Updates the application status bar text. */
 export function updateStatus(message) {
     const statusText = document.getElementById('statusText');
     if (statusText) {
@@ -23,22 +15,14 @@ export function updateStatus(message) {
     }
 }
 
-/**
- * Escape HTML special characters to prevent XSS attacks
- * @param {string} text - Text to escape
- * @returns {string} HTML-safe escaped text
- */
+/** Escapes HTML special characters to prevent XSS. */
 export function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
 }
 
-/**
- * Sanitize error messages by removing internal file paths
- * @param {Error|string} error - Error object or message
- * @returns {string} Sanitized error message safe for display
- */
+/** Removes internal file paths from error messages. */
 export function sanitizeError(error) {
     if (typeof error === 'string') {
         return error;
@@ -56,11 +40,7 @@ export function sanitizeError(error) {
     return 'An error occurred';
 }
 
-/**
- * Format an ISO date string to localized date/time
- * @param {string} isoDateString - ISO 8601 date string
- * @returns {string} Formatted date string
- */
+/** Formats an ISO date string to localized date/time. */
 export function formatDate(isoDateString) {
     try {
         const date = new Date(isoDateString);
@@ -70,10 +50,7 @@ export function formatDate(isoDateString) {
     }
 }
 
-/**
- * Update all zoom display elements with current zoom level
- * @param {number} zoomLevel - Zoom level as decimal (1.0 = 100%)
- */
+/** Updates all zoom display elements with current level. */
 export function updateZoomDisplay(zoomLevel) {
     const zoomDisplay = document.getElementById('zoomDisplay');
     const zoomLevelDisplay = document.getElementById('zoomLevel');
@@ -85,11 +62,7 @@ export function updateZoomDisplay(zoomLevel) {
     if (zoomInput) zoomInput.value = percentage;
 }
 
-/**
- * Update the page indicator in the status bar
- * @param {number|null} currentPage - Current page number (1-indexed)
- * @param {number|null} totalPages - Total number of pages
- */
+/** Updates the page indicator in the status bar. */
 export function updatePageIndicator(currentPage, totalPages) {
     const pageIndicator = document.getElementById('pageIndicator');
     if (pageIndicator) {
@@ -101,10 +74,7 @@ export function updatePageIndicator(currentPage, totalPages) {
     }
 }
 
-/**
- * Update the scroll progress indicator
- * @param {number|null} percentage - Scroll position as percentage (0-100)
- */
+/** Updates the scroll progress percentage indicator. */
 export function updateScrollProgress(percentage) {
     const scrollProgress = document.getElementById('scrollProgress');
     if (scrollProgress) {
@@ -116,12 +86,7 @@ export function updateScrollProgress(percentage) {
     }
 }
 
-/**
- * Debounce a function to prevent excessive calls
- * @param {Function} func - Function to debounce
- * @param {number} wait - Milliseconds to wait before calling
- * @returns {Function} Debounced function
- */
+/** Creates a debounced version of a function. */
 export function debounce(func, wait) {
     let timeout;
     return function executedFunction(...args) {

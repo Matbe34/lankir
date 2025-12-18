@@ -28,6 +28,7 @@ DEFAULT_SETTINGS.shortcuts = {
 
 let currentSettings = { ...DEFAULT_SETTINGS };
 
+/** Loads settings from backend/localStorage and initializes sub-modules. */
 export async function initSettings() {
     await loadSettings();
     setupSettingsModal();
@@ -111,14 +112,17 @@ function applySettings() {
 
 }
 
+/** Returns the value of a specific setting by key. */
 export function getSetting(key) {
     return currentSettings[key];
 }
 
+/** Returns a copy of all current settings. */
 export function getAllSettings() {
     return { ...currentSettings };
 }
 
+/** Updates a single setting value in memory (call saveSettings to persist). */
 export function setSetting(key, value) {
     currentSettings[key] = value;
 }
@@ -356,9 +360,7 @@ async function saveSettingsFromModal() {
         currentSettings.debugMode = document.getElementById('settingDebugMode').checked;
         currentSettings.hardwareAccel = document.getElementById('settingHardwareAccel').checked;
 
-        // Note: certificateStores and tokenLibraries are updated directly via setSetting in certificates.js
-        // so we don't need to read them from DOM here, but we should make sure they are preserved
-        // currentSettings already has them if setSetting updated it.
+        // certificateStores and tokenLibraries are updated via setSetting in certificates.js
 
         try {
             currentSettings.shortcuts = currentSettings.shortcuts || {};

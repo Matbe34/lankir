@@ -4,11 +4,13 @@ let currentEditingProfileId = null;
 let cachedLocation = null;
 let currentIconDataUrl = null;
 
+/** Initializes the signature profiles editor and add button. */
 export function initSignatureProfiles() {
     setupProfileEditor();
     setupAddProfileButton();
 }
 
+/** Loads and renders all signature profiles from the backend. */
 export async function loadSignatureProfiles() {
     const listContainer = document.getElementById('signatureProfilesList');
 
@@ -50,6 +52,7 @@ export async function loadSignatureProfiles() {
     }
 }
 
+/** Renders the profiles list with edit and delete buttons. */
 function renderProfilesList(profiles, container) {
     const html = profiles.map(profile => {
         const visibilityLabel = profile.visibility === 'visible' ? 'Visible' : 'Invisible';
@@ -107,12 +110,14 @@ function renderProfilesList(profiles, container) {
     });
 }
 
+/** Escapes HTML special characters to prevent XSS. */
 function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
 }
 
+/** Sets up click handler for add profile button. */
 function setupAddProfileButton() {
     const addBtn = document.getElementById('addProfileBtn');
     if (addBtn) {
@@ -122,6 +127,7 @@ function setupAddProfileButton() {
     }
 }
 
+/** Sets up the profile editor modal with all event handlers. */
 function setupProfileEditor() {
     const modal = document.getElementById('profileEditorModal');
     const closeBtn = document.getElementById('profileEditorClose');
@@ -220,6 +226,7 @@ function setupProfileEditor() {
     });
 }
 
+/** Opens the profile editor modal for creating or editing a profile. */
 function openProfileEditor(profile) {
     const modal = document.getElementById('profileEditorModal');
     const title = document.getElementById('profileEditorTitle');
@@ -283,6 +290,7 @@ function openProfileEditor(profile) {
     updatePreview();
 }
 
+/** Fetches and caches user location for signature display. */
 async function fetchLocation() {
     if (cachedLocation) {
         return cachedLocation;

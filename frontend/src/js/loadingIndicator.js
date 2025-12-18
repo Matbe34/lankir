@@ -1,16 +1,9 @@
-/**
- * Loading Indicator Utility
- * Shows/hides loading overlays for async operations
- */
-
 import { UI } from './constants.js';
 
 let loadingOverlay = null;
 let loadingCount = 0;
 
-/**
- * Initialize the loading overlay (called once on app start)
- */
+/** Initializes the loading overlay element. */
 export function initLoadingIndicator() {
     if (loadingOverlay) return;
     
@@ -81,9 +74,7 @@ export function initLoadingIndicator() {
     }
 }
 
-/**
- * Show loading indicator with optional message
- */
+/** Shows the loading overlay with an optional message. */
 export function showLoading(message = 'Loading...') {
     if (!loadingOverlay) {
         initLoadingIndicator();
@@ -101,9 +92,7 @@ export function showLoading(message = 'Loading...') {
     loadingOverlay.setAttribute('aria-label', message);
 }
 
-/**
- * Hide loading indicator
- */
+/** Hides the loading overlay if no operations are pending. */
 export function hideLoading() {
     if (!loadingOverlay) return;
     
@@ -117,9 +106,7 @@ export function hideLoading() {
     }
 }
 
-/**
- * Wrap an async function to show loading indicator
- */
+/** Wraps an async function to show loading indicator during execution. */
 export function withLoading(asyncFn, message = 'Loading...', minDisplayTime = UI.LOADING_MIN_DISPLAY_MS) {
     return async function(...args) {
         showLoading(message);

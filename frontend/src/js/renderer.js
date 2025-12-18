@@ -5,8 +5,10 @@ import { DPI } from './constants.js';
 
 const DPI_SCALE = DPI.SCREEN / DPI.RENDER;
 
+/** Map of tab IDs to their scroll event listener references. */
 const scrollListeners = new Map(); // tabId -> { updateScroll, lazyLoad }
 
+/** Renders a single PDF page by page number in single-page mode. */
 export async function renderPage(pageNum) {
     try {
         const activePDF = getActivePDF();
@@ -47,6 +49,7 @@ export async function renderPage(pageNum) {
     }
 }
 
+/** Renders all pages in continuous scroll mode with lazy loading. */
 export async function renderScrollMode() {
     try {
         const activePDF = getActivePDF();
@@ -102,6 +105,7 @@ export async function renderScrollMode() {
     }
 }
 
+/** Restores a PDF view from cached page data. */
 export function renderCachedPDF(pdfData) {
     loadPageThumbnailsFromCache(pdfData);
 
@@ -114,6 +118,7 @@ export function renderCachedPDF(pdfData) {
     updateStatus(`Viewing: ${pdfData.fileName}`);
 }
 
+/** Renders a single page from cached data in single-page mode. */
 export function renderPageFromCache(pageNum, pdfData) {
     const pageInfo = pdfData.renderedPages.get(pageNum);
 
@@ -140,9 +145,7 @@ export function renderPageFromCache(pageNum, pdfData) {
     }
 }
 
-/**
- * Render scroll mode from cached pages
- */
+/** Renders scroll mode from cached page data. */
 export function renderScrollModeFromCache(pdfData) {
     const viewer = document.getElementById('pdfViewer');
     viewer.className = 'pdf-viewer scroll-mode';
@@ -203,6 +206,7 @@ export function renderScrollModeFromCache(pdfData) {
     });
 }
 
+/** Loads page thumbnails into sidebar from cached PDF data. */
 function loadPageThumbnailsFromCache(pdfData) {
     const pageList = document.getElementById('pageList');
     pageList.innerHTML = '';
@@ -228,6 +232,7 @@ function loadPageThumbnailsFromCache(pdfData) {
     }
 }
 
+/** Smoothly scrolls the viewer to the specified page number. */
 export function scrollToPage(pageNum) {
     const viewer = document.getElementById('pdfViewer');
     const page = viewer.querySelector(`[data-page="${pageNum}"]`);
@@ -236,10 +241,7 @@ export function scrollToPage(pageNum) {
     }
 }
 
-/**
- * Clean up scroll event listeners for a tab to prevent memory leaks
- * @param {number} tabId - Tab ID to clean up listeners for
- */
+/** Cleans up scroll event listeners for a tab. */
 export function cleanupScrollListeners(tabId) {
     const listeners = scrollListeners.get(tabId);
     if (listeners) {
@@ -252,6 +254,7 @@ export function cleanupScrollListeners(tabId) {
     }
 }
 
+/** Changes to a new page in single-page mode and updates sidebar. */
 export function changePage(newPage) {
     const activePDF = getActivePDF();
     if (!activePDF) return;
@@ -266,9 +269,7 @@ export function changePage(newPage) {
     }
 }
 
-/**
- * Update page controls (placeholder for removed UI elements)
- */
+/** Updates page controls (placeholder). */
 function updatePageControls() {
     // Page controls removed from UI
 }

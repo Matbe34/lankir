@@ -1,19 +1,10 @@
-/**
- * Simple Event Emitter for State Management
- * Provides pub/sub pattern for state changes
- */
-
+/** Simple pub/sub event emitter for state management. */
 class EventEmitter {
     constructor() {
         this.events = {};
     }
     
-    /**
-     * Subscribe to an event
-     * @param {string} event - Event name
-     * @param {Function} callback - Callback function
-     * @returns {Function} Unsubscribe function
-     */
+    /** Subscribes to an event and returns unsubscribe function. */
     on(event, callback) {
         if (!this.events[event]) {
             this.events[event] = [];
@@ -26,11 +17,7 @@ class EventEmitter {
         };
     }
     
-    /**
-     * Subscribe to an event once
-     * @param {string} event - Event name
-     * @param {Function} callback - Callback function
-     */
+    /** Subscribes to an event for a single invocation. */
     once(event, callback) {
         const unsubscribe = this.on(event, (...args) => {
             callback(...args);
@@ -38,11 +25,7 @@ class EventEmitter {
         });
     }
     
-    /**
-     * Emit an event
-     * @param {string} event - Event name
-     * @param {...any} args - Arguments to pass to callbacks
-     */
+    /** Emits an event to all subscribers. */
     emit(event, ...args) {
         if (this.events[event]) {
             this.events[event].forEach(callback => {
@@ -55,10 +38,7 @@ class EventEmitter {
         }
     }
     
-    /**
-     * Remove all listeners for an event
-     * @param {string} event - Event name
-     */
+    /** Removes all listeners for an event. */
     off(event) {
         delete this.events[event];
     }

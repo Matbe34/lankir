@@ -1,10 +1,6 @@
-/**
- * Modal Dialog Base Class
- * Standardizes modal/dialog behavior across the application
- */
-
 import { trapFocus, releaseFocus } from './focusManager.js';
 
+/** Base class for modal dialogs with standardized behavior. */
 export class Modal {
     constructor(modalId, options = {}) {
         this.modalId = modalId;
@@ -30,9 +26,7 @@ export class Modal {
         this.setupEventHandlers();
     }
 
-    /**
-     * Setup close button and keyboard handlers
-     */
+    /** Sets up close button and keyboard handlers. */
     setupEventHandlers() {
         // Find close buttons (by class or data attribute)
         const closeButtons = this.modal.querySelectorAll('[data-close-modal], .modal-close, .dialog-close');
@@ -64,9 +58,7 @@ export class Modal {
         }
     }
 
-    /**
-     * Open the modal
-     */
+    /** Opens the modal. */
     open() {
         if (this.isOpen) return;
         
@@ -89,9 +81,7 @@ export class Modal {
         }));
     }
 
-    /**
-     * Close the modal
-     */
+    /** Closes the modal. */
     close() {
         if (!this.isOpen) return;
 
@@ -115,9 +105,7 @@ export class Modal {
         }));
     }
 
-    /**
-     * Toggle modal state
-     */
+    /** Toggles modal open/closed state. */
     toggle() {
         if (this.isOpen) {
             this.close();
@@ -126,9 +114,7 @@ export class Modal {
         }
     }
 
-    /**
-     * Destroy modal and cleanup
-     */
+    /** Destroys modal and cleans up event handlers. */
     destroy() {
         if (this.escapeHandler) {
             document.removeEventListener('keydown', this.escapeHandler);
@@ -142,9 +128,7 @@ export class Modal {
     }
 }
 
-/**
- * Confirmation Modal - extends base Modal with OK/Cancel buttons
- */
+/** Confirmation modal with OK/Cancel buttons. */
 export class ConfirmModal extends Modal {
     constructor(modalId, options = {}) {
         super(modalId, {

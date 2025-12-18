@@ -1,9 +1,3 @@
-/**
- * Application Constants
- * Centralized location for all magic numbers and configuration values
- */
-
-// Zoom Configuration
 export const ZOOM = {
     MIN: 0.1,           // Minimum zoom level (10%)
     MAX: 3.0,           // Maximum zoom level (300%)

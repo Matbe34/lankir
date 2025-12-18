@@ -1,17 +1,6 @@
-/**
- * Message Dialog Module
- * Provides custom styled message dialogs instead of native browser alerts
- */
-
 let currentResolve = null;
 
-/**
- * Show a message dialog (replacement for alert)
- * @param {string} message - Message to display
- * @param {string} title - Dialog title (default: 'Message')
- * @param {string} type - Type of message: 'info', 'success', 'error', 'warning' (default: 'info')
- * @returns {Promise<void>}
- */
+/** Shows a message dialog with title, message, and type icon. */
 export function showMessage(message, title = 'Message', type = 'info') {
     return new Promise((resolve) => {
         const dialog = document.getElementById('messageDialog');
@@ -62,12 +51,7 @@ export function showMessage(message, title = 'Message', type = 'info') {
     });
 }
 
-/**
- * Show a confirmation dialog (replacement for confirm)
- * @param {string} message - Message to display
- * @param {string} title - Dialog title (default: 'Confirm')
- * @returns {Promise<boolean>} - True if user clicked OK/Yes, false if Cancel/No
- */
+/** Shows a confirmation dialog, returns true if confirmed. */
 export function showConfirm(message, title = 'Confirm') {
     return new Promise((resolve) => {
         const dialog = document.getElementById('messageDialog');
@@ -116,9 +100,7 @@ export function showConfirm(message, title = 'Confirm') {
     });
 }
 
-/**
- * Close the message dialog
- */
+/** Closes the message dialog. */
 function closeMessageDialog() {
     const dialog = document.getElementById('messageDialog');
     dialog.classList.add('hidden');
@@ -128,9 +110,7 @@ function closeMessageDialog() {
     }
 }
 
-/**
- * Initialize message dialog
- */
+/** Initializes message dialog event handlers. */
 export function initMessageDialog() {
     const dialog = document.getElementById('messageDialog');
     const closeBtn = document.getElementById('messageDialogClose');

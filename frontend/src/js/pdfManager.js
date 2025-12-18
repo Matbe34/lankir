@@ -1,5 +1,3 @@
-// PDF Tab and Document Management
-
 import { state, getActivePDF, getNextTabId, addOpenPDF, removeOpenPDF, setActiveTab, createPDFData } from './state.js';
 import { updateStatus, updatePageIndicator, updateScrollProgress, escapeHtml, sanitizeError } from './utils.js';
 import { showSidebars, hideSidebars } from './ui.js';
@@ -11,12 +9,7 @@ import { stateEmitter, StateEvents } from './eventEmitter.js';
 let tabSwitchInProgress = false;
 let pendingTabSwitch = null;
 
-/**
- * Create a new PDF tab
- * @param {string} filePath - Path to the PDF file
- * @param {Object} metadata - PDF metadata from backend
- * @returns {number} Tab ID
- */
+/** Creates a new tab for a PDF and returns its tab ID. */
 export function createPDFTab(filePath, metadata) {
     const tabId = getNextTabId();
     const pdfData = createPDFData(tabId, filePath, metadata);
@@ -74,10 +67,7 @@ export function createPDFTab(filePath, metadata) {
     return tabId;
 }
 
-/**
- * Switch to a different PDF tab
- * @param {number} tabId - ID of the tab to switch to
- */
+/** Switches to a different PDF tab by ID. */
 export async function switchToTab(tabId) {
     if (tabSwitchInProgress) {
         console.log(`Tab switch already in progress, queuing switch to ${tabId}`);
@@ -240,10 +230,7 @@ function restoreSidebarStates(pdfData) {
     }
 }
 
-/**
- * Close a PDF tab and clean up resources
- * @param {number} tabId - ID of the tab to close
- */
+/** Closes a PDF tab and cleans up resources. */
 export function closePDFTab(tabId) {
     const tab = document.querySelector(`[data-tab-id="${tabId}"]`);
     if (tab) {
