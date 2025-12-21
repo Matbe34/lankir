@@ -1,0 +1,70 @@
+/* Custom CSS for PDF App documentation */
+
+/* Screenshot styling */
+.screenshot-hero {
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    margin: 1.5rem 0;
+}
+
+/* Make figures look nicer */
+figure {
+    margin: 1.5rem 0;
+}
+
+figure img {
+    border-radius: 6px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+}
+
+figcaption {
+    font-style: italic;
+    color: #888;
+    margin-top: 0.5rem;
+    text-align: center;
+}
+
+/* Note blocks for screenshot placeholders */
+.admonition.note {
+    border-left-color: #007acc;
+}
+
+/* Card styling improvements */
+.sd-card {
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.sd-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Code block improvements */
+.highlight {
+    border-radius: 6px;
+}
+
+/* Table improvements */
+table.docutils {
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+/* Keyboard shortcut styling */
+kbd {
+    background-color: #f7f7f7;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.2);
+    display: inline-block;
+    font-family: monospace;
+    font-size: 0.85em;
+    padding: 2px 6px;
+}
+
+/* Dark mode adjustments for kbd */
+.wy-body-for-nav kbd {
+    background-color: #3d3d3d;
+    border-color: #555;
+    color: #fff;
+}
