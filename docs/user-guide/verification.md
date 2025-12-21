@@ -1,6 +1,6 @@
 # Signature Verification
 
-PDF App can verify digital signatures in PDF documents to confirm their authenticity and integrity.
+Lankir can verify digital signatures in PDF documents to confirm their authenticity and integrity.
 
 ```{figure} ../_static/screenshots/verification-panel.png
 :alt: Signature verification results
@@ -16,7 +16,7 @@ PDF App can verify digital signatures in PDF documents to confirm their authenti
 
 ## Verification Overview
 
-When verifying a signature, PDF App checks:
+When verifying a signature, Lankir checks:
 
 1. **Cryptographic validity** - The signature mathematically matches the document
 2. **Document integrity** - The document hasn't been modified since signing
@@ -34,16 +34,16 @@ When verifying a signature, PDF App checks:
 ### Via CLI
 
 ```bash
-pdf-app sign verify document.pdf
+lankir sign verify document.pdf
 
 # JSON output for scripting
-pdf-app sign verify document.pdf --json
+lankir sign verify document.pdf --json
 ```
 
 ### Verification Output
 
 ```bash
-pdf-app sign verify contract_signed.pdf
+lankir sign verify contract_signed.pdf
 
 # Output:
 Signature Verification Results:
@@ -167,7 +167,7 @@ The signing time comes from the signer's system clock unless a timestamp authori
 PDFs can have multiple signatures. Each is verified independently:
 
 ```bash
-pdf-app sign verify multi_signed.pdf
+lankir sign verify multi_signed.pdf
 
 # Output:
 Signature Verification Results:
@@ -191,7 +191,7 @@ Overall: All 2 signatures are valid
 
 ```bash
 # Returns exit code 0 if signed, 1 if not
-pdf-app sign verify document.pdf > /dev/null 2>&1
+lankir sign verify document.pdf > /dev/null 2>&1
 if [ $? -eq 0 ]; then
     echo "Document is signed"
 fi
@@ -201,10 +201,10 @@ fi
 
 ```bash
 # Get signer name
-pdf-app sign verify document.pdf --json | jq '.[0].signerName'
+lankir sign verify document.pdf --json | jq '.[0].signerName'
 
 # Check if all signatures valid
-pdf-app sign verify document.pdf --json | jq 'all(.isValid)'
+lankir sign verify document.pdf --json | jq 'all(.isValid)'
 ```
 
 ### Batch Verification
@@ -212,7 +212,7 @@ pdf-app sign verify document.pdf --json | jq 'all(.isValid)'
 ```bash
 #!/bin/bash
 for pdf in *.pdf; do
-    result=$(pdf-app sign verify "$pdf" --json 2>/dev/null)
+    result=$(lankir sign verify "$pdf" --json 2>/dev/null)
     if [ -n "$result" ]; then
         valid=$(echo "$result" | jq 'all(.isValid)')
         echo "$pdf: signatures valid = $valid"
@@ -224,7 +224,7 @@ done
 
 ## Trust Store
 
-PDF App uses the system's trust store for certificate validation:
+Lankir uses the system's trust store for certificate validation:
 - `/etc/ssl/certs/ca-certificates.crt` (Debian/Ubuntu)
 - `/etc/pki/tls/certs/ca-bundle.crt` (Fedora/RHEL)
 

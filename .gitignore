@@ -45,9 +45,8 @@ Thumbs.db
 samples/
 
 # Application binaries
-pdf_app
-pdf-app
-pdf-app-*
+lankir
+lankir-*
 
 # C library build artifacts
 go-fitz-include

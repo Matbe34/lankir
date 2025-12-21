@@ -1,7 +1,7 @@
 version: '3'
 
 vars:
-  BINARY_NAME: pdf_app
+  BINARY_NAME: lankir
   BUILD_DIR: build/bin
   FRONTEND_DIR: frontend
 
@@ -41,7 +41,7 @@ tasks:
       - echo "Cleaning build artifacts..."
       - rm -rf {{.BUILD_DIR}}
       - rm -rf build/
-      - rm -f pdf_app pdf-app pdf-app-*
+      - rm -f lankir lankir-*
       - rm -f {{.FRONTEND_DIR}}/dist/style.css
       - echo "✓ Clean complete"
 
@@ -51,7 +51,7 @@ tasks:
       - echo "Performing deep clean..."
       - rm -rf {{.BUILD_DIR}}
       - rm -rf build/
-      - rm -f pdf_app pdf-app pdf-app-*
+      - rm -f lankir lankir-*
       - rm -rf {{.FRONTEND_DIR}}/dist/
       - rm -rf {{.FRONTEND_DIR}}/wailsjs/
       - rm -rf {{.FRONTEND_DIR}}/node_modules/.cache/

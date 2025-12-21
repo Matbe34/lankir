@@ -1,6 +1,6 @@
 # Installation
 
-This guide covers installing PDF App on Linux systems.
+This guide covers installing Lankir on Linux systems.
 
 ## System Requirements
 
@@ -24,19 +24,19 @@ The AppImage is fully self-contained and works on any Linux distribution:
 
 ```bash
 # Download the latest release
-wget https://github.com/ferran/pdf_app/releases/latest/download/pdf-app-x86_64.AppImage
+wget https://github.com/ferran/lankir/releases/latest/download/lankir-x86_64.AppImage
 
 # Make executable
-chmod +x pdf-app-x86_64.AppImage
+chmod +x lankir-x86_64.AppImage
 
 # Run
-./pdf-app-x86_64.AppImage
+./lankir-x86_64.AppImage
 ```
 
 :::{tip}
-Move the AppImage to `~/.local/bin/` and rename it to `pdf-app` for easy access:
+Move the AppImage to `~/.local/bin/` and rename it to `lankir` for easy access:
 ```bash
-mv pdf-app-x86_64.AppImage ~/.local/bin/pdf-app
+mv lankir-x86_64.AppImage ~/.local/bin/lankir
 ```
 :::
 
@@ -46,17 +46,17 @@ See the [Development Setup](../development/setup.md) guide for building from sou
 
 ## Verifying Installation
 
-After installation, verify PDF App is working:
+After installation, verify Lankir is working:
 
 ```bash
 # Check version
-pdf-app --version
+lankir --version
 
 # View help
-pdf-app --help
+lankir --help
 
 # Launch GUI (no arguments)
-pdf-app
+lankir
 ```
 
 ## Hardware Token Setup
@@ -88,7 +88,7 @@ pdf-app
 
 ### PKCS#11 Modules
 
-PDF App automatically detects common PKCS#11 modules:
+Lankir automatically detects common PKCS#11 modules:
 
 | Module | Path | Use Case |
 |--------|------|----------|

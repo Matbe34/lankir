@@ -10,7 +10,7 @@ import (
 var guiCmd = &cobra.Command{
 	Use:   "gui",
 	Short: "Launch the graphical user interface",
-	Long:  `Launch the PDF App graphical user interface (GUI).`,
+	Long:  `Launch the Lankir graphical user interface (GUI).`,
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("Launching GUI...")
 		if guiFunc != nil {

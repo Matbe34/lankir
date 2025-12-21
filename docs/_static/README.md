@@ -1,6 +1,6 @@
 # Static Assets
 
-This directory holds static files for the PDF App documentation.
+This directory holds static files for the Lankir documentation.
 
 ## Required Assets
 
@@ -135,7 +135,7 @@ _static/
 ## License
 
 All assets in this directory should be:
-- Created specifically for PDF App, OR
+- Created specifically for Lankir, OR
 - Licensed under a compatible open-source license (CC0, CC-BY, MIT, etc.)
 
 Do not include copyrighted images without proper licensing.

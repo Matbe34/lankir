@@ -2,19 +2,19 @@
 
 ## General
 
-### What is PDF App?
+### What is Lankir?
 
-PDF App is a desktop PDF viewer and signing tool for Linux. It supports viewing PDFs and signing them with digital certificates from various sources including hardware tokens (smart cards), certificate files, and browser certificate stores.
+Lankir is a desktop PDF viewer and signing tool for Linux. It supports viewing PDFs and signing them with digital certificates from various sources including hardware tokens (smart cards), certificate files, and browser certificate stores.
 
-### Is PDF App free?
+### Is Lankir free?
 
-Yes, PDF App is open source and free to use.
+Yes, Lankir is open source and free to use.
 
 ### What operating systems are supported?
 
-Currently, PDF App supports **Linux only** (x86_64). Support for macOS and Windows may be added in future versions.
+Currently, Lankir supports **Linux only** (x86_64). Support for macOS and Windows may be added in future versions.
 
-### Does PDF App require an internet connection?
+### Does Lankir require an internet connection?
 
 No. All core functionality works offline. The only feature that uses the network is optional geolocation for signature location metadata.
 
@@ -32,7 +32,7 @@ No. All core functionality works offline. The only feature that uses the network
 
 ### Can I edit PDFs?
 
-PDF App is primarily a viewer and signing tool. Full PDF editing (text modification, page manipulation) is not currently supported.
+Lankir is primarily a viewer and signing tool. Full PDF editing (text modification, page manipulation) is not currently supported.
 
 ### Why are some PDFs slow to render?
 
@@ -94,7 +94,7 @@ Any token with a PKCS#11 driver should work, including:
 1. Install PC/SC daemon: `sudo apt install pcscd`
 2. Start the service: `sudo systemctl enable --now pcscd`
 3. Insert your smart card
-4. Run `pdf-app cert list` to see certificates
+4. Run `lankir cert list` to see certificates
 
 ### Why isn't my token detected?
 
@@ -137,12 +137,12 @@ openssl pkcs12 -export \
 
 Depends on how they were created. Check validity with:
 ```bash
-pdf-app cert list | grep -A3 "Valid"
+lankir cert list | grep -A3 "Valid"
 ```
 
 ### Can I use my browser's certificates?
 
-Yes! PDF App reads from Firefox and Chrome NSS databases automatically.
+Yes! Lankir reads from Firefox and Chrome NSS databases automatically.
 
 ---
 
@@ -153,7 +153,7 @@ Yes! PDF App reads from Firefox and Chrome NSS databases automatically.
 Yes, the CLI supports batch operations:
 ```bash
 for pdf in *.pdf; do
-    pdf-app sign pdf "$pdf" "signed_$pdf" --cert ABC123... --pin "$PIN"
+    lankir sign pdf "$pdf" "signed_$pdf" --cert ABC123... --pin "$PIN"
 done
 ```
 
@@ -161,8 +161,8 @@ done
 
 Add `--json` to most commands:
 ```bash
-pdf-app cert list --json
-pdf-app sign verify document.pdf --json
+lankir cert list --json
+lankir sign verify document.pdf --json
 ```
 
 ### What's the exit code for verification?
@@ -176,7 +176,7 @@ pdf-app sign verify document.pdf --json
 
 ### The app won't start
 
-1. Make AppImage executable: `chmod +x pdf-app-*.AppImage`
+1. Make AppImage executable: `chmod +x lankir-*.AppImage`
 2. Install FUSE: `sudo apt install libfuse2`
 3. Check GTK3: `sudo apt install libgtk-3-0`
 
@@ -184,15 +184,15 @@ pdf-app sign verify document.pdf --json
 
 Enable debug mode:
 ```bash
-pdf-app --verbose sign pdf doc.pdf out.pdf --cert ABC123...
+lankir --verbose sign pdf doc.pdf out.pdf --cert ABC123...
 ```
 
 ### How do I reset all settings?
 
 ```bash
-pdf-app config reset
+lankir config reset
 # Or delete the config directory
-rm -rf ~/.config/pdf_app/
+rm -rf ~/.config/lankir/
 ```
 
 ---
@@ -207,7 +207,7 @@ Yes! See the [Contributing Guide](../development/contributing.md).
 
 See the [Development Setup](../development/setup.md) guide.
 
-### What technologies does PDF App use?
+### What technologies does Lankir use?
 
 - **Backend**: Go, Wails v2, MuPDF
 - **Frontend**: Vanilla JavaScript, Tailwind CSS
@@ -226,7 +226,7 @@ See the [Development Setup](../development/setup.md) guide.
 
 ### Is the source code audited?
 
-PDF App is open source. Community review is welcome, but no formal security audit has been conducted.
+Lankir is open source. Community review is welcome, but no formal security audit has been conducted.
 
 ### How are PINs handled?
 

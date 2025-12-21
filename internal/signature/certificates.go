@@ -6,11 +6,11 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/ferran/pdf_app/internal/signature/certutil"
-	"github.com/ferran/pdf_app/internal/signature/nss"
-	"github.com/ferran/pdf_app/internal/signature/pkcs11"
-	"github.com/ferran/pdf_app/internal/signature/pkcs12"
-	"github.com/ferran/pdf_app/internal/signature/types"
+	"github.com/ferran/lankir/internal/signature/certutil"
+	"github.com/ferran/lankir/internal/signature/nss"
+	"github.com/ferran/lankir/internal/signature/pkcs11"
+	"github.com/ferran/lankir/internal/signature/pkcs12"
+	"github.com/ferran/lankir/internal/signature/types"
 )
 
 // CertificateFilter defines criteria for filtering certificates

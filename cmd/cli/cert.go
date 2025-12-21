@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/ferran/pdf_app/internal/config"
-	"github.com/ferran/pdf_app/internal/signature"
-	"github.com/ferran/pdf_app/internal/signature/types"
+	"github.com/ferran/lankir/internal/config"
+	"github.com/ferran/lankir/internal/signature"
+	"github.com/ferran/lankir/internal/signature/types"
 	"github.com/spf13/cobra"
 )
 

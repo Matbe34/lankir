@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/ferran/pdf_app/internal/config"
+	"github.com/ferran/lankir/internal/config"
 	"github.com/google/uuid"
 )
 

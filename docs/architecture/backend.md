@@ -230,7 +230,7 @@ type SignatureProfile struct {
 }
 ```
 
-Profiles stored as JSON in `~/.config/pdf_app/signature_profiles/`.
+Profiles stored as JSON in `~/.config/lankir/signature_profiles/`.
 
 ## Thread Safety
 

@@ -1,6 +1,6 @@
 # Troubleshooting
 
-Common issues and solutions for PDF App.
+Common issues and solutions for Lankir.
 
 ## Installation Issues
 
@@ -12,7 +12,7 @@ Common issues and solutions for PDF App.
 
 1. Make it executable:
    ```bash
-   chmod +x pdf-app-*.AppImage
+   chmod +x lankir-*.AppImage
    ```
 
 2. Install FUSE (required for AppImages):
@@ -23,7 +23,7 @@ Common issues and solutions for PDF App.
 
 3. Run from terminal to see errors:
    ```bash
-   ./pdf-app-*.AppImage
+   ./lankir-*.AppImage
    ```
 
 ### Missing Libraries
@@ -52,9 +52,9 @@ sudo apt install libwebkit2gtk-4.0-37
 
 1. **No certificate stores configured**
    ```bash
-   pdf-app config get certificateStores
+   lankir config get certificateStores
    # If empty, add paths:
-   # Edit ~/.config/pdf_app/config.json
+   # Edit ~/.config/lankir/config.json
    ```
 
 2. **Certificate files not in expected location**
@@ -79,7 +79,7 @@ sudo apt install libwebkit2gtk-4.0-37
 **Solution:** 
 ```bash
 # Check certificate capabilities
-pdf-app cert list | grep -A5 "Name: YourCert"
+lankir cert list | grep -A5 "Name: YourCert"
 # Look for "Can Sign: true"
 
 # Or with openssl
@@ -117,7 +117,7 @@ openssl x509 -in cert.pem -text | grep -A2 "Key Usage"
 
 3. **Check module path:**
    ```bash
-   pdf-app config get tokenLibraries
+   lankir config get tokenLibraries
    ls -la /usr/lib/x86_64-linux-gnu/pkcs11/
    ```
 
@@ -127,7 +127,7 @@ openssl x509 -in cert.pem -text | grep -A2 "Key Usage"
 
 **Enable debug mode for details:**
 ```bash
-pdf-app --verbose sign pdf input.pdf output.pdf --cert ABC123...
+lankir --verbose sign pdf input.pdf output.pdf --cert ABC123...
 ```
 
 ### "Certificate does not have associated file path"
@@ -178,7 +178,7 @@ pdf-app --verbose sign pdf input.pdf output.pdf --cert ABC123...
 
 2. **Disable hardware acceleration:**
    ```bash
-   pdf-app config set hardwareAccel false
+   lankir config set hardwareAccel false
    ```
 
 3. **Check system resources:**
@@ -206,13 +206,13 @@ pdf-app --verbose sign pdf input.pdf output.pdf --cert ABC123...
 **Solution:** Reset configuration:
 ```bash
 # Backup current (if needed)
-cp ~/.config/pdf_app/config.json ~/.config/pdf_app/config.json.bak
+cp ~/.config/lankir/config.json ~/.config/lankir/config.json.bak
 
 # Delete and let app recreate
-rm ~/.config/pdf_app/config.json
+rm ~/.config/lankir/config.json
 
 # Or reset via CLI
-pdf-app config reset
+lankir config reset
 ```
 
 ### Settings Not Persisting
@@ -222,7 +222,7 @@ pdf-app config reset
 **Check:**
 ```bash
 # Verify directory permissions
-ls -la ~/.config/pdf_app/
+ls -la ~/.config/lankir/
 
 # Check disk space
 df -h ~
@@ -257,13 +257,13 @@ Enable detailed logging:
 
 ```bash
 # Via config
-pdf-app config set debugMode true
+lankir config set debugMode true
 
 # Via command line
-pdf-app --verbose <command>
+lankir --verbose <command>
 
 # Via environment
-PDF_APP_DEBUG=1 pdf-app
+LANKIR_DEBUG=1 lankir
 ```
 
 ## Getting Help
@@ -276,13 +276,13 @@ uname -a
 cat /etc/os-release
 
 # App info
-pdf-app --version
+lankir --version
 
 # Configuration
-pdf-app config get --json
+lankir config get --json
 
 # Certificate sources
-pdf-app cert list --json 2>&1 | head -50
+lankir cert list --json 2>&1 | head -50
 ```
 
 ### Reporting Issues
@@ -290,7 +290,7 @@ pdf-app cert list --json 2>&1 | head -50
 When opening a GitHub issue, include:
 
 1. **OS and version** (Ubuntu 22.04, Fedora 39, etc.)
-2. **PDF App version** (`pdf-app --version`)
+2. **Lankir version** (`lankir --version`)
 3. **Steps to reproduce**
 4. **Expected behavior**
 5. **Actual behavior**

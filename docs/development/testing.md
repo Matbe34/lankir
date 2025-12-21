@@ -1,6 +1,6 @@
 # Testing
 
-PDF App uses Go's standard testing package for backend tests and Vitest for frontend tests.
+Lankir uses Go's standard testing package for backend tests and Vitest for frontend tests.
 
 ## Running Tests
 

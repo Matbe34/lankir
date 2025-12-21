@@ -10,8 +10,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/ferran/pdf_app/internal/signature/certutil"
-	"github.com/ferran/pdf_app/internal/signature/types"
+	"github.com/ferran/lankir/internal/signature/certutil"
+	"github.com/ferran/lankir/internal/signature/types"
 	goPkcs12 "software.sslmate.com/src/go-pkcs12"
 )
 

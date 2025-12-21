@@ -1,10 +1,10 @@
 # Configuration Reference
 
-Complete reference for PDF App configuration options.
+Complete reference for Lankir configuration options.
 
 ## Configuration File
 
-**Location:** `~/.config/pdf_app/config.json`
+**Location:** `~/.config/lankir/config.json`
 
 ## Settings
 
@@ -17,7 +17,7 @@ Complete reference for PDF App configuration options.
 - **Description:** Application color theme
 
 ```bash
-pdf-app config set theme light
+lankir config set theme light
 ```
 
 #### `accentColor`
@@ -27,7 +27,7 @@ pdf-app config set theme light
 - **Description:** Primary accent color for UI elements
 
 ```bash
-pdf-app config set accentColor "#ff6600"
+lankir config set accentColor "#ff6600"
 ```
 
 ### Viewer
@@ -39,7 +39,7 @@ pdf-app config set accentColor "#ff6600"
 - **Description:** Initial zoom percentage when opening PDFs
 
 ```bash
-pdf-app config set defaultZoom 150
+lankir config set defaultZoom 150
 ```
 
 #### `showLeftSidebar`
@@ -48,7 +48,7 @@ pdf-app config set defaultZoom 150
 - **Description:** Show thumbnail sidebar on startup
 
 ```bash
-pdf-app config set showLeftSidebar false
+lankir config set showLeftSidebar false
 ```
 
 #### `showRightSidebar`
@@ -57,7 +57,7 @@ pdf-app config set showLeftSidebar false
 - **Description:** Show properties sidebar on startup
 
 ```bash
-pdf-app config set showRightSidebar true
+lankir config set showRightSidebar true
 ```
 
 #### `defaultViewMode`
@@ -72,7 +72,7 @@ pdf-app config set showRightSidebar true
 | `single` | One page at a time |
 
 ```bash
-pdf-app config set defaultViewMode single
+lankir config set defaultViewMode single
 ```
 
 ### Files
@@ -84,7 +84,7 @@ pdf-app config set defaultViewMode single
 - **Description:** Number of recent files to remember
 
 ```bash
-pdf-app config set recentFilesLength 10
+lankir config set recentFilesLength 10
 ```
 
 #### `autosaveInterval`
@@ -94,7 +94,7 @@ pdf-app config set recentFilesLength 10
 - **Description:** Auto-save interval (0 = disabled)
 
 ```bash
-pdf-app config set autosaveInterval 300  # 5 minutes
+lankir config set autosaveInterval 300  # 5 minutes
 ```
 
 ### Certificates
@@ -154,7 +154,7 @@ pdf-app config set autosaveInterval 300  # 5 minutes
 - **Description:** Enable debug logging
 
 ```bash
-pdf-app config set debugMode true
+lankir config set debugMode true
 ```
 
 #### `hardwareAccel`
@@ -164,7 +164,7 @@ pdf-app config set debugMode true
 
 Disable if experiencing graphics issues:
 ```bash
-pdf-app config set hardwareAccel false
+lankir config set hardwareAccel false
 ```
 
 ## Complete Example
@@ -196,44 +196,44 @@ pdf-app config set hardwareAccel false
 
 | Variable | Description |
 |----------|-------------|
-| `PDF_APP_CONFIG_DIR` | Override configuration directory |
-| `PDF_APP_DEBUG` | Enable debug mode (`1` or `true`) |
+| `LANKIR_CONFIG_DIR` | Override configuration directory |
+| `LANKIR_DEBUG` | Enable debug mode (`1` or `true`) |
 
 ### Example
 
 ```bash
 # Use custom config directory
-PDF_APP_CONFIG_DIR=/tmp/pdf-app-test pdf-app config get
+LANKIR_CONFIG_DIR=/tmp/lankir-test lankir config get
 
 # Enable debug for one session
-PDF_APP_DEBUG=1 pdf-app cert list
+LANKIR_DEBUG=1 lankir cert list
 ```
 
 ## Related Files
 
 | File | Purpose |
 |------|---------|
-| `~/.config/pdf_app/config.json` | Main configuration |
-| `~/.config/pdf_app/recent_files.json` | Recent file history |
-| `~/.config/pdf_app/signature_profiles/` | Signature profiles |
+| `~/.config/lankir/config.json` | Main configuration |
+| `~/.config/lankir/recent_files.json` | Recent file history |
+| `~/.config/lankir/signature_profiles/` | Signature profiles |
 
 ## CLI Commands
 
 ```bash
 # View all settings
-pdf-app config get
+lankir config get
 
 # View specific setting
-pdf-app config get theme
+lankir config get theme
 
 # Set a value
-pdf-app config set theme dark
+lankir config set theme dark
 
 # Reset to defaults
-pdf-app config reset
+lankir config reset
 
 # JSON output
-pdf-app config get --json
+lankir config get --json
 ```
 
 ## Backup and Restore
@@ -241,21 +241,21 @@ pdf-app config get --json
 ### Backup
 
 ```bash
-cp ~/.config/pdf_app/config.json ~/config-backup.json
+cp ~/.config/lankir/config.json ~/config-backup.json
 ```
 
 ### Restore
 
 ```bash
-cp ~/config-backup.json ~/.config/pdf_app/config.json
+cp ~/config-backup.json ~/.config/lankir/config.json
 ```
 
 ### Export/Import
 
 ```bash
 # Export
-pdf-app config get --json > pdf-app-settings.json
+lankir config get --json > lankir-settings.json
 
 # Import (replace file)
-cp pdf-app-settings.json ~/.config/pdf_app/config.json
+cp lankir-settings.json ~/.config/lankir/config.json
 ```

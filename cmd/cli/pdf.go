@@ -7,7 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/ferran/pdf_app/internal/pdf"
+	"github.com/ferran/lankir/internal/pdf"
 	"github.com/spf13/cobra"
 )
 

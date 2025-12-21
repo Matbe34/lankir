@@ -1,15 +1,15 @@
-# PDF App Documentation
+# Lankir Documentation
 
 **A powerful desktop PDF viewer and digital signature tool for Linux.**
 
 Sign PDFs with hardware tokens (PKCS#11), certificate files (PKCS#12), and browser certificate stores (NSS). Works as both a GUI application and CLI tool from a single binary.
 
 ```{figure} _static/screenshot.png
-:alt: PDF App main interface showing PDF viewer with signature panel
+:alt: Lankir main interface showing PDF viewer with signature panel
 :width: 100%
 :class: screenshot-hero
 
-*PDF App main interface with document viewer and signature capabilities*
+*Lankir main interface with document viewer and signature capabilities*
 ```
 
 ```{note}
@@ -52,7 +52,7 @@ Same binary works as GUI application or powerful CLI tool. Automate signing work
 :link: getting-started/installation
 :link-type: doc
 
-Download and install PDF App on your Linux system.
+Download and install Lankir on your Linux system.
 :::
 
 :::{grid-item-card} 📖 First Steps
@@ -168,7 +168,7 @@ reference/faq
 
 ## License
 
-PDF App is open source software. See the [LICENSE](https://github.com/ferran/pdf_app/blob/main/LICENSE) file for details.
+Lankir is open source software. See the [LICENSE](https://github.com/ferran/lankir/blob/main/LICENSE) file for details.
 
 ---
 

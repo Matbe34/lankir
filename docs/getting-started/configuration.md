@@ -1,6 +1,6 @@
 # Configuration
 
-PDF App stores all configuration in `~/.config/pdf_app/`.
+Lankir stores all configuration in `~/.config/lankir/`.
 
 ```{figure} ../_static/screenshots/settings-panel.png
 :alt: Settings panel
@@ -33,10 +33,10 @@ PDF App stores all configuration in `~/.config/pdf_app/`.
 
 ```bash
 # Change theme
-pdf-app config set theme light
+lankir config set theme light
 
 # Set accent color
-pdf-app config set accentColor "#ff6600"
+lankir config set accentColor "#ff6600"
 ```
 
 ### Viewer
@@ -50,10 +50,10 @@ pdf-app config set accentColor "#ff6600"
 
 ```bash
 # Set default zoom to 150%
-pdf-app config set defaultZoom 150
+lankir config set defaultZoom 150
 
 # Change view mode
-pdf-app config set defaultViewMode single
+lankir config set defaultViewMode single
 ```
 
 ### Files
@@ -72,7 +72,7 @@ pdf-app config set defaultViewMode single
 
 #### Certificate Stores
 
-Directories where PDF App looks for `.p12`/`.pfx` certificate files:
+Directories where Lankir looks for `.p12`/`.pfx` certificate files:
 
 ```json
 {
@@ -87,7 +87,7 @@ Directories where PDF App looks for `.p12`/`.pfx` certificate files:
 Add a custom certificate directory:
 ```bash
 # Note: Directories must be absolute paths within home or system cert dirs
-pdf-app config set certificateStores '["/home/user/my-certs"]'
+lankir config set certificateStores '["/home/user/my-certs"]'
 ```
 
 #### Token Libraries
@@ -112,23 +112,23 @@ PKCS#11 shared library paths for hardware tokens:
 
 ```bash
 # Enable debug mode
-pdf-app config set debugMode true
+lankir config set debugMode true
 
 # Disable hardware acceleration (for troubleshooting)
-pdf-app config set hardwareAccel false
+lankir config set hardwareAccel false
 ```
 
 ## Viewing Configuration
 
 ```bash
 # Show all settings
-pdf-app config get
+lankir config get
 
 # Show specific setting
-pdf-app config get theme
+lankir config get theme
 
 # JSON output (for scripting)
-pdf-app config get --json
+lankir config get --json
 ```
 
 ## Resetting Configuration
@@ -136,31 +136,31 @@ pdf-app config get --json
 To reset all settings to defaults:
 
 ```bash
-pdf-app config reset
+lankir config reset
 ```
 
 Or manually delete the config file:
 
 ```bash
-rm ~/.config/pdf_app/config.json
+rm ~/.config/lankir/config.json
 ```
 
 ## Environment Variables
 
 | Variable | Description |
 |----------|-------------|
-| `PDF_APP_CONFIG_DIR` | Override config directory |
-| `PDF_APP_DEBUG` | Enable debug output (`1` or `true`) |
+| `LANKIR_CONFIG_DIR` | Override config directory |
+| `LANKIR_DEBUG` | Enable debug output (`1` or `true`) |
 
 ## Configuration Locations
 
-PDF App follows the XDG Base Directory Specification:
+Lankir follows the XDG Base Directory Specification:
 
 | Data Type | Location |
 |-----------|----------|
-| Config | `~/.config/pdf_app/` |
-| Cache | `~/.cache/pdf_app/` |
-| Data | `~/.local/share/pdf_app/` |
+| Config | `~/.config/lankir/` |
+| Cache | `~/.cache/lankir/` |
+| Data | `~/.local/share/lankir/` |
 
 ## Next Steps
 

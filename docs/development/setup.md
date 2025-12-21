@@ -1,6 +1,6 @@
 # Development Setup
 
-Set up your development environment for PDF App.
+Set up your development environment for Lankir.
 
 ## Prerequisites
 
@@ -99,8 +99,8 @@ sudo apt install nodejs npm
 
 ```bash
 # Clone repository
-git clone https://github.com/ferran/pdf_app.git
-cd pdf_app
+git clone https://github.com/ferran/lankir.git
+cd lankir
 
 # Install frontend dependencies
 cd frontend && npm install && cd ..
@@ -148,7 +148,7 @@ This will:
 ## Project Structure
 
 ```
-pdf_app/
+lankir/
 ├── main.go              # Entry point
 ├── app.go               # Wails app wrapper
 ├── go.mod               # Go dependencies

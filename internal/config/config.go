@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/ferran/pdf_app/internal/signature/pkcs11"
-	"github.com/ferran/pdf_app/internal/signature/pkcs12"
+	"github.com/ferran/lankir/internal/signature/pkcs11"
+	"github.com/ferran/lankir/internal/signature/pkcs12"
 )
 
 // Config holds all application settings persisted to disk.
@@ -51,7 +51,7 @@ func NewService() (*Service, error) {
 		return nil, fmt.Errorf("failed to get user home directory: %w", err)
 	}
 
-	configDir := filepath.Join(homeDir, ".config", "pdf_app")
+	configDir := filepath.Join(homeDir, ".config", "lankir")
 	return NewServiceWithDir(configDir)
 }
 

@@ -23,7 +23,7 @@ A signature profile controls:
 
 ## Built-in Profiles
 
-PDF App includes two default profiles:
+Lankir includes two default profiles:
 
 ### Invisible Signature
 - **ID**: `00000000-0000-0000-0000-000000000001`
@@ -39,10 +39,10 @@ PDF App includes two default profiles:
 ## Listing Profiles
 
 ```bash
-pdf-app sign profiles list
+lankir sign profiles list
 
 # JSON output
-pdf-app sign profiles list --json
+lankir sign profiles list --json
 ```
 
 ## Using Profiles
@@ -58,15 +58,15 @@ pdf-app sign profiles list --json
 
 ```bash
 # Use default profile (invisible)
-pdf-app sign pdf doc.pdf out.pdf --cert ABC123...
+lankir sign pdf doc.pdf out.pdf --cert ABC123...
 
 # Use visible signature profile
-pdf-app sign pdf doc.pdf out.pdf \
+lankir sign pdf doc.pdf out.pdf \
     --cert ABC123... \
     --profile "00000000-0000-0000-0000-000000000002"
 
 # Override position for visible signature
-pdf-app sign pdf doc.pdf out.pdf \
+lankir sign pdf doc.pdf out.pdf \
     --cert ABC123... \
     --visible \
     --page 1 \
@@ -113,7 +113,7 @@ PDF coordinates start from the bottom-left corner. 1 inch = 72 points.
 
 Profiles are stored as JSON files in:
 ```
-~/.config/pdf_app/signature_profiles/
+~/.config/lankir/signature_profiles/
 ```
 
 Each profile is a separate file named `{uuid}.json`.
@@ -162,10 +162,10 @@ Each profile is a separate file named `{uuid}.json`.
 
 ### Via File
 
-Create a JSON file in `~/.config/pdf_app/signature_profiles/`:
+Create a JSON file in `~/.config/lankir/signature_profiles/`:
 
 ```bash
-cat > ~/.config/pdf_app/signature_profiles/my-profile.json << 'EOF'
+cat > ~/.config/lankir/signature_profiles/my-profile.json << 'EOF'
 {
   "id": "$(uuidgen)",
   "name": "My Custom Profile",
@@ -276,14 +276,14 @@ For multi-page documents signed by the same organization:
 
 Check profiles directory exists:
 ```bash
-ls -la ~/.config/pdf_app/signature_profiles/
+ls -la ~/.config/lankir/signature_profiles/
 ```
 
 ### Invalid Profile
 
 Validate JSON syntax:
 ```bash
-python3 -m json.tool ~/.config/pdf_app/signature_profiles/my-profile.json
+python3 -m json.tool ~/.config/lankir/signature_profiles/my-profile.json
 ```
 
 Required fields:

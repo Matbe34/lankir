@@ -1,6 +1,6 @@
-# PDF App Documentation
+# Lankir Documentation
 
-This directory contains the source files for PDF App's documentation, built with [Sphinx](https://www.sphinx-doc.org/) and hosted on [Read the Docs](https://readthedocs.org/).
+This directory contains the source files for Lankir's documentation, built with [Sphinx](https://www.sphinx-doc.org/) and hosted on [Read the Docs](https://readthedocs.org/).
 
 ## Quick Start
 
@@ -176,7 +176,7 @@ The `.readthedocs.yaml` file in the project root configures RTD builds.
 1. Push documentation to GitHub
 2. Import project at [readthedocs.org/dashboard/import](https://readthedocs.org/dashboard/import/)
 3. Configure webhook for automatic builds
-4. Documentation will be available at `https://pdf-app.readthedocs.io/`
+4. Documentation will be available at `https://lankir.readthedocs.io/`
 
 ### Build Configuration
 

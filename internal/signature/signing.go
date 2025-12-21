@@ -11,10 +11,10 @@ import (
 	"time"
 
 	"github.com/digitorus/pdfsign/sign"
-	"github.com/ferran/pdf_app/internal/signature/nss"
-	"github.com/ferran/pdf_app/internal/signature/pkcs11"
-	"github.com/ferran/pdf_app/internal/signature/pkcs12"
-	"github.com/ferran/pdf_app/internal/signature/types"
+	"github.com/ferran/lankir/internal/signature/nss"
+	"github.com/ferran/lankir/internal/signature/pkcs11"
+	"github.com/ferran/lankir/internal/signature/pkcs12"
+	"github.com/ferran/lankir/internal/signature/types"
 	"github.com/google/uuid"
 )
 

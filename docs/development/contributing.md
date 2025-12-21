@@ -1,14 +1,14 @@
 # Contributing
 
-Thank you for your interest in contributing to PDF App!
+Thank you for your interest in contributing to Lankir!
 
 ## Getting Started
 
 1. **Fork the repository** on GitHub
 2. **Clone your fork**:
    ```bash
-   git clone https://github.com/YOUR_USERNAME/pdf_app.git
-   cd pdf_app
+   git clone https://github.com/YOUR_USERNAME/lankir.git
+   cd lankir
    ```
 3. **Set up development environment**: See [Development Setup](setup.md)
 4. **Create a branch**:
@@ -44,7 +44,7 @@ cd frontend && npm test
 task build
 
 # Test the built application
-./build/bin/pdf_app --help
+./build/bin/lankir --help
 ```
 
 ### 4. Commit Changes
@@ -216,4 +216,4 @@ Contributors are recognized in:
 - Release notes for significant contributions
 - README acknowledgments
 
-Thank you for contributing to PDF App! 🎉
+Thank you for contributing to Lankir! 🎉

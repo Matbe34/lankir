@@ -18,9 +18,9 @@ var (
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "pdf-app",
-	Short: "PDF App - A powerful PDF management tool",
-	Long: `PDF App is a comprehensive PDF management tool that supports:
+	Use:   "lankir",
+	Short: "Lankir - A powerful PDF management tool",
+	Long: `Lankir is a comprehensive PDF management tool that supports:
 - PDF viewing and rendering
 - Digital signatures with PKCS#11, PKCS#12, and NSS support
 - Certificate management

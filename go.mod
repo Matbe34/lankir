@@ -1,4 +1,4 @@
-module github.com/ferran/pdf_app
+module github.com/ferran/lankir
 
 go 1.24.0
 

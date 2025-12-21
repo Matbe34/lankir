@@ -1,14 +1,14 @@
 # CLI Overview
 
-PDF App provides a comprehensive command-line interface for automation and scripting.
+Lankir provides a comprehensive command-line interface for automation and scripting.
 
 ## Basic Usage
 
 ```bash
-pdf-app <command> [subcommand] [options] [arguments]
+lankir <command> [subcommand] [options] [arguments]
 ```
 
-When run without arguments, PDF App launches the GUI. With any arguments, it runs in CLI mode.
+When run without arguments, Lankir launches the GUI. With any arguments, it runs in CLI mode.
 
 ## Global Options
 
@@ -32,30 +32,30 @@ When run without arguments, PDF App launches the GUI. With any arguments, it run
 
 ```bash
 # View PDF information
-pdf-app pdf info document.pdf
+lankir pdf info document.pdf
 
 # List available certificates
-pdf-app cert list --valid-only
+lankir cert list --valid-only
 
 # Sign a PDF
-pdf-app sign pdf input.pdf output.pdf --cert ABC123...
+lankir sign pdf input.pdf output.pdf --cert ABC123...
 
 # Verify signatures
-pdf-app sign verify signed.pdf
+lankir sign verify signed.pdf
 
 # View configuration
-pdf-app config get
+lankir config get
 ```
 
 ## Getting Help
 
 ```bash
 # General help
-pdf-app --help
+lankir --help
 
 # Command-specific help
-pdf-app pdf --help
-pdf-app sign pdf --help
+lankir pdf --help
+lankir sign pdf --help
 ```
 
 ## Exit Codes
@@ -71,7 +71,7 @@ pdf-app sign pdf --help
 ### Human-Readable (Default)
 
 ```bash
-pdf-app pdf info document.pdf
+lankir pdf info document.pdf
 
 # Output:
 PDF Information:
@@ -83,7 +83,7 @@ PDF Information:
 ### JSON
 
 ```bash
-pdf-app pdf info document.pdf --json
+lankir pdf info document.pdf --json
 
 # Output:
 {
@@ -98,7 +98,7 @@ pdf-app pdf info document.pdf --json
 Enable detailed logging for debugging:
 
 ```bash
-pdf-app --verbose sign pdf doc.pdf out.pdf --cert ABC123...
+lankir --verbose sign pdf doc.pdf out.pdf --cert ABC123...
 
 # Outputs debug information to stderr
 ```
@@ -110,13 +110,13 @@ pdf-app --verbose sign pdf doc.pdf out.pdf --cert ABC123...
 ```bash
 # Count pages in multiple PDFs
 for pdf in *.pdf; do
-    pages=$(pdf-app pdf info "$pdf" --json | jq '.pageCount')
+    pages=$(lankir pdf info "$pdf" --json | jq '.pageCount')
     echo "$pdf: $pages pages"
 done
 
 # Find signed PDFs
 for pdf in *.pdf; do
-    if pdf-app sign verify "$pdf" --json 2>/dev/null | jq -e '.[0]' > /dev/null; then
+    if lankir sign verify "$pdf" --json 2>/dev/null | jq -e '.[0]' > /dev/null; then
         echo "$pdf is signed"
     fi
 done
@@ -128,7 +128,7 @@ done
 #!/bin/bash
 set -e
 
-pdf-app sign pdf input.pdf output.pdf --cert "$CERT" || {
+lankir sign pdf input.pdf output.pdf --cert "$CERT" || {
     echo "Signing failed" >&2
     exit 1
 }
@@ -138,8 +138,8 @@ pdf-app sign pdf input.pdf output.pdf --cert "$CERT" || {
 
 | Variable | Description |
 |----------|-------------|
-| `PDF_APP_CONFIG_DIR` | Override config directory |
-| `PDF_APP_DEBUG` | Enable debug mode (`1` or `true`) |
+| `LANKIR_CONFIG_DIR` | Override config directory |
+| `LANKIR_DEBUG` | Enable debug mode (`1` or `true`) |
 
 ## Next Steps
 

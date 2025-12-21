@@ -1,6 +1,6 @@
 # Wails Integration
 
-PDF App uses Wails v2 to bridge the Go backend with the web-based frontend.
+Lankir uses Wails v2 to bridge the Go backend with the web-based frontend.
 
 ## How Wails Works
 
@@ -8,7 +8,7 @@ Wails embeds a WebView and runs Go code in the same process:
 
 ```
 ┌────────────────────────────────────────┐
-│              PDF App Process            │
+│              Lankir Process            │
 │  ┌──────────────┐  ┌────────────────┐  │
 │  │   Go Code    │  │    WebView     │  │
 │  │              │  │                │  │
@@ -30,7 +30,7 @@ Communication happens through:
 ```go
 // main.go
 err = wails.Run(&options.App{
-    Title:  "PDF App",
+    Title:  "Lankir",
     Width:  1400,
     Height: 900,
     

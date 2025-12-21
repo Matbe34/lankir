@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ferran/pdf_app/internal/signature/types"
+	"github.com/ferran/lankir/internal/signature/types"
 	"github.com/google/uuid"
 )
 

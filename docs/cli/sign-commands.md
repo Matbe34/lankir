@@ -7,7 +7,7 @@ Commands for signing PDFs and verifying signatures.
 Sign a PDF document with a digital certificate.
 
 ```bash
-pdf-app sign pdf <input-pdf> <output-pdf> [options]
+lankir sign pdf <input-pdf> <output-pdf> [options]
 ```
 
 ### Certificate Selection (one required)
@@ -45,16 +45,16 @@ pdf-app sign pdf <input-pdf> <output-pdf> [options]
 
 ```bash
 # Sign with certificate fingerprint (invisible signature)
-pdf-app sign pdf input.pdf output.pdf --fingerprint a1b2c3d4e5f6...
+lankir sign pdf input.pdf output.pdf --fingerprint a1b2c3d4e5f6...
 
 # Sign with PKCS#12 file
-pdf-app sign pdf input.pdf output.pdf --file ~/certs/mycert.p12 --pin "password"
+lankir sign pdf input.pdf output.pdf --file ~/certs/mycert.p12 --pin "password"
 
 # Sign by certificate name (searches)
-pdf-app sign pdf input.pdf output.pdf --name "John Doe"
+lankir sign pdf input.pdf output.pdf --name "John Doe"
 
 # Create visible signature
-pdf-app sign pdf input.pdf output.pdf \
+lankir sign pdf input.pdf output.pdf \
     --fingerprint a1b2c3d4... \
     --visible \
     --page 1 \
@@ -62,7 +62,7 @@ pdf-app sign pdf input.pdf output.pdf \
     --width 200 --height 80
 
 # Sign with specific profile
-pdf-app sign pdf input.pdf output.pdf \
+lankir sign pdf input.pdf output.pdf \
     --fingerprint a1b2c3d4... \
     --profile "00000000-0000-0000-0000-000000000002"
 ```
@@ -78,7 +78,7 @@ Successfully signed PDF: output.pdf
 Verify digital signatures in a PDF document.
 
 ```bash
-pdf-app sign verify <pdf-file> [options]
+lankir sign verify <pdf-file> [options]
 ```
 
 ### Options
@@ -91,7 +91,7 @@ pdf-app sign verify <pdf-file> [options]
 
 ```bash
 # Verify signatures
-pdf-app sign verify document.pdf
+lankir sign verify document.pdf
 
 # Output:
 Signature Verification Results:
@@ -106,7 +106,7 @@ Signature 1:
 Overall: Document has valid signatures
 
 # JSON output
-pdf-app sign verify document.pdf --json
+lankir sign verify document.pdf --json
 ```
 
 ### JSON Output
@@ -142,7 +142,7 @@ pdf-app sign verify document.pdf --json
 List available signature profiles.
 
 ```bash
-pdf-app sign profiles list [options]
+lankir sign profiles list [options]
 ```
 
 ### Options
@@ -154,7 +154,7 @@ pdf-app sign profiles list [options]
 ### Examples
 
 ```bash
-pdf-app sign profiles list
+lankir sign profiles list
 
 # Output:
 Available Signature Profiles:
@@ -191,7 +191,7 @@ mkdir -p "$OUTPUT_DIR"
 for pdf in "$INPUT_DIR"/*.pdf; do
     filename=$(basename "$pdf")
     echo "Signing $filename..."
-    pdf-app sign pdf "$pdf" "$OUTPUT_DIR/$filename" \
+    lankir sign pdf "$pdf" "$OUTPUT_DIR/$filename" \
         --fingerprint "$CERT" \
         --pin "$PIN"
 done
@@ -211,7 +211,7 @@ for pdf in *.pdf; do
     echo ""
     echo "File: $pdf"
     
-    result=$(pdf-app sign verify "$pdf" --json 2>/dev/null)
+    result=$(lankir sign verify "$pdf" --json 2>/dev/null)
     
     if [ -z "$result" ] || [ "$result" = "[]" ]; then
         echo "  Status: Not signed"
@@ -231,7 +231,7 @@ done
 ```bash
 #!/bin/bash
 # Sign with visible timestamp
-pdf-app sign pdf "$1" "${1%.pdf}_signed.pdf" \
+lankir sign pdf "$1" "${1%.pdf}_signed.pdf" \
     --fingerprint "$CERT_FINGERPRINT" \
     --visible \
     --page 1 \
@@ -244,14 +244,14 @@ pdf-app sign pdf "$1" "${1%.pdf}_signed.pdf" \
 #!/bin/bash
 # Interactive certificate selection
 echo "Available certificates:"
-pdf-app cert list --valid-only
+lankir cert list --valid-only
 
 echo ""
 read -p "Enter certificate fingerprint: " cert
 read -sp "Enter PIN: " pin
 echo ""
 
-pdf-app sign pdf "$1" "${1%.pdf}_signed.pdf" \
+lankir sign pdf "$1" "${1%.pdf}_signed.pdf" \
     --fingerprint "$cert" \
     --pin "$pin"
 ```
@@ -268,7 +268,7 @@ process_document() {
 }
 
 for pdf in *.pdf; do
-    if pdf-app sign verify "$pdf" --json 2>/dev/null | jq -e '.[0].isValid' > /dev/null; then
+    if lankir sign verify "$pdf" --json 2>/dev/null | jq -e '.[0].isValid' > /dev/null; then
         process_document "$pdf"
     else
         echo "Skipping unsigned/invalid: $pdf"
@@ -282,7 +282,7 @@ done
 
 | Error | Cause | Solution |
 |-------|-------|----------|
-| "certificate not found" | Invalid fingerprint or name | Run `pdf-app cert list` to verify |
+| "certificate not found" | Invalid fingerprint or name | Run `lankir cert list` to verify |
 | "certificate cannot sign" | Missing key usage | Use different certificate |
 | "certificate expired" | Validity period ended | Renew certificate |
 
@@ -309,7 +309,7 @@ done
 - Use environment variables for automation:
   ```bash
   export PDF_SIGN_PIN="password"
-  pdf-app sign pdf in.pdf out.pdf --cert ABC... --pin "$PDF_SIGN_PIN"
+  lankir sign pdf in.pdf out.pdf --cert ABC... --pin "$PDF_SIGN_PIN"
   ```
 - Or let the tool prompt interactively
 
@@ -317,7 +317,7 @@ done
 
 With `--verbose`, sensitive data is redacted:
 ```bash
-pdf-app --verbose sign pdf doc.pdf out.pdf --cert ABC...
+lankir --verbose sign pdf doc.pdf out.pdf --cert ABC...
 # PIN values are not logged
 ```
 

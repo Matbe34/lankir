@@ -1,7 +1,7 @@
 {
   "$schema": "https://wails.io/schemas/config.v2.json",
-  "name": "PDF App",
-  "outputfilename": "pdf_app",
+  "name": "Lankir",
+  "outputfilename": "lankir",
   "frontend:install": "echo 'Using embedded frontend'",
   "frontend:build": "./build.sh",
   "author": {
@@ -9,8 +9,8 @@
     "email": "ferran@example.com"
   },
   "info": {
-    "companyName": "PDF App",
-    "productName": "PDF App",
+    "companyName": "Lankir",
+    "productName": "Lankir",
     "productVersion": "0.1.0",
     "copyright": "Copyright © 2025",
     "comments": "A modern PDF editor for Linux"

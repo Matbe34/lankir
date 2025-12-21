@@ -8,7 +8,7 @@ BUILDDIR      = _build
 .PHONY: help clean html livehtml linkcheck
 
 help:
-	@echo "PDF App Documentation"
+	@echo "Lankir Documentation"
 	@echo ""
 	@echo "Usage:"
 	@echo "  make html       Build HTML documentation"

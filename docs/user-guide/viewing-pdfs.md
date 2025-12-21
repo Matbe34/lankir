@@ -1,6 +1,6 @@
 # Viewing PDFs
 
-PDF App provides a high-quality PDF viewing experience powered by the MuPDF rendering engine.
+Lankir provides a high-quality PDF viewing experience powered by the MuPDF rendering engine.
 
 ```{figure} ../_static/screenshots/viewer-overview.png
 :alt: PDF viewer interface overview
@@ -20,16 +20,16 @@ PDF App provides a high-quality PDF viewing experience powered by the MuPDF rend
 - **File menu**: File → Open (`Ctrl+O`)
 - **Drag and drop**: Drag PDF files onto the window
 - **Recent files**: Select from the sidebar or File → Recent
-- **Command line**: `pdf-app /path/to/document.pdf`
+- **Command line**: `lankir /path/to/document.pdf`
 
 ### From the CLI
 
 ```bash
 # Get PDF information
-pdf-app pdf info document.pdf
+lankir pdf info document.pdf
 
 # Output as JSON
-pdf-app pdf info document.pdf --json
+lankir pdf info document.pdf --json
 ```
 
 ## Navigation
@@ -73,7 +73,7 @@ Available zoom levels: 25%, 50%, 75%, 100%, 125%, 150%, 200%, 300%, 400%
 
 The default zoom level is configurable:
 ```bash
-pdf-app config set defaultZoom 150
+lankir config set defaultZoom 150
 ```
 
 ## View Modes
@@ -88,7 +88,7 @@ One page at a time, centered in the view. Best for presentations or detailed exa
 
 Switch modes:
 ```bash
-pdf-app config set defaultViewMode scroll  # or "single"
+lankir config set defaultViewMode scroll  # or "single"
 ```
 
 ## Sidebar
@@ -116,7 +116,7 @@ pdf-app config set defaultViewMode scroll  # or "single"
 
 Quick access to recently opened documents. The number of files remembered is configurable:
 ```bash
-pdf-app config set recentFilesLength 10
+lankir config set recentFilesLength 10
 ```
 
 ## Document Information
@@ -128,7 +128,7 @@ File → Properties or `Ctrl+I`
 
 ### CLI
 ```bash
-pdf-app pdf info document.pdf
+lankir pdf info document.pdf
 ```
 
 **Output includes:**
@@ -144,7 +144,7 @@ pdf-app pdf info document.pdf
 Get page dimensions:
 
 ```bash
-pdf-app pdf pages document.pdf
+lankir pdf pages document.pdf
 
 # Output:
 # Page Dimensions:
@@ -163,18 +163,18 @@ Export pages as images:
 
 ```bash
 # Render page 1 at default DPI (150)
-pdf-app pdf render document.pdf --page 1 --output page1.png
+lankir pdf render document.pdf --page 1 --output page1.png
 
 # Render at 300 DPI for printing
-pdf-app pdf render document.pdf --page 1 --dpi 300 --output page1_hires.png
+lankir pdf render document.pdf --page 1 --dpi 300 --output page1_hires.png
 
 # Generate thumbnail (72 DPI)
-pdf-app pdf thumbnail document.pdf --page 1 --size 200 --output thumb.png
+lankir pdf thumbnail document.pdf --page 1 --size 200 --output thumb.png
 ```
 
 ## Annotations
 
-PDF App displays standard PDF annotations:
+Lankir displays standard PDF annotations:
 - Text annotations (sticky notes)
 - Highlight, underline, strikethrough
 - Links (clickable)
@@ -199,7 +199,7 @@ If rendering is slow:
 1. Reduce zoom level
 2. Disable hardware acceleration:
    ```bash
-   pdf-app config set hardwareAccel false
+   lankir config set hardwareAccel false
    ```
 3. Close other resource-intensive applications
 

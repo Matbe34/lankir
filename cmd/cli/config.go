@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/ferran/pdf_app/internal/config"
+	"github.com/ferran/lankir/internal/config"
 	"github.com/spf13/cobra"
 )
 

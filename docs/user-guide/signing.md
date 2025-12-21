@@ -1,6 +1,6 @@
 # Digital Signatures
 
-PDF App supports signing PDFs with digital certificates from multiple sources, including hardware tokens.
+Lankir supports signing PDFs with digital certificates from multiple sources, including hardware tokens.
 
 ```{figure} ../_static/screenshots/signing-workflow.png
 :alt: Complete signing workflow
@@ -15,7 +15,7 @@ PDF App supports signing PDFs with digital certificates from multiple sources, i
 
 ## Certificate Sources
 
-PDF App can use certificates from:
+Lankir can use certificates from:
 
 | Source | Description | PIN Required |
 |--------|-------------|--------------|
@@ -52,13 +52,13 @@ The signed PDF is saved as `original_signed.pdf` in the same directory.
 
 ```bash
 # Sign with a specific certificate (by fingerprint)
-pdf-app sign pdf input.pdf output.pdf --fingerprint ABC123...
+lankir sign pdf input.pdf output.pdf --fingerprint ABC123...
 
 # Sign with certificate file
-pdf-app sign pdf input.pdf output.pdf --file /path/to/cert.p12 --pin "password"
+lankir sign pdf input.pdf output.pdf --file /path/to/cert.p12 --pin "password"
 
 # Sign with certificate by name (search)
-pdf-app sign pdf input.pdf output.pdf --name "My Certificate"
+lankir sign pdf input.pdf output.pdf --name "My Certificate"
 ```
 
 ## Invisible vs Visible Signatures
@@ -68,7 +68,7 @@ pdf-app sign pdf input.pdf output.pdf --name "My Certificate"
 The default signature type. The PDF is cryptographically signed but no visual indicator appears on any page.
 
 ```bash
-pdf-app sign pdf input.pdf output.pdf --cert ABC123...
+lankir sign pdf input.pdf output.pdf --cert ABC123...
 ```
 
 Use cases:
@@ -81,7 +81,7 @@ Use cases:
 A signature box appears on the PDF showing signing information.
 
 ```bash
-pdf-app sign pdf input.pdf output.pdf --cert ABC123... \
+lankir sign pdf input.pdf output.pdf --cert ABC123... \
   --visible \
   --page 1 \
   --x 400 --y 50 \
@@ -120,11 +120,11 @@ Position parameters:
    ```
 3. List available certificates:
    ```bash
-   pdf-app cert list --source pkcs11
+   lankir cert list --source pkcs11
    ```
 4. Sign with PIN:
    ```bash
-   pdf-app sign pdf doc.pdf signed.pdf --fingerprint ABC123...
+   lankir sign pdf doc.pdf signed.pdf --fingerprint ABC123...
    # Enter PIN when prompted
    ```
 
@@ -137,7 +137,7 @@ USB tokens (like YubiKey, SafeNet) work the same way as smart cards through PKCS
 3. Add custom module path if needed:
    ```bash
    # Edit config to add token library
-   pdf-app config get tokenLibraries
+   lankir config get tokenLibraries
    ```
 
 ## Certificate Selection
@@ -148,10 +148,10 @@ The most precise method—use the SHA-256 fingerprint:
 
 ```bash
 # List certificates with fingerprints
-pdf-app cert list
+lankir cert list
 
 # Sign with fingerprint
-pdf-app sign pdf doc.pdf out.pdf --fingerprint a1b2c3d4e5f6...
+lankir sign pdf doc.pdf out.pdf --fingerprint a1b2c3d4e5f6...
 ```
 
 ### By Name
@@ -159,7 +159,7 @@ pdf-app sign pdf doc.pdf out.pdf --fingerprint a1b2c3d4e5f6...
 Search certificates by common name:
 
 ```bash
-pdf-app sign pdf doc.pdf out.pdf --name "John Doe"
+lankir sign pdf doc.pdf out.pdf --name "John Doe"
 ```
 
 :::{warning}
@@ -171,7 +171,7 @@ If multiple certificates match, you'll be prompted to use the fingerprint instea
 For PKCS#12 files:
 
 ```bash
-pdf-app sign pdf doc.pdf out.pdf --file ~/certs/mycert.p12
+lankir sign pdf doc.pdf out.pdf --file ~/certs/mycert.p12
 ```
 
 ## Batch Signing
@@ -184,7 +184,7 @@ CERT_FINGERPRINT="abc123..."
 PIN="your-pin"
 
 for pdf in *.pdf; do
-    pdf-app sign pdf "$pdf" "signed_$pdf" \
+    lankir sign pdf "$pdf" "signed_$pdf" \
         --fingerprint "$CERT_FINGERPRINT" \
         --pin "$PIN"
 done
@@ -200,10 +200,10 @@ For consistent visible signatures, create and use profiles:
 
 ```bash
 # List profiles
-pdf-app sign profiles list
+lankir sign profiles list
 
 # Sign with specific profile
-pdf-app sign pdf doc.pdf out.pdf \
+lankir sign pdf doc.pdf out.pdf \
     --cert ABC123... \
     --profile "00000000-0000-0000-0000-000000000002"
 ```
@@ -233,8 +233,8 @@ Signatures include the signing time from your system clock. For legally binding 
 
 ### "Certificate not found"
 
-- Verify certificate is installed: `pdf-app cert list`
-- Check certificate store paths: `pdf-app config get certificateStores`
+- Verify certificate is installed: `lankir cert list`
+- Check certificate store paths: `lankir config get certificateStores`
 - For PKCS#11: Ensure token is connected and pcscd is running
 
 ### "Invalid PIN"
@@ -247,7 +247,7 @@ Signatures include the signing time from your system clock. For legally binding 
 
 The certificate lacks digital signature key usage. Check:
 ```bash
-pdf-app cert list --valid-only
+lankir cert list --valid-only
 ```
 
 Only certificates with `canSign: true` can sign documents.
@@ -256,7 +256,7 @@ Only certificates with `canSign: true` can sign documents.
 
 Check verbose output:
 ```bash
-pdf-app --verbose sign pdf doc.pdf out.pdf --cert ABC123...
+lankir --verbose sign pdf doc.pdf out.pdf --cert ABC123...
 ```
 
 ## Next Steps

@@ -301,7 +301,7 @@ export async function showWelcomeScreen() {
     viewer.innerHTML = `
         <div class="welcome-screen">
             <div class="welcome-content">
-                <h2>Welcome to PDF App</h2>
+                <h2>Welcome to Lankir</h2>
                 <p>A modern, high-performance PDF editor for Linux</p>
                 
                 <div class="recent-files-welcome" id="recentFilesWelcome">

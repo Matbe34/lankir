@@ -1,6 +1,6 @@
 # Certificate Management
 
-PDF App aggregates certificates from multiple sources for signing PDFs.
+Lankir aggregates certificates from multiple sources for signing PDFs.
 
 ```{figure} ../_static/screenshots/certificate-list.png
 :alt: Certificate management interface
@@ -26,10 +26,10 @@ Personal certificate files containing both the certificate and private key, prot
 **Adding custom directories:**
 ```bash
 # View current stores
-pdf-app config get certificateStores
+lankir config get certificateStores
 
 # Add a directory (must be absolute path in allowed locations)
-# Edit ~/.config/pdf_app/config.json directly
+# Edit ~/.config/lankir/config.json directly
 ```
 
 ### PKCS#11 (Hardware Tokens)
@@ -43,14 +43,14 @@ Smart cards, USB tokens, and HSMs accessed via PKCS#11 modules.
 **Adding custom modules:**
 ```bash
 # View current modules
-pdf-app config get tokenLibraries
+lankir config get tokenLibraries
 
 # Modules must have .so extension and exist on the filesystem
 ```
 
 ### NSS Database (Firefox/Chrome)
 
-PDF App reads certificates from browser certificate stores:
+Lankir reads certificates from browser certificate stores:
 - `~/.mozilla/firefox/*/cert9.db`
 - `~/.pki/nssdb/cert9.db`
 
@@ -61,7 +61,7 @@ These are automatically discovered—no configuration needed.
 ### All Certificates
 
 ```bash
-pdf-app cert list
+lankir cert list
 
 # Output:
 # Found 3 certificate(s):
@@ -82,18 +82,18 @@ pdf-app cert list
 
 ```bash
 # Only valid (non-expired) certificates
-pdf-app cert list --valid-only
+lankir cert list --valid-only
 
 # Filter by source
-pdf-app cert list --source pkcs11
-pdf-app cert list --source pkcs12
-pdf-app cert list --source nss
+lankir cert list --source pkcs11
+lankir cert list --source pkcs12
+lankir cert list --source nss
 
 # Search by name/subject/issuer
-pdf-app cert search "john"
+lankir cert search "john"
 
 # JSON output
-pdf-app cert list --json
+lankir cert list --json
 ```
 
 ### Show All Details
@@ -102,7 +102,7 @@ By default, only the first 20 certificates are shown:
 
 ```bash
 # Show all certificates
-pdf-app cert list --all
+lankir cert list --all
 ```
 
 ## Certificate Properties
@@ -134,7 +134,7 @@ For signing PDFs, certificates must have:
 
 Check signing capability:
 ```bash
-pdf-app cert list --valid-only | grep "Can Sign"
+lankir cert list --valid-only | grep "Can Sign"
 ```
 
 ## PKCS#12 Certificate Files
@@ -234,8 +234,8 @@ pk12util -d sql:$HOME/.pki/nssdb -o output.p12 -n "Certificate Name"
 
 1. Check source is configured:
    ```bash
-   pdf-app config get certificateStores
-   pdf-app config get tokenLibraries
+   lankir config get certificateStores
+   lankir config get tokenLibraries
    ```
 
 2. Verify file permissions:
@@ -266,7 +266,7 @@ openssl x509 -in cert.pem -text | grep -A1 "Key Usage"
 
 Check validity:
 ```bash
-pdf-app cert list | grep -A2 "Valid"
+lankir cert list | grep -A2 "Valid"
 ```
 
 Renew your certificate with your certificate authority.

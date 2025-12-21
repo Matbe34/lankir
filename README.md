@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="build/appimage/AppDir/pdf-app.svg" alt="PDF App Logo" width="128" height="128">
+  <img src="build/appimage/AppDir/lankir.svg" alt="Lankir Logo" width="128" height="128">
 </p>
 
-<h1 align="center">PDF App</h1>
+<h1 align="center">Lankir</h1>
 
 <p align="center">
   <strong>A modern, high-performance PDF editor for Linux with advanced digital signature support</strong>
@@ -29,7 +29,7 @@
 
 ## Overview
 
-PDF App is a desktop PDF editor built specifically for Linux, combining the power of Go with a modern web-based UI through Wails. It provides comprehensive PDF viewing capabilities and enterprise-grade digital signature support, including hardware tokens (smart cards) and multiple certificate backends.
+Lankir is a desktop PDF editor built specifically for Linux, combining the power of Go with a modern web-based UI through Wails. It provides comprehensive PDF viewing capabilities and enterprise-grade digital signature support, including hardware tokens (smart cards) and multiple certificate backends.
 
 The same binary works as both a **GUI application** and a **CLI tool**, making it perfect for both interactive use and automated workflows.
 
@@ -73,7 +73,7 @@ The same binary works as both a **GUI application** and a **CLI tool**, making i
 - Auto-discovery of system certificate stores
 
 ### Configuration
-- Persistent settings stored in `~/.config/pdf_app/`
+- Persistent settings stored in `~/.config/lankir/`
 - Theme selection (light/dark)
 - Customizable certificate store paths
 - Configurable PKCS#11 module libraries
@@ -85,17 +85,17 @@ The same binary works as both a **GUI application** and a **CLI tool**, making i
 
 ### Option 1: AppImage (Recommended)
 
-Download the latest AppImage from [Releases](https://github.com/ferran/pdf_app/releases):
+Download the latest AppImage from [Releases](https://github.com/ferran/lankir/releases):
 
 ```bash
 # Download the AppImage
-wget https://github.com/ferran/pdf_app/releases/download/v0.1.0/pdf-app-0.1.0-x86_64.AppImage
+wget https://github.com/ferran/lankir/releases/download/v0.1.0/lankir-0.1.0-x86_64.AppImage
 
 # Make it executable
-chmod +x pdf-app-0.1.0-x86_64.AppImage
+chmod +x lankir-0.1.0-x86_64.AppImage
 
 # Run it
-./pdf-app-0.1.0-x86_64.AppImage
+./lankir-0.1.0-x86_64.AppImage
 ```
 
 The AppImage is fully self-contained and runs on any modern Linux distribution.
@@ -123,11 +123,11 @@ Then download and run the binary:
 
 ```bash
 # Download
-wget https://github.com/ferran/pdf_app/releases/download/v0.1.0/pdf_app_static
+wget https://github.com/ferran/lankir/releases/download/v0.1.0/lankir_static
 
 # Make executable and move to PATH
-chmod +x pdf_app_static
-sudo mv pdf_app_static /usr/local/bin/pdf-app
+chmod +x lankir_static
+sudo mv lankir_static /usr/local/bin/lankir
 ```
 
 ---
@@ -139,13 +139,13 @@ sudo mv pdf_app_static /usr/local/bin/pdf-app
 Simply run the application without arguments:
 
 ```bash
-pdf-app
+lankir
 ```
 
 Or explicitly:
 
 ```bash
-pdf-app gui
+lankir gui
 ```
 
 ### Using the CLI
@@ -154,16 +154,16 @@ Add any command to use CLI mode:
 
 ```bash
 # Get help
-pdf-app --help
+lankir --help
 
 # PDF operations
-pdf-app pdf info document.pdf
+lankir pdf info document.pdf
 
 # Certificate management
-pdf-app cert list
+lankir cert list
 
 # Sign a document
-pdf-app sign pdf document.pdf signed.pdf --fingerprint <cert-fingerprint>
+lankir sign pdf document.pdf signed.pdf --fingerprint <cert-fingerprint>
 ```
 
 ### Keyboard Shortcuts
@@ -183,97 +183,97 @@ pdf-app sign pdf document.pdf signed.pdf --fingerprint <cert-fingerprint>
 ### Global Flags
 
 ```bash
-pdf-app [command] [flags]
+lankir [command] [flags]
 
 Flags:
   -v, --verbose   Enable verbose logging (debug level)
       --json      Output logs in JSON format (for scripting)
-  -h, --help      Help for pdf-app
+  -h, --help      Help for lankir
 ```
 
 ### PDF Operations
 
 ```bash
 # Display PDF metadata
-pdf-app pdf info document.pdf
-pdf-app pdf info document.pdf --json
+lankir pdf info document.pdf
+lankir pdf info document.pdf --json
 
 # Show page dimensions
-pdf-app pdf pages document.pdf
+lankir pdf pages document.pdf
 
 # Render a page to PNG
-pdf-app pdf render document.pdf --page 1 --dpi 300 --output page1.png
+lankir pdf render document.pdf --page 1 --dpi 300 --output page1.png
 
 # Generate thumbnail
-pdf-app pdf thumbnail document.pdf --width 400 --output thumb.png
+lankir pdf thumbnail document.pdf --width 400 --output thumb.png
 ```
 
 ### Certificate Management
 
 ```bash
 # List all certificates
-pdf-app cert list
+lankir cert list
 
 # List only valid certificates that can sign
-pdf-app cert list --valid-only
+lankir cert list --valid-only
 
 # Filter by source
-pdf-app cert list --source pkcs11
-pdf-app cert list --source pkcs12
-pdf-app cert list --source nss
+lankir cert list --source pkcs11
+lankir cert list --source pkcs12
+lankir cert list --source nss
 
 # Search certificates by name
-pdf-app cert search "John Doe"
+lankir cert search "John Doe"
 
 # Show detailed certificate info
-pdf-app cert info <fingerprint>
+lankir cert info <fingerprint>
 
 # JSON output for scripting
-pdf-app cert list --json
+lankir cert list --json
 ```
 
 ### Digital Signatures
 
 ```bash
 # Sign with invisible signature (default)
-pdf-app sign pdf document.pdf signed.pdf --fingerprint <fingerprint>
+lankir sign pdf document.pdf signed.pdf --fingerprint <fingerprint>
 
 # Sign with PIN (for hardware tokens)
-pdf-app sign pdf document.pdf signed.pdf --fingerprint <fingerprint> --pin <pin>
+lankir sign pdf document.pdf signed.pdf --fingerprint <fingerprint> --pin <pin>
 
 # Sign with a specific profile
-pdf-app sign pdf document.pdf signed.pdf --fingerprint <fingerprint> --profile default-visible
+lankir sign pdf document.pdf signed.pdf --fingerprint <fingerprint> --profile default-visible
 
 # Sign with custom visible signature position
-pdf-app sign pdf document.pdf signed.pdf --fingerprint <fingerprint> \
+lankir sign pdf document.pdf signed.pdf --fingerprint <fingerprint> \
   --page 1 --x 400 --y 50 --width 200 --height 80
 
 # Verify signatures in a PDF
-pdf-app sign verify document.pdf
-pdf-app sign verify document.pdf --json
+lankir sign verify document.pdf
+lankir sign verify document.pdf --json
 
 # List signature profiles
-pdf-app sign profile-list
+lankir sign profile-list
 
 # Show profile details
-pdf-app sign profile-info default-visible
+lankir sign profile-info default-visible
 ```
 
 ### Configuration
 
 ```bash
 # View all configuration
-pdf-app config get
+lankir config get
 
 # Get specific setting
-pdf-app config get theme
+lankir config get theme
 
 # Set configuration value
-pdf-app config set theme dark
-pdf-app config set defaultZoom 150
+lankir config set theme dark
+lankir config set defaultZoom 150
 
 # Reset to defaults
-pdf-app config reset
+lankir config reset
 ```
 
 ---
@@ -303,8 +303,8 @@ pdf-app config reset
 
 ```bash
 # Clone the repository
-git clone https://github.com/ferran/pdf_app.git
-cd pdf_app
+git clone https://github.com/ferran/lankir.git
+cd lankir
 
 # Install Go dependencies
 go mod download
@@ -343,7 +343,7 @@ task appimage
 ## Architecture
 
 ```
-pdf_app/
+lankir/
 ├── main.go                     # Entry point (GUI/CLI router)
 ├── app.go                      # Wails app wrapper
 ├── cmd/cli/                    # Cobra CLI commands
@@ -388,7 +388,7 @@ pdf_app/
 
 ## Configuration
 
-Configuration is stored in `~/.config/pdf_app/`:
+Configuration is stored in `~/.config/lankir/`:
 
 | File | Purpose |
 |------|---------|
@@ -422,7 +422,7 @@ Configuration is stored in `~/.config/pdf_app/`:
 
 ## Hardware Token Support
 
-PDF App supports PKCS#11 hardware tokens for enterprise-grade digital signatures:
+Lankir supports PKCS#11 hardware tokens for enterprise-grade digital signatures:
 
 ### Supported Tokens
 
@@ -435,7 +435,7 @@ PDF App supports PKCS#11 hardware tokens for enterprise-grade digital signatures
 Add your PKCS#11 module to the configuration:
 
 ```bash
-pdf-app config set tokenLibraries '["/usr/lib/opensc-pkcs11.so"]'
+lankir config set tokenLibraries '["/usr/lib/opensc-pkcs11.so"]'
 ```
 
 Common module paths:
@@ -453,9 +453,9 @@ Common module paths:
 ### Common Issues
 
 **"No certificates found"**
-- Check that certificate stores are configured: `pdf-app config get certificateStores`
+- Check that certificate stores are configured: `lankir config get certificateStores`
 - For hardware tokens, ensure the token is inserted and drivers are installed
-- Verify PKCS#11 modules are accessible: `pdf-app config get tokenLibraries`
+- Verify PKCS#11 modules are accessible: `lankir config get tokenLibraries`
 
 **"Failed to open PDF"**
 - Ensure the file exists and is readable
@@ -472,10 +472,10 @@ Enable verbose logging for troubleshooting:
 
 ```bash
 # GUI with debug logging
-pdf-app --verbose gui
+lankir --verbose gui
 
 # CLI with JSON logging (for parsing)
-pdf-app --json --verbose cert list
+lankir --json --verbose cert list
 ```
 
 ---

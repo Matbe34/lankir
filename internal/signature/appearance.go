@@ -16,7 +16,7 @@ import (
 	"time"
 
 	"github.com/digitorus/pdfsign/sign"
-	"github.com/ferran/pdf_app/internal/signature/types"
+	"github.com/ferran/lankir/internal/signature/types"
 	"golang.org/x/image/font"
 	"golang.org/x/image/font/gofont/goregular"
 	"golang.org/x/image/font/opentype"

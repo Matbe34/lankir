@@ -109,7 +109,7 @@ type ProfileManager struct {
 // NewProfileManager creates a new profile manager
 func NewProfileManager() *ProfileManager {
 	homeDir, _ := os.UserHomeDir()
-	configDir := filepath.Join(homeDir, ".config", "pdf_app", "signature_profiles")
+	configDir := filepath.Join(homeDir, ".config", "lankir", "signature_profiles")
 
 	return NewProfileManagerWithDir(configDir)
 }

@@ -2,9 +2,9 @@
 # https://www.sphinx-doc.org/en/master/usage/configuration.html
 
 # -- Project information -----------------------------------------------------
-project = 'PDF App'
-copyright = '2025, PDF App Contributors'
-author = 'PDF App Contributors'
+project = 'Lankir'
+copyright = '2025, Lankir Contributors'
+author = 'Lankir Contributors'
 version = '0.1'
 release = '0.1.0'
 
@@ -27,7 +27,7 @@ html_theme = 'sphinx_rtd_theme'
 html_static_path = ['_static']
 html_logo = '_static/logo.png'
 html_favicon = '_static/favicon.ico'
-html_title = 'PDF App Documentation'
+html_title = 'Lankir Documentation'
 
 html_theme_options = {
     'logo_only': False,
@@ -44,7 +44,7 @@ html_theme_options = {
 html_context = {
     'display_github': True,
     'github_user': 'ferran',
-    'github_repo': 'pdf_app',
+    'github_repo': 'lankir',
     'github_version': 'main',
     'conf_py_path': '/docs/',
 }

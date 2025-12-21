@@ -1,13 +1,13 @@
 # Config Commands
 
-Commands for managing PDF App configuration.
+Commands for managing Lankir configuration.
 
 ## config get
 
 Get configuration values.
 
 ```bash
-pdf-app config get [key] [options]
+lankir config get [key] [options]
 ```
 
 ### Options
@@ -20,7 +20,7 @@ pdf-app config get [key] [options]
 
 ```bash
 # Get all configuration
-pdf-app config get
+lankir config get
 
 # Output:
 Current Configuration:
@@ -48,11 +48,11 @@ Advanced:
   Hardware Accel:    true
 
 # Get specific value
-pdf-app config get theme
+lankir config get theme
 # Output: theme: dark
 
 # JSON output
-pdf-app config get --json
+lankir config get --json
 ```
 
 ### JSON Output
@@ -84,7 +84,7 @@ pdf-app config get --json
 Set a configuration value.
 
 ```bash
-pdf-app config set <key> <value>
+lankir config set <key> <value>
 ```
 
 ### Available Keys
@@ -106,19 +106,19 @@ pdf-app config set <key> <value>
 
 ```bash
 # Set theme
-pdf-app config set theme light
+lankir config set theme light
 # Output: Set theme = light
 
 # Set zoom level
-pdf-app config set defaultZoom 150
+lankir config set defaultZoom 150
 # Output: Set defaultZoom = 150
 
 # Enable debug mode
-pdf-app config set debugMode true
+lankir config set debugMode true
 # Output: Set debugMode = true
 
 # Set accent color
-pdf-app config set accentColor "#ff6600"
+lankir config set accentColor "#ff6600"
 # Output: Set accentColor = #ff6600
 ```
 
@@ -128,10 +128,10 @@ For array settings like `certificateStores` and `tokenLibraries`, edit the confi
 
 ```bash
 # View current array value
-pdf-app config get certificateStores
+lankir config get certificateStores
 
 # Edit config file
-nano ~/.config/pdf_app/config.json
+nano ~/.config/lankir/config.json
 ```
 
 ## config reset
@@ -139,13 +139,13 @@ nano ~/.config/pdf_app/config.json
 Reset all configuration to defaults.
 
 ```bash
-pdf-app config reset
+lankir config reset
 ```
 
 ### Example
 
 ```bash
-pdf-app config reset
+lankir config reset
 # Output: Configuration reset to defaults
 ```
 
@@ -158,17 +158,17 @@ This removes all custom settings including certificate store paths and token lib
 ### Location
 
 ```
-~/.config/pdf_app/config.json
+~/.config/lankir/config.json
 ```
 
 ### Manual Editing
 
 ```bash
 # Edit configuration
-nano ~/.config/pdf_app/config.json
+nano ~/.config/lankir/config.json
 
 # Validate JSON
-python3 -m json.tool ~/.config/pdf_app/config.json
+python3 -m json.tool ~/.config/lankir/config.json
 ```
 
 ### Default Configuration
@@ -197,7 +197,7 @@ python3 -m json.tool ~/.config/pdf_app/config.json
 ```bash
 #!/bin/bash
 # Backup current configuration
-cp ~/.config/pdf_app/config.json ~/.config/pdf_app/config.json.bak
+cp ~/.config/lankir/config.json ~/.config/lankir/config.json.bak
 echo "Configuration backed up"
 ```
 
@@ -206,8 +206,8 @@ echo "Configuration backed up"
 ```bash
 #!/bin/bash
 # Restore from backup
-if [ -f ~/.config/pdf_app/config.json.bak ]; then
-    cp ~/.config/pdf_app/config.json.bak ~/.config/pdf_app/config.json
+if [ -f ~/.config/lankir/config.json.bak ]; then
+    cp ~/.config/lankir/config.json.bak ~/.config/lankir/config.json
     echo "Configuration restored"
 else
     echo "No backup found"
@@ -219,8 +219,8 @@ fi
 ```bash
 #!/bin/bash
 # Export configuration for sharing
-pdf-app config get --json > pdf-app-config-export.json
-echo "Configuration exported to pdf-app-config-export.json"
+lankir config get --json > lankir-config-export.json
+echo "Configuration exported to lankir-config-export.json"
 ```
 
 ### Import Settings
@@ -229,7 +229,7 @@ echo "Configuration exported to pdf-app-config-export.json"
 #!/bin/bash
 # Import configuration (overwrites current)
 if [ -f "$1" ]; then
-    cp "$1" ~/.config/pdf_app/config.json
+    cp "$1" ~/.config/lankir/config.json
     echo "Configuration imported from $1"
 else
     echo "Usage: $0 <config-file.json>"
@@ -243,16 +243,16 @@ fi
 # Initial setup for signing workstation
 
 # Set theme
-pdf-app config set theme dark
+lankir config set theme dark
 
 # Set higher default zoom for readability
-pdf-app config set defaultZoom 125
+lankir config set defaultZoom 125
 
 # Enable debug mode during setup
-pdf-app config set debugMode true
+lankir config set debugMode true
 
 # Verify settings
-pdf-app config get
+lankir config get
 
 echo "Setup complete!"
 ```
@@ -262,12 +262,12 @@ echo "Setup complete!"
 ```bash
 #!/bin/bash
 # Toggle debug mode
-current=$(pdf-app config get debugMode --json | jq -r '.debugMode')
+current=$(lankir config get debugMode --json | jq -r '.debugMode')
 if [ "$current" = "true" ]; then
-    pdf-app config set debugMode false
+    lankir config set debugMode false
     echo "Debug mode disabled"
 else
-    pdf-app config set debugMode true
+    lankir config set debugMode true
     echo "Debug mode enabled"
 fi
 ```
@@ -276,17 +276,17 @@ fi
 
 | Variable | Description |
 |----------|-------------|
-| `PDF_APP_CONFIG_DIR` | Override config directory |
-| `PDF_APP_DEBUG` | Enable debug mode (`1` or `true`) |
+| `LANKIR_CONFIG_DIR` | Override config directory |
+| `LANKIR_DEBUG` | Enable debug mode (`1` or `true`) |
 
 ### Example
 
 ```bash
 # Use temporary config directory
-PDF_APP_CONFIG_DIR=/tmp/pdf-app-test pdf-app config get
+LANKIR_CONFIG_DIR=/tmp/lankir-test lankir config get
 
 # Enable debug for single command
-PDF_APP_DEBUG=1 pdf-app cert list
+LANKIR_DEBUG=1 lankir cert list
 ```
 
 ## Troubleshooting
@@ -295,28 +295,28 @@ PDF_APP_DEBUG=1 pdf-app cert list
 
 ```bash
 # Reset to defaults
-pdf-app config reset
+lankir config reset
 
 # Or manually delete
-rm ~/.config/pdf_app/config.json
+rm ~/.config/lankir/config.json
 ```
 
 ### Permission Issues
 
 ```bash
 # Fix permissions
-chmod 700 ~/.config/pdf_app
-chmod 600 ~/.config/pdf_app/config.json
+chmod 700 ~/.config/lankir
+chmod 600 ~/.config/lankir/config.json
 ```
 
 ### Invalid JSON
 
 ```bash
 # Validate config file
-python3 -m json.tool ~/.config/pdf_app/config.json
+python3 -m json.tool ~/.config/lankir/config.json
 
 # If invalid, reset
-pdf-app config reset
+lankir config reset
 ```
 
 ## Next Steps

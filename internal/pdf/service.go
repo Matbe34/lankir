@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ferran/pdf_app/internal/config"
+	"github.com/ferran/lankir/internal/config"
 	"github.com/gen2brain/go-fitz"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )

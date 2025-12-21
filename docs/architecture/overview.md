@@ -1,12 +1,12 @@
 # Architecture Overview
 
-PDF App is a hybrid desktop application combining a Go backend with a web-based frontend, built using the Wails framework.
+Lankir is a hybrid desktop application combining a Go backend with a web-based frontend, built using the Wails framework.
 
 ## High-Level Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                         PDF App                                  │
+│                         Lankir                                  │
 ├─────────────────────────────────────────────────────────────────┤
 │  ┌─────────────────────────────────────────────────────────┐   │
 │  │                    Frontend (Web)                        │   │
@@ -43,18 +43,18 @@ PDF App is a hybrid desktop application combining a Go backend with a web-based 
 
 ## Execution Modes
 
-PDF App operates in two modes from a single binary:
+Lankir operates in two modes from a single binary:
 
 ### GUI Mode
 ```bash
-pdf-app  # No arguments → launches Wails GUI
+lankir  # No arguments → launches Wails GUI
 ```
 
 The application embeds the frontend assets and runs a WebView window with the Go backend.
 
 ### CLI Mode
 ```bash
-pdf-app <command> [args]  # Any arguments → CLI via Cobra
+lankir <command> [args]  # Any arguments → CLI via Cobra
 ```
 
 Commands are processed by Cobra command handlers without launching any GUI.
@@ -120,7 +120,7 @@ User clicks Sign → Frontend collects parameters
 ## File Structure
 
 ```
-pdf_app/
+lankir/
 ├── main.go                 # Entry point, mode router
 ├── app.go                  # Wails app wrapper
 ├── cmd/cli/                # Cobra CLI commands

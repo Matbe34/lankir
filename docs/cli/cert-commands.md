@@ -7,7 +7,7 @@ Commands for managing digital certificates.
 List all available certificates from configured sources.
 
 ```bash
-pdf-app cert list [options]
+lankir cert list [options]
 ```
 
 ### Options
@@ -23,7 +23,7 @@ pdf-app cert list [options]
 
 ```bash
 # List all certificates
-pdf-app cert list
+lankir cert list
 
 # Output:
 Found 3 certificate(s):
@@ -42,13 +42,13 @@ Certificate 1:
   File Path:     /home/user/.pki/nssdb/cert.p12
 
 # Filter by source
-pdf-app cert list --source pkcs11
+lankir cert list --source pkcs11
 
 # Only valid certificates
-pdf-app cert list --valid-only
+lankir cert list --valid-only
 
 # JSON output
-pdf-app cert list --json
+lankir cert list --json
 ```
 
 ### JSON Output
@@ -78,7 +78,7 @@ pdf-app cert list --json
 Search for certificates by name, subject, issuer, or serial number.
 
 ```bash
-pdf-app cert search <query> [options]
+lankir cert search <query> [options]
 ```
 
 ### Options
@@ -91,7 +91,7 @@ pdf-app cert search <query> [options]
 
 ```bash
 # Search by name
-pdf-app cert search "john"
+lankir cert search "john"
 
 # Output:
 Found 2 certificate(s) matching 'john':
@@ -105,10 +105,10 @@ Certificate 2:
   ...
 
 # Search by issuer
-pdf-app cert search "DigiCert"
+lankir cert search "DigiCert"
 
 # JSON output
-pdf-app cert search "john" --json
+lankir cert search "john" --json
 ```
 
 ## Certificate Properties
@@ -162,7 +162,7 @@ For PDF signing, **Digital Signature** is required.
 ```bash
 #!/bin/bash
 # List certificates that can sign PDFs
-pdf-app cert list --valid-only --json | jq '.[] | select(.canSign == true) | .fingerprint'
+lankir cert list --valid-only --json | jq '.[] | select(.canSign == true) | .fingerprint'
 ```
 
 ### Check Certificate Expiry
@@ -170,7 +170,7 @@ pdf-app cert list --valid-only --json | jq '.[] | select(.canSign == true) | .fi
 ```bash
 #!/bin/bash
 # Find certificates expiring within 30 days
-pdf-app cert list --json | jq -r '.[] | 
+lankir cert list --json | jq -r '.[] | 
   select(.isValid == true) | 
   "\(.name): expires \(.validTo)"'
 ```
@@ -181,7 +181,7 @@ pdf-app cert list --json | jq -r '.[] |
 #!/bin/bash
 # Export certificate inventory to CSV
 echo "Name,Fingerprint,Valid Until,Source,Can Sign"
-pdf-app cert list --json | jq -r '.[] | 
+lankir cert list --json | jq -r '.[] | 
   [.name, .fingerprint[0:16], .validTo, .source, .canSign] | 
   @csv'
 ```
@@ -191,7 +191,7 @@ pdf-app cert list --json | jq -r '.[] |
 ```bash
 #!/bin/bash
 fingerprint="a1b2c3d4"
-cert=$(pdf-app cert list --json | jq ".[] | select(.fingerprint | startswith(\"$fingerprint\"))")
+cert=$(lankir cert list --json | jq ".[] | select(.fingerprint | startswith(\"$fingerprint\"))")
 if [ -n "$cert" ]; then
     echo "Found: $(echo $cert | jq -r '.name')"
 else
@@ -204,7 +204,7 @@ fi
 ```bash
 #!/bin/bash
 # Check if hardware token certificates are available
-pkcs11_certs=$(pdf-app cert list --source pkcs11 --json | jq 'length')
+pkcs11_certs=$(lankir cert list --source pkcs11 --json | jq 'length')
 if [ "$pkcs11_certs" -gt 0 ]; then
     echo "Found $pkcs11_certs certificate(s) on hardware token"
 else
@@ -219,11 +219,11 @@ fi
 
 ```bash
 # Check certificate store configuration
-pdf-app config get certificateStores
-pdf-app config get tokenLibraries
+lankir config get certificateStores
+lankir config get tokenLibraries
 
 # Enable verbose logging
-pdf-app --verbose cert list
+lankir --verbose cert list
 ```
 
 ### PKCS#11 Token Not Detected

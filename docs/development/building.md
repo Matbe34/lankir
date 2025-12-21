@@ -1,6 +1,6 @@
-# Building PDF App
+# Building Lankir
 
-Build PDF App for development and distribution.
+Build Lankir for development and distribution.
 
 ## Build Types
 
@@ -33,7 +33,7 @@ task build
 wails build
 ```
 
-Output: `build/bin/pdf_app`
+Output: `build/bin/lankir`
 
 This build:
 - Links dynamically to GTK3
@@ -47,7 +47,7 @@ This build:
 task build-static
 ```
 
-Output: `build/bin/pdf_app_static`
+Output: `build/bin/lankir_static`
 
 This build:
 - Links MuPDF statically
@@ -72,7 +72,7 @@ export CGO_LDFLAGS="-L${PWD}/go-fitz-libs \
 task build-appimage
 ```
 
-Output: `build/bin/pdf-app-0.1.0-x86_64.AppImage`
+Output: `build/bin/lankir-0.1.0-x86_64.AppImage`
 
 Features:
 - Fully self-contained
@@ -85,10 +85,10 @@ Features:
 ```
 AppDir/
 ├── AppRun                  # Entry script
-├── pdf-app.desktop         # Desktop entry
+├── lankir.desktop          # Desktop entry
 ├── usr/
 │   └── bin/
-│       └── pdf_app_static  # Application
+│       └── lankir_static   # Application
 └── [GTK3 libraries]        # Bundled libraries
 ```
 
@@ -129,8 +129,8 @@ Do not modify or delete these directories.
 ```json
 // wails.json
 {
-    "name": "pdf_app",
-    "outputfilename": "pdf_app",
+    "name": "Lankir",
+    "outputfilename": "lankir",
     "frontend:install": "npm install",
     "frontend:build": "npm run build",
     "author": {
@@ -161,7 +161,7 @@ tasks:
 
 ## Cross-Compilation
 
-Currently, PDF App only supports Linux x86_64. Cross-compilation is complex due to CGO dependencies.
+Currently, Lankir only supports Linux x86_64. Cross-compilation is complex due to CGO dependencies.
 
 ### Building for Different Architectures
 
@@ -182,10 +182,10 @@ To reduce size:
 
 ```bash
 # Strip debug symbols (done by default in release)
-strip build/bin/pdf_app
+strip build/bin/lankir
 
 # UPX compression (optional, may affect startup time)
-upx --best build/bin/pdf_app
+upx --best build/bin/lankir
 ```
 
 ### Build Speed
@@ -230,7 +230,7 @@ To update version:
 
 Ensure you're building from the project root:
 ```bash
-cd /path/to/pdf_app
+cd /path/to/lankir
 task build-static
 ```
 
@@ -244,20 +244,20 @@ go env CGO_ENABLED  # Should be 1
 ls -la go-fitz-libs/
 
 # Check for missing system libraries
-ldd build/bin/pdf_app | grep "not found"
+ldd build/bin/lankir | grep "not found"
 ```
 
 ### AppImage Won't Run
 
 ```bash
 # Make executable
-chmod +x pdf-app-*.AppImage
+chmod +x lankir-*.AppImage
 
 # Check FUSE
 sudo apt install libfuse2
 
 # Run with debug
-./pdf-app-*.AppImage --appimage-help
+./lankir-*.AppImage --appimage-help
 ```
 
 ### Frontend Not Updating
@@ -299,8 +299,8 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: pdf_app
-          path: build/bin/pdf_app_static
+          name: lankir
+          path: build/bin/lankir_static
 ```
 
 ## Next Steps

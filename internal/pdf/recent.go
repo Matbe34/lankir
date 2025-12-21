@@ -40,7 +40,7 @@ func NewRecentFilesService() *RecentFilesService {
 	if err != nil {
 		homeDir = "."
 	}
-	configDir := filepath.Join(homeDir, ".config", "pdf_app")
+	configDir := filepath.Join(homeDir, ".config", "lankir")
 	if err := os.MkdirAll(configDir, 0700); err != nil {
 		slog.Warn("failed to create config directory", "error", err, "path", configDir)
 	}

@@ -7,7 +7,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/ferran/pdf_app/internal/config"
+	"github.com/ferran/lankir/internal/config"
 )
 
 // TestNewPDFService tests service creation

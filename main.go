@@ -11,10 +11,10 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
 	"github.com/wailsapp/wails/v2/pkg/options/linux"
 
-	"github.com/ferran/pdf_app/cmd/cli"
-	"github.com/ferran/pdf_app/internal/config"
-	"github.com/ferran/pdf_app/internal/pdf"
-	"github.com/ferran/pdf_app/internal/signature"
+	"github.com/ferran/lankir/cmd/cli"
+	"github.com/ferran/lankir/internal/config"
+	"github.com/ferran/lankir/internal/pdf"
+	"github.com/ferran/lankir/internal/signature"
 )
 
 //go:embed all:frontend/dist
@@ -49,7 +49,7 @@ func runGUI() {
 	}
 
 	err = wails.Run(&options.App{
-		Title:  "PDF App",
+		Title:  "Lankir",
 		Width:  1400,
 		Height: 900,
 		AssetServer: &assetserver.Options{

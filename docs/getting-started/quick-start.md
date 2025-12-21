@@ -1,24 +1,24 @@
 # Quick Start
 
-Get started with PDF App in 5 minutes.
+Get started with Lankir in 5 minutes.
 
 ## Launching the Application
 
 ### GUI Mode
 
-Run PDF App without arguments to launch the graphical interface:
+Run Lankir without arguments to launch the graphical interface:
 
 ```bash
-pdf-app
+lankir
 ```
 
 Or double-click the AppImage/desktop shortcut.
 
 ```{figure} ../_static/screenshots/main-window.png
-:alt: PDF App main window after launch
+:alt: Lankir main window after launch
 :width: 100%
 
-*PDF App main window with welcome screen*
+*Lankir main window with welcome screen*
 ```
 
 ```{note}
@@ -30,7 +30,7 @@ Or double-click the AppImage/desktop shortcut.
 Pass any argument to use CLI mode:
 
 ```bash
-pdf-app pdf info document.pdf
+lankir pdf info document.pdf
 ```
 
 ## Opening a PDF
@@ -56,15 +56,15 @@ pdf-app pdf info document.pdf
 
 ```bash
 # View PDF information
-pdf-app pdf info document.pdf
+lankir pdf info document.pdf
 
 # Render a specific page
-pdf-app pdf render document.pdf --page 1 --output page1.png
+lankir pdf render document.pdf --page 1 --output page1.png
 ```
 
 ### Via Drag & Drop
 
-Drag a PDF file from your file manager and drop it on the PDF App window.
+Drag a PDF file from your file manager and drop it on the Lankir window.
 
 ## Navigating Documents
 
@@ -122,7 +122,7 @@ The signed PDF saves as `original_signed.pdf`.
 To verify an existing signature:
 
 ```bash
-pdf-app sign verify signed_document.pdf
+lankir sign verify signed_document.pdf
 ```
 
 Or in the GUI, open the PDF and check the signature panel.
@@ -133,29 +133,29 @@ List available certificates:
 
 ```bash
 # CLI
-pdf-app cert list
+lankir cert list
 
 # Show only valid certificates
-pdf-app cert list --valid-only
+lankir cert list --valid-only
 ```
 
 In the GUI, go to **Settings → Certificates** to browse all available certificates.
 
 ## Configuration
 
-PDF App stores settings in `~/.config/pdf_app/config.json`.
+Lankir stores settings in `~/.config/lankir/config.json`.
 
 ### Common Settings
 
 ```bash
 # View current config
-pdf-app config get
+lankir config get
 
 # Change theme
-pdf-app config set theme dark
+lankir config set theme dark
 
 # Set default zoom
-pdf-app config set defaultZoom 125
+lankir config set defaultZoom 125
 ```
 
 ## Next Steps
