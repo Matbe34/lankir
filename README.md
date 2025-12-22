@@ -503,21 +503,6 @@ Contributions are welcome! Please read our contributing guidelines before submit
 
 ---
 
-## Roadmap
-
-### Planned Features
-
-- [ ] PDF annotations and comments
-- [ ] Text selection and search
-- [ ] Timestamp Authority (TSA) support for signatures
-- [ ] PDF form filling
-- [ ] Page manipulation (merge, split, rotate)
-- [ ] PDF creation and conversion
-- [ ] Encryption and permissions management
-- [ ] OCR support for scanned documents
-
----
-
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
@@ -525,7 +510,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ```
 MIT License
 
-Copyright (c) 2025 Ferran
+Copyright (c) 2025 Matbe34
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -545,19 +530,3 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
-
----
-
-## Acknowledgments
-
-- [Wails](https://wails.io) — Desktop application framework
-- [MuPDF](https://mupdf.com) — PDF rendering engine
-- [digitorus/pdfsign](https://github.com/digitorus/pdfsign) — PDF signing library
-- [Cobra](https://github.com/spf13/cobra) — CLI framework
-- [Tailwind CSS](https://tailwindcss.com) — CSS framework
-
----
-
-<p align="center">
-  Made with ❤️ for Linux
-</p>
