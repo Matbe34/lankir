@@ -19,6 +19,7 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/Matbe34/lankir/actions/workflows/test.yml"><img src="https://github.com/Matbe34/lankir/actions/workflows/test.yml/badge.svg" alt="Tests"></a>
   <img src="https://img.shields.io/badge/Go-1.24-00ADD8?logo=go&logoColor=white" alt="Go 1.24">
   <img src="https://img.shields.io/badge/Wails-2.10-FF4081?logo=wails&logoColor=white" alt="Wails 2.10">
   <img src="https://img.shields.io/badge/Platform-Linux-FCC624?logo=linux&logoColor=black" alt="Linux">
