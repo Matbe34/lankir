@@ -104,10 +104,6 @@ lankir config set defaultViewMode scroll  # or "single"
 *Thumbnail sidebar with current page highlighted*
 ```
 
-```{note}
-**Screenshot needed:** `_static/screenshots/sidebar-thumbnails.png` — Close-up of the thumbnail sidebar showing several page previews with one highlighted.
-```
-
 ### Recent Files
 
 Quick access to recently opened documents. The number of files remembered is configurable:
