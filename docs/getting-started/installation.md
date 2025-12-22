@@ -24,7 +24,7 @@ The AppImage is fully self-contained and works on any Linux distribution:
 
 ```bash
 # Download the latest release
-wget https://github.com/ferran/lankir/releases/latest/download/lankir-x86_64.AppImage
+wget https://github.com/Matbe34/lankir/releases/latest/download/lankir-x86_64.AppImage
 
 # Make executable
 chmod +x lankir-x86_64.AppImage

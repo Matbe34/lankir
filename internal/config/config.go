@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/ferran/lankir/internal/signature/pkcs11"
-	"github.com/ferran/lankir/internal/signature/pkcs12"
+	"github.com/Matbe34/lankir/internal/signature/pkcs11"
+	"github.com/Matbe34/lankir/internal/signature/pkcs12"
 )
 
 // Config holds all application settings persisted to disk.

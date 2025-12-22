@@ -10,11 +10,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Matbe34/lankir/internal/signature/nss"
+	"github.com/Matbe34/lankir/internal/signature/pkcs11"
+	"github.com/Matbe34/lankir/internal/signature/pkcs12"
+	"github.com/Matbe34/lankir/internal/signature/types"
 	"github.com/digitorus/pdfsign/sign"
-	"github.com/ferran/lankir/internal/signature/nss"
-	"github.com/ferran/lankir/internal/signature/pkcs11"
-	"github.com/ferran/lankir/internal/signature/pkcs12"
-	"github.com/ferran/lankir/internal/signature/types"
 	"github.com/google/uuid"
 )
 

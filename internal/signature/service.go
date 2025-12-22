@@ -8,9 +8,9 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/ferran/lankir/internal/config"
-	"github.com/ferran/lankir/internal/signature/pkcs11"
-	"github.com/ferran/lankir/internal/signature/pkcs12"
+	"github.com/Matbe34/lankir/internal/config"
+	"github.com/Matbe34/lankir/internal/signature/pkcs11"
+	"github.com/Matbe34/lankir/internal/signature/pkcs12"
 	"github.com/google/uuid"
 )
 

@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Matbe34/lankir/internal/signature/types"
 	"github.com/digitorus/pdfsign/verify"
-	"github.com/ferran/lankir/internal/signature/types"
 )
 
 // VerifySignatures validates all digital signatures in a PDF and returns their status.

@@ -11,10 +11,10 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
 	"github.com/wailsapp/wails/v2/pkg/options/linux"
 
-	"github.com/ferran/lankir/cmd/cli"
-	"github.com/ferran/lankir/internal/config"
-	"github.com/ferran/lankir/internal/pdf"
-	"github.com/ferran/lankir/internal/signature"
+	"github.com/Matbe34/lankir/cmd/cli"
+	"github.com/Matbe34/lankir/internal/config"
+	"github.com/Matbe34/lankir/internal/pdf"
+	"github.com/Matbe34/lankir/internal/signature"
 )
 
 //go:embed all:frontend/dist

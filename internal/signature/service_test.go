@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/ferran/lankir/internal/config"
+	"github.com/Matbe34/lankir/internal/config"
 	"github.com/google/uuid"
 )
 

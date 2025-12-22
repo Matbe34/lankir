@@ -85,11 +85,11 @@ The same binary works as both a **GUI application** and a **CLI tool**, making i
 
 ### Option 1: AppImage (Recommended)
 
-Download the latest AppImage from [Releases](https://github.com/ferran/lankir/releases):
+Download the latest AppImage from [Releases](https://github.com/Matbe34/lankir/releases):
 
 ```bash
 # Download the AppImage
-wget https://github.com/ferran/lankir/releases/download/v0.1.0/lankir-0.1.0-x86_64.AppImage
+wget https://github.com/Matbe34/lankir/releases/download/v0.1.0/lankir-0.1.0-x86_64.AppImage
 
 # Make it executable
 chmod +x lankir-0.1.0-x86_64.AppImage
@@ -123,7 +123,7 @@ Then download and run the binary:
 
 ```bash
 # Download
-wget https://github.com/ferran/lankir/releases/download/v0.1.0/lankir_static
+wget https://github.com/Matbe34/lankir/releases/download/v0.1.0/lankir_static
 
 # Make executable and move to PATH
 chmod +x lankir_static
@@ -303,7 +303,7 @@ lankir config reset
 
 ```bash
 # Clone the repository
-git clone https://github.com/ferran/lankir.git
+git clone https://github.com/Matbe34/lankir.git
 cd lankir
 
 # Install Go dependencies

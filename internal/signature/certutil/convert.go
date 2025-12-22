@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/ferran/lankir/internal/signature/types"
+	"github.com/Matbe34/lankir/internal/signature/types"
 )
 
 func IsCertificateValidForSigning(cert *x509.Certificate) bool {

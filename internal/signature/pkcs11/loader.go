@@ -6,8 +6,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/ferran/lankir/internal/signature/certutil"
-	"github.com/ferran/lankir/internal/signature/types"
+	"github.com/Matbe34/lankir/internal/signature/certutil"
+	"github.com/Matbe34/lankir/internal/signature/types"
 	"github.com/miekg/pkcs11"
 )
 

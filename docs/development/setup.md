@@ -99,7 +99,7 @@ sudo apt install nodejs npm
 
 ```bash
 # Clone repository
-git clone https://github.com/ferran/lankir.git
+git clone https://github.com/Matbe34/lankir.git
 cd lankir
 
 # Install frontend dependencies

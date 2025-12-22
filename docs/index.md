@@ -168,7 +168,7 @@ reference/faq
 
 ## License
 
-Lankir is open source software. See the [LICENSE](https://github.com/ferran/lankir/blob/main/LICENSE) file for details.
+Lankir is open source software. See the [LICENSE](https://github.com/Matbe34/lankir/blob/main/LICENSE) file for details.
 
 ---
 

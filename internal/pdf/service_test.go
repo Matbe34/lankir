@@ -7,7 +7,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/ferran/lankir/internal/config"
+	"github.com/Matbe34/lankir/internal/config"
 )
 
 // TestNewPDFService tests service creation
