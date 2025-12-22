@@ -211,13 +211,22 @@ function loadPageThumbnailsFromCache(pdfData) {
     const pageList = document.getElementById('pageList');
     pageList.innerHTML = '';
 
+    const THUMBNAIL_DPI = 72;
+
     for (let i = 0; i < pdfData.totalPages; i++) {
         const pageItem = document.createElement('div');
         pageItem.className = 'page-item';
         if (i === pdfData.currentPage) {
             pageItem.classList.add('active');
         }
-        pageItem.innerHTML = `<div class="page-number">Page ${i + 1}</div>`;
+
+        pageItem.innerHTML = `
+            <div class="page-thumbnail-container" style="width: 100%; aspect-ratio: 0.707; background: var(--bg-primary); border-radius: 4px; overflow: hidden; margin-bottom: 0.5rem; display: flex; align-items: center; justify-content: center;">
+                <div class="page-thumbnail-loading" style="color: var(--text-secondary); font-size: 0.75rem;">Loading...</div>
+            </div>
+            <div class="page-number">Page ${i + 1}</div>
+        `;
+
         pageItem.addEventListener('click', () => {
             document.querySelectorAll('.page-item').forEach(el => el.classList.remove('active'));
             pageItem.classList.add('active');
@@ -228,7 +237,41 @@ function loadPageThumbnailsFromCache(pdfData) {
                 scrollToPage(i);
             }
         });
+
         pageList.appendChild(pageItem);
+
+        loadCachedThumbnail(i, pageItem, THUMBNAIL_DPI).catch(err => {
+            console.error(`Error loading thumbnail for page ${i + 1}:`, err);
+        });
+    }
+}
+
+/** Load a single page thumbnail for cached PDF. */
+async function loadCachedThumbnail(pageNum, pageItem, dpi) {
+    try {
+        const thumbnailContainer = pageItem.querySelector('.page-thumbnail-container');
+        const loadingIndicator = pageItem.querySelector('.page-thumbnail-loading');
+
+        const pageInfo = await window.go.pdf.PDFService.RenderPage(pageNum, dpi);
+
+        if (pageInfo && pageInfo.imageData) {
+            const img = document.createElement('img');
+            img.style.cssText = 'width: 100%; height: 100%; object-fit: contain;';
+            img.src = pageInfo.imageData;
+            img.alt = `Page ${pageNum + 1} thumbnail`;
+
+            if (loadingIndicator) {
+                loadingIndicator.remove();
+            }
+            thumbnailContainer.innerHTML = '';
+            thumbnailContainer.appendChild(img);
+        }
+    } catch (error) {
+        console.error(`Failed to load thumbnail for page ${pageNum + 1}:`, error);
+        const thumbnailContainer = pageItem.querySelector('.page-thumbnail-container');
+        if (thumbnailContainer) {
+            thumbnailContainer.innerHTML = '<span style="font-size: 2rem;">📄</span>';
+        }
     }
 }
 
