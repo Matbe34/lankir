@@ -9,10 +9,6 @@ Lankir supports signing PDFs with digital certificates from multiple sources, in
 *Signing a PDF document with a visible signature*
 ```
 
-```{note}
-**Screenshot needed:** `_static/screenshots/signing-workflow.png` — The application during a signing operation, showing a PDF with the signature dialog or a visible signature being placed.
-```
-
 ## Certificate Sources
 
 Lankir can use certificates from:
@@ -40,10 +36,6 @@ Lankir can use certificates from:
 :align: center
 
 *The Sign button in the application toolbar*
-```
-
-```{note}
-**Screenshot needed:** `_static/screenshots/sign-button.png` — Close-up of the toolbar showing the Sign button.
 ```
 
 The signed PDF is saved as `original_signed.pdf` in the same directory.
@@ -94,10 +86,6 @@ lankir sign pdf input.pdf output.pdf --cert ABC123... \
 :align: center
 
 *A visible signature showing signer name, date, and optional logo*
-```
-
-```{note}
-**Screenshot needed:** `_static/screenshots/visible-signature.png` — Close-up of a visible signature box on a PDF page, showing the signature appearance with name and timestamp.
 ```
 
 Position parameters:

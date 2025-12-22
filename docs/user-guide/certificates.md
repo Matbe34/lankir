@@ -9,10 +9,6 @@ Lankir aggregates certificates from multiple sources for signing PDFs.
 *Certificate list showing certificates from multiple sources*
 ```
 
-```{note}
-**Screenshot needed:** `_static/screenshots/certificate-list.png` — The certificate management panel or settings page showing a list of certificates from different sources (PKCS#12, PKCS#11, NSS).
-```
-
 ## Certificate Sources
 
 ### PKCS#12 Files (.p12, .pfx)

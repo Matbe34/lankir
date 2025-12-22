@@ -10,10 +10,6 @@ Lankir can verify digital signatures in PDF documents to confirm their authentic
 *Verification panel showing signature status and certificate details*
 ```
 
-```{note}
-**Screenshot needed:** `_static/screenshots/verification-panel.png` — The verification results panel showing signature status (valid/invalid), signer information, and certificate details.
-```
-
 ## Verification Overview
 
 When verifying a signature, Lankir checks:

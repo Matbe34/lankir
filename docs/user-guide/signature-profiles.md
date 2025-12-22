@@ -10,10 +10,6 @@ Signature profiles define the appearance and settings for visible signatures.
 *Creating a custom signature profile with logo and positioning options*
 ```
 
-```{note}
-**Screenshot needed:** `_static/screenshots/signature-profile-editor.png` — The profile editor dialog showing visibility options, position settings, and appearance configuration.
-```
-
 ## Overview
 
 A signature profile controls:

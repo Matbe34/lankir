@@ -10,10 +10,6 @@ Lankir stores all configuration in `~/.config/lankir/`.
 *Settings panel showing theme, viewer, and certificate configuration options*
 ```
 
-```{note}
-**Screenshot needed:** `_static/screenshots/settings-panel.png` — The settings/preferences panel showing various configuration options.
-```
-
 ## Configuration Files
 
 | File | Purpose |

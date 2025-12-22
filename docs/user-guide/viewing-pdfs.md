@@ -6,11 +6,7 @@ Lankir provides a high-quality PDF viewing experience powered by the MuPDF rende
 :alt: PDF viewer interface overview
 :width: 100%
 
-*PDF viewer with document, thumbnail sidebar, and navigation controls*
-```
-
-```{note}
-**Screenshot needed:** `_static/screenshots/viewer-overview.png` — Full application window with a multi-page PDF open, showing thumbnail sidebar, main viewer area, and toolbar.
+*PDF viewer with document and navigation controls*
 ```
 
 ## Opening Documents

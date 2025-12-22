@@ -134,7 +134,7 @@ Do not modify or delete these directories.
     "frontend:install": "npm install",
     "frontend:build": "npm run build",
     "author": {
-        "name": "Ferran"
+        "name": "Matbe34"
     }
 }
 ```

@@ -12,10 +12,6 @@ Sign PDFs with hardware tokens (PKCS#11), certificate files (PKCS#12), and brows
 *Lankir main interface with document viewer and signature capabilities*
 ```
 
-```{note}
-**Screenshot needed:** Replace `_static/screenshot.png` with a 1200×800 PNG showing the main application window with a PDF document open.
-```
-
 ---
 
 ## Key Features

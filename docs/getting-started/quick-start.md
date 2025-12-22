@@ -21,10 +21,6 @@ Or double-click the AppImage/desktop shortcut.
 *Lankir main window with welcome screen*
 ```
 
-```{note}
-**Screenshot needed:** `_static/screenshots/main-window.png` — The main application window after launch, showing the welcome screen or empty state.
-```
-
 ### CLI Mode
 
 Pass any argument to use CLI mode:
@@ -46,10 +42,6 @@ lankir pdf info document.pdf
 :width: 100%
 
 *PDF document displayed with thumbnail sidebar*
-```
-
-```{note}
-**Screenshot needed:** `_static/screenshots/pdf-open.png` — A PDF document open in the viewer with the thumbnail sidebar visible on the left.
 ```
 
 ### Via CLI
@@ -109,10 +101,6 @@ You need a digital certificate from one of these sources:
 :width: 80%
 
 *Signature dialog showing certificate selection and profile options*
-```
-
-```{note}
-**Screenshot needed:** `_static/screenshots/sign-dialog.png` — The signature dialog showing the certificate dropdown, PIN field, and sign button.
 ```
 
 The signed PDF saves as `original_signed.pdf`.
