@@ -507,7 +507,7 @@ Contributions are welcome! Please read our contributing guidelines before submit
 
 If you find Lankir useful, consider supporting its development:
 
-<p align="center">
+<p>
   <a href="https://www.buymeacoffee.com/Matbe34">
     <img src="https://img.shields.io/badge/Buy%20Me%20a%20Coffee-ffdd00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black" alt="Buy Me A Coffee">
   </a>
