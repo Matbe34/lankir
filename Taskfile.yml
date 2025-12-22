@@ -138,3 +138,28 @@ tasks:
     deps: [build]
     cmds:
       - ./{{.BUILD_DIR}}/{{.BINARY_NAME}}
+
+  release:
+    desc: Create a new release with automatic version detection
+    cmds:
+      - ./scripts/release.sh --auto
+
+  release-patch:
+    desc: Create a patch release (bug fixes)
+    cmds:
+      - ./scripts/release.sh --patch
+
+  release-minor:
+    desc: Create a minor release (new features)
+    cmds:
+      - ./scripts/release.sh --minor
+
+  release-major:
+    desc: Create a major release (breaking changes)
+    cmds:
+      - ./scripts/release.sh --major
+
+  release-dry-run:
+    desc: Preview what a release would do without making changes
+    cmds:
+      - ./scripts/release.sh --auto --dry-run
