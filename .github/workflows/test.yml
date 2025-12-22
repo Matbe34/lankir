@@ -29,6 +29,11 @@ jobs:
       - name: Download Go dependencies
         run: go mod download
 
+      - name: Setup go-fitz symlinks
+        run: |
+          ln -s $(go env GOMODCACHE)/github.com/gen2brain/go-fitz@v1.24.15/include go-fitz-include
+          ln -s $(go env GOMODCACHE)/github.com/gen2brain/go-fitz@v1.24.15/libs go-fitz-libs
+
       - name: Run Go tests
         run: go test -v ./...
 
