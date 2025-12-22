@@ -43,7 +43,7 @@ html_theme_options = {
 
 html_context = {
     'display_github': True,
-    'github_user': 'ferran',
+    'github_user': 'Matbe34',
     'github_repo': 'lankir',
     'github_version': 'main',
     'conf_py_path': '/docs/',

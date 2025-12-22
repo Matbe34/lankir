@@ -5,8 +5,8 @@
   "frontend:install": "echo 'Using embedded frontend'",
   "frontend:build": "./build.sh",
   "author": {
-    "name": "Ferran",
-    "email": "ferran@example.com"
+    "name": "Matbe34",
+    "email": "matbe34@github.com"
   },
   "info": {
     "companyName": "Lankir",
