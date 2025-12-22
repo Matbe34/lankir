@@ -28,6 +28,7 @@ export function createPDFData(tabId, filePath, metadata) {
         currentPage: 0,
         totalPages: metadata.pageCount,
         renderedPages: new Map(),
+        thumbnails: new Map(),
         viewerHTML: null,
         pageListHTML: null,
         scrollPosition: 0,

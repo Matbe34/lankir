@@ -1,7 +1,7 @@
 import { state, getActivePDF } from './state.js';
 import { updateStatus, escapeHtml, formatDate, updatePageIndicator, updateScrollProgress, sanitizeError } from './utils.js';
 import { createPDFTab, switchToTab } from './pdfManager.js';
-import { renderPage, renderScrollMode, scrollToPage } from './renderer.js';
+import { renderPage, renderScrollMode } from './renderer.js';
 import { showLoading, hideLoading } from './loadingIndicator.js';
 
 /** Returns tab ID if PDF is already open, null otherwise. */
@@ -276,85 +276,20 @@ export async function loadSignatureInfo(pdfPath) {
     }
 }
 
-/**
- * Load page thumbnails for sidebar
- */
+/** Load page thumbnails using optimized lazy loading */
 export async function loadPageThumbnails(pageCount) {
     try {
+        const activePDF = getActivePDF();
+        if (!activePDF) return;
+
         const pageList = document.getElementById('pageList');
         pageList.innerHTML = '';
 
-        const THUMBNAIL_DPI = 72;
-
-        for (let i = 0; i < pageCount; i++) {
-            const pageItem = document.createElement('div');
-            pageItem.className = 'page-item';
-            if (i === 0) pageItem.classList.add('active');
-
-            pageItem.innerHTML = `
-                <div class="page-thumbnail-container" style="width: 100%; aspect-ratio: 0.707; background: var(--bg-primary); border-radius: 4px; overflow: hidden; margin-bottom: 0.5rem; display: flex; align-items: center; justify-content: center;">
-                    <div class="page-thumbnail-loading" style="color: var(--text-secondary); font-size: 0.75rem;">Loading...</div>
-                </div>
-                <div class="page-number">Page ${i + 1}</div>
-            `;
-
-            pageItem.addEventListener('click', async () => {
-                try {
-                    document.querySelectorAll('.page-item').forEach(el => el.classList.remove('active'));
-                    pageItem.classList.add('active');
-
-                    const { state } = await import('./state.js');
-                    if (state.viewMode === 'single') {
-                        renderPage(i);
-                    } else {
-                        scrollToPage(i);
-                    }
-                } catch (error) {
-                    console.error(`Error navigating to page ${i + 1}:`, error);
-                    updateStatus('Error navigating to page');
-                }
-            });
-
-            pageList.appendChild(pageItem);
-
-            loadSingleThumbnail(i, pageItem, THUMBNAIL_DPI).catch(err => {
-                console.error(`Error loading thumbnail for page ${i + 1}:`, err);
-            });
-        }
+        const { initializeThumbnailLoading, setupThumbnailItems } = await import('./thumbnailLoader.js');
+        const { observer } = initializeThumbnailLoading(activePDF.id, pageCount);
+        setupThumbnailItems(activePDF.id, pageCount, observer);
     } catch (error) {
         console.error('Error loading page thumbnails:', error);
-        // Non-critical error, thumbnails are optional
-    }
-}
-
-/**
- * Load a single page thumbnail
- */
-async function loadSingleThumbnail(pageNum, pageItem, dpi) {
-    try {
-        const thumbnailContainer = pageItem.querySelector('.page-thumbnail-container');
-        const loadingIndicator = pageItem.querySelector('.page-thumbnail-loading');
-
-        const pageInfo = await window.go.pdf.PDFService.RenderPage(pageNum, dpi);
-
-        if (pageInfo && pageInfo.imageData) {
-            const img = document.createElement('img');
-            img.style.cssText = 'width: 100%; height: 100%; object-fit: contain;';
-            img.src = pageInfo.imageData;
-            img.alt = `Page ${pageNum + 1} thumbnail`;
-
-            if (loadingIndicator) {
-                loadingIndicator.remove();
-            }
-            thumbnailContainer.innerHTML = '';
-            thumbnailContainer.appendChild(img);
-        }
-    } catch (error) {
-        console.error(`Failed to load thumbnail for page ${pageNum + 1}:`, error);
-        const thumbnailContainer = pageItem.querySelector('.page-thumbnail-container');
-        if (thumbnailContainer) {
-            thumbnailContainer.innerHTML = '<span style="font-size: 2rem;">📄</span>';
-        }
     }
 }
 

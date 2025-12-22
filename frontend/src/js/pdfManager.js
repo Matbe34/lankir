@@ -236,33 +236,31 @@ export function closePDFTab(tabId) {
     if (tab) {
         tab.remove();
     }
-    
+
     const pdfData = state.openPDFs.get(tabId);
     if (pdfData) {
         cleanupScrollListeners(tabId);
         cancelBackgroundLoading(tabId);
-        
-        // Clear all rendered page data to free memory
+
+        import('./thumbnailLoader.js').then(({ cleanupThumbnailLoading }) => {
+            cleanupThumbnailLoading(tabId);
+        });
+
         pdfData.renderedPages.clear();
-        // Clear HTML cache
+        pdfData.thumbnails?.clear();
         pdfData.viewerHTML = null;
         pdfData.pageListHTML = null;
-        
-        // Emit event before removal
+
         stateEmitter.emit(StateEvents.PDF_CLOSED, { tabId, filePath: pdfData.filePath });
     }
-    
-    // Remove from open PDFs
+
     removeOpenPDF(tabId);
-    
-    // If this was the active tab, switch to another or show home
+
     if (state.activeTabId === tabId) {
         if (state.openPDFs.size > 0) {
-            // Switch to first available tab
             const firstTabId = state.openPDFs.keys().next().value;
             switchToTab(firstTabId);
         } else {
-            // No PDF tabs left, switch to home
             switchToHome();
         }
     }
