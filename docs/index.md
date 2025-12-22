@@ -74,6 +74,70 @@ Master command-line operations for automation.
 
 ::::
 
+## Documentation
+
+```{toctree}
+:maxdepth: 2
+:caption: Getting Started
+
+getting-started/installation
+getting-started/quick-start
+getting-started/configuration
+```
+
+```{toctree}
+:maxdepth: 2
+:caption: User Guide
+
+user-guide/viewing-pdfs
+user-guide/signing
+user-guide/certificates
+user-guide/signature-profiles
+user-guide/verification
+```
+
+```{toctree}
+:maxdepth: 2
+:caption: Command Line
+
+cli/overview
+cli/pdf-commands
+cli/cert-commands
+cli/sign-commands
+cli/config-commands
+```
+
+```{toctree}
+:maxdepth: 2
+:caption: Architecture
+
+architecture/overview
+architecture/backend
+architecture/frontend
+architecture/signature-system
+architecture/wails-integration
+```
+
+```{toctree}
+:maxdepth: 2
+:caption: Development
+
+development/setup
+development/building
+development/testing
+development/contributing
+```
+
+```{toctree}
+:maxdepth: 2
+:caption: Reference
+
+reference/api
+reference/configuration
+reference/troubleshooting
+reference/faq
+```
+
 ---
 
 ## Feature Overview
