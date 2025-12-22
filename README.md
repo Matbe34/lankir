@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="build/appimage/AppDir/lankir.svg" alt="Lankir Logo" width="128" height="128">
+  <img src="assets/lankir.png" alt="Lankir Logo" width="128" height="128">
 </p>
 
 <h1 align="center">Lankir</h1>
