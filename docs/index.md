@@ -162,6 +162,28 @@ reference/faq
 
 ---
 
+## Support
+
+If you find Lankir useful, consider supporting its development:
+
+:::{centered}
+[![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-ffdd00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black)](https://www.buymeacoffee.com/Matbe34)
+:::
+
+### Cryptocurrency Donations
+
+**Bitcoin (BTC)**
+```
+bc1q7utue52q2m66spl3prz3xxmmdw9varcupfa20f
+```
+
+**Monero (XMR)**
+```
+681AX96pcCFNbFs82MeQVR6W3pDCHRTHEGGHBMZiafLL
+```
+
+---
+
 ## License
 
 Lankir is open source software. See the [LICENSE](https://github.com/Matbe34/lankir/blob/main/LICENSE) file for details.
