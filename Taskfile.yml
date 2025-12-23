@@ -35,15 +35,84 @@ tasks:
     cmds:
       - ./scripts/build-appimage.sh
 
+  appimage-test:
+    desc: Test the built AppImage
+    cmds:
+      - |
+        if [ ! -f build/bin/lankir-*.AppImage ]; then
+          echo "Error: AppImage not found. Run 'task appimage' first."
+          exit 1
+        fi
+        echo "Testing AppImage..."
+        build/bin/lankir-*.AppImage --help || true
+        echo "✓ AppImage executable"
+
+  appimage-extract:
+    desc: Extract AppImage contents for inspection
+    cmds:
+      - |
+        if [ ! -f build/bin/lankir-*.AppImage ]; then
+          echo "Error: AppImage not found. Run 'task appimage' first."
+          exit 1
+        fi
+        cd build/bin && ./lankir-*.AppImage --appimage-extract
+        echo "✓ AppImage extracted to build/bin/squashfs-root"
+
+  appimage-check-deps:
+    desc: Check for missing dependencies in AppImage
+    cmds:
+      - |
+        if [ ! -d build/bin/squashfs-root ]; then
+          echo "Extracting AppImage first..."
+          task appimage-extract
+        fi
+        echo "Checking main binary..."
+        ldd build/bin/squashfs-root/usr/bin/lankir | grep "not found" && exit 1 || echo "✓ No missing dependencies for main binary"
+        echo "Checking WebKitWebProcess..."
+        ldd build/bin/squashfs-root/usr/bin/WebKitWebProcess | grep "not found" && exit 1 || echo "✓ No missing dependencies for WebKitWebProcess"
+        echo "Checking WebKitNetworkProcess..."
+        ldd build/bin/squashfs-root/usr/bin/WebKitNetworkProcess | grep "not found" && exit 1 || echo "✓ No missing dependencies for WebKitNetworkProcess"
+
+  appimage-info:
+    desc: Show information about the built AppImage
+    cmds:
+      - |
+        if [ ! -f build/bin/lankir-*.AppImage ]; then
+          echo "Error: AppImage not found. Run 'task appimage' first."
+          exit 1
+        fi
+        APPIMAGE=$(ls build/bin/lankir-*.AppImage)
+        echo "AppImage Information:"
+        echo "===================="
+        echo "Location: $APPIMAGE"
+        echo "Size: $(du -h "$APPIMAGE" | cut -f1)"
+        echo "File type: $(file "$APPIMAGE" | cut -d: -f2-)"
+        echo ""
+        if [ -d build/appimage/AppDir ]; then
+          echo "AppDir size: $(du -sh build/appimage/AppDir | cut -f1)"
+          echo "GStreamer plugins: $(ls build/appimage/AppDir/usr/lib/gstreamer-1.0/ 2>/dev/null | wc -l)"
+          echo "WebKit processes: $(ls build/appimage/AppDir/usr/lib/x86_64-linux-gnu/webkit2gtk-4.0/ 2>/dev/null | grep -c Process || echo 0)"
+        fi
+
   clean:
-    desc: Remove all build artifacts and generated files
+    desc: Remove build artifacts (keeps cached tools like linuxdeploy)
     cmds:
       - echo "Cleaning build artifacts..."
       - rm -rf {{.BUILD_DIR}}
-      - rm -rf build/
+      - rm -rf build/appimage/AppDir
+      - rm -rf build/bin/squashfs-root
+      - rm -f build/bin/*.AppImage
       - rm -f lankir lankir-*
       - rm -f {{.FRONTEND_DIR}}/dist/style.css
-      - echo "✓ Clean complete"
+      - echo "✓ Clean complete (cached tools preserved)"
+
+  clean-cache:
+    desc: Remove cached build tools (linuxdeploy, appimagetool)
+    cmds:
+      - echo "Removing cached build tools..."
+      - rm -rf build/linuxdeploy-tools
+      - rm -f build/appimagetool-x86_64.AppImage
+      - echo "✓ Build tool cache cleared"
 
   clean-all:
     desc: Deep clean - remove all generated files including Wails bindings and caches
