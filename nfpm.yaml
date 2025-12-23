@@ -1,0 +1,60 @@
+# nfpm configuration for Lankir
+# Builds both .deb and .rpm packages
+name: "lankir"
+arch: "amd64"
+platform: "linux"
+version: "${VERSION}"  # Will be set by build script
+section: "utils"
+priority: "optional"
+maintainer: "Matbe34 <matbe34@github.com>"
+description: |
+  Lankir - A modern PDF editor for Linux
+  A powerful and user-friendly PDF signing and editing application
+  built with Go and Wails framework.
+vendor: "Lankir"
+homepage: "https://github.com/Matbe34/lankir"
+license: "MIT"
+
+# Dependencies
+depends:
+  - libgtk-3-0
+  - libwebkit2gtk-4.1-0
+  - libnss3
+
+recommends:
+  - gstreamer1.0-plugins-good
+  - gstreamer1.0-plugins-bad
+
+# Package contents
+contents:
+  # Main binary
+  - src: ./build/bin/lankir
+    dst: /usr/bin/lankir
+    file_info:
+      mode: 0755
+
+  # Desktop file
+  - src: ./packaging/lankir.desktop
+    dst: /usr/share/applications/lankir.desktop
+    file_info:
+      mode: 0644
+
+  # Icon
+  - src: ./assets/lankir.png
+    dst: /usr/share/pixmaps/lankir.png
+    file_info:
+      mode: 0644
+
+# Scripts
+scripts:
+  postinstall: ./packaging/postinstall.sh
+  preremove: ./packaging/preremove.sh
+
+# RPM specific
+rpm:
+  group: Applications/Productivity
+  compression: lzma
+
+# DEB specific
+deb:
+  compression: xz

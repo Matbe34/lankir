@@ -35,6 +35,51 @@ tasks:
     cmds:
       - ./scripts/build-appimage.sh
 
+  build-deb:
+    desc: Build Debian package (.deb)
+    cmds:
+      - |
+        if ! command -v nfpm &> /dev/null; then
+          echo "Error: nfpm is not installed."
+          echo "Install with: go install github.com/goreleaser/nfpm/v2/cmd/nfpm@latest"
+          exit 1
+        fi
+      - task: build
+      - |
+        VERSION=$(grep '"productVersion":' wails.json | sed 's/.*"productVersion": "\(.*\)".*/\1/')
+        echo "Building .deb package for version ${VERSION}..."
+        VERSION=${VERSION} nfpm package --packager deb --target build/bin/
+        echo "✓ Debian package built: build/bin/lankir_${VERSION}_amd64.deb"
+
+  build-rpm:
+    desc: Build RPM package (.rpm)
+    cmds:
+      - |
+        if ! command -v nfpm &> /dev/null; then
+          echo "Error: nfpm is not installed."
+          echo "Install with: go install github.com/goreleaser/nfpm/v2/cmd/nfpm@latest"
+          exit 1
+        fi
+      - task: build
+      - |
+        VERSION=$(grep '"productVersion":' wails.json | sed 's/.*"productVersion": "\(.*\)".*/\1/')
+        echo "Building .rpm package for version ${VERSION}..."
+        VERSION=${VERSION} nfpm package --packager rpm --target build/bin/
+        echo "✓ RPM package built: build/bin/lankir-${VERSION}-1.x86_64.rpm"
+
+  build-packages:
+    desc: Build all distribution packages (deb, rpm, AppImage, static)
+    cmds:
+      - echo "Building all distribution packages..."
+      - task: build-static
+      - task: appimage
+      - task: build-deb
+      - task: build-rpm
+      - echo "✓ All packages built successfully!"
+      - echo ""
+      - echo "Built packages:"
+      - ls -lh build/bin/ | grep -E "\.(deb|rpm|AppImage)$|_static$"
+
   appimage-test:
     desc: Test the built AppImage
     cmds:
