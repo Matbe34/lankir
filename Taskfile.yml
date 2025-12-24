@@ -35,6 +35,11 @@ tasks:
     cmds:
       - ./scripts/build-appimage.sh
 
+  appimage-clean:
+    desc: Build AppImage with clean cache (force rebuild all dependencies)
+    cmds:
+      - ./scripts/build-appimage.sh --force
+
   build-deb:
     desc: Build Debian package (.deb)
     cmds:
@@ -152,12 +157,13 @@ tasks:
       - echo "✓ Clean complete (cached tools preserved)"
 
   clean-cache:
-    desc: Remove cached build tools (linuxdeploy, appimagetool)
+    desc: Remove cached build tools and AppImage dependencies cache
     cmds:
-      - echo "Removing cached build tools..."
+      - echo "Removing cached build tools and dependencies..."
       - rm -rf build/linuxdeploy-tools
+      - rm -rf build/appimage-cache
       - rm -f build/appimagetool-x86_64.AppImage
-      - echo "✓ Build tool cache cleared"
+      - echo "✓ Build caches cleared"
 
   clean-all:
     desc: Deep clean - remove all generated files including Wails bindings and caches
