@@ -84,9 +84,66 @@ The same binary works as both a **GUI application** and a **CLI tool**, making i
 
 ## Installation
 
-### Option 1: AppImage (Recommended)
+### Option 1: Package Manager (Recommended)
 
-Download the latest AppImage from [Releases](https://github.com/Matbe34/lankir/releases):
+Add the Lankir repository to be able to install it and receive automatic updates:
+
+**Debian/Ubuntu:**
+```bash
+# Add repository
+curl -1sLf 'https://dl.cloudsmith.io/public/matbe34/lankir/setup.deb.sh' | sudo -E bash
+
+# Install Lankir
+sudo apt update
+sudo apt install lankir
+```
+
+**Fedora/RHEL/AlmaLinux:**
+```bash
+# Add repository
+curl -1sLf 'https://dl.cloudsmith.io/public/matbe34/lankir/setup.rpm.sh' | sudo -E bash
+
+# Install Lankir
+sudo dnf install lankir
+```
+
+**Supported distributions:**
+- Ubuntu: 24.04 (Noble), 22.04 (Jammy), 20.04 (Focal)
+- Debian: 12 (Bookworm), 11 (Bullseye)
+- Fedora: 40, 39
+- RHEL/AlmaLinux/Rocky: 9, 8
+
+### Option 2: Download Package (.deb / .rpm)
+
+Download and install the package for your distribution from [Releases](https://github.com/Matbe34/lankir/releases):
+
+**Debian/Ubuntu (.deb):**
+```bash
+# Download the .deb package
+wget https://github.com/Matbe34/lankir/releases/download/v0.1.0/lankir_0.1.0_amd64.deb
+
+# Install with dependencies
+sudo apt install ./lankir_0.1.0_amd64.deb
+```
+
+**Fedora/RHEL (.rpm):**
+```bash
+# Download and install
+wget https://github.com/Matbe34/lankir/releases/download/v0.1.0/lankir-0.1.0-1.x86_64.rpm
+sudo dnf install ./lankir-0.1.0-1.x86_64.rpm
+```
+
+**openSUSE (.rpm):**
+```bash
+wget https://github.com/Matbe34/lankir/releases/download/v0.1.0/lankir-0.1.0-1.x86_64.rpm
+sudo zypper install ./lankir-0.1.0-1.x86_64.rpm
+```
+
+> **Note:** Manual package installation does not provide automatic updates. Use Option 1 for auto-updates.
+
+### Option 3: AppImage
+
+The AppImage is fully self-contained and works on any modern Linux distribution:
 
 ```bash
 # Download the AppImage
@@ -99,9 +156,7 @@ chmod +x lankir-0.1.0-x86_64.AppImage
 ./lankir-0.1.0-x86_64.AppImage
 ```
 
-The AppImage is fully self-contained and runs on any modern Linux distribution.
-
-### Option 2: Static Binary
+### Option 4: Static Binary
 
 For the portable binary, install the required runtime dependencies:
 

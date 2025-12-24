@@ -18,7 +18,75 @@ For hardware token support:
 
 ## Installation Methods
 
-### AppImage (Recommended)
+### Package Manager (Recommended)
+
+The recommended way to install Lankir is through the package repository, which enables easy installation and updates.
+
+#### Debian/Ubuntu
+
+```bash
+# Add the Lankir repository
+curl -1sLf 'https://dl.cloudsmith.io/public/matbe34/lankir/setup.deb.sh' | sudo -E bash
+
+# Install Lankir
+sudo apt update
+sudo apt install lankir
+```
+
+**Supported versions:**
+- Ubuntu 24.04 (Noble Numbat)
+- Ubuntu 22.04 (Jammy Jellyfish)
+- Ubuntu 20.04 (Focal Fossa)
+- Debian 12 (Bookworm)
+- Debian 11 (Bullseye)
+
+#### Fedora/RHEL/AlmaLinux
+
+```bash
+# Add the Lankir repository
+curl -1sLf 'https://dl.cloudsmith.io/public/matbe34/lankir/setup.rpm.sh' | sudo -E bash
+
+# Install Lankir
+sudo dnf install lankir
+```
+
+**Supported versions:**
+- Fedora 40, 39
+- RHEL 9, 8
+- AlmaLinux 9, 8
+- Rocky Linux 9, 8
+
+### Manual Package Installation
+
+If you prefer not to add a repository, download and install packages manually from [Releases](https://github.com/Matbe34/lankir/releases):
+
+**Debian/Ubuntu (.deb):**
+```bash
+# Download the .deb package
+wget https://github.com/Matbe34/lankir/releases/latest/download/lankir_amd64.deb
+
+# Install with dependencies
+sudo apt install ./lankir_amd64.deb
+```
+
+**Fedora/RHEL (.rpm):**
+```bash
+# Download and install
+wget https://github.com/Matbe34/lankir/releases/latest/download/lankir.x86_64.rpm
+sudo dnf install ./lankir.x86_64.rpm
+```
+
+**openSUSE (.rpm):**
+```bash
+wget https://github.com/Matbe34/lankir/releases/latest/download/lankir.x86_64.rpm
+sudo zypper install ./lankir.x86_64.rpm
+```
+
+:::{warning}
+Manual package installation does **not** provide automatic updates. You'll need to manually download and install new versions.
+:::
+
+### AppImage (Universal)
 
 The AppImage is fully self-contained and works on any Linux distribution:
 

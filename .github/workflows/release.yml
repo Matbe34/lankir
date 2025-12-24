@@ -1,0 +1,129 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    name: Build and Release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24.0'
+          cache: true
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libgtk-3-dev \
+            libwebkit2gtk-4.1-dev \
+            libnss3-dev \
+            libmupdf-dev \
+            desktop-file-utils \
+            fuse \
+            libfuse2
+
+      - name: Install Wails CLI
+        run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
+
+      - name: Install nfpm for packaging
+        run: go install github.com/goreleaser/nfpm/v2/cmd/nfpm@latest
+
+      - name: Install Python and Cloudsmith CLI
+        run: |
+          sudo apt-get install -y python3 python3-pip
+          pip install --upgrade cloudsmith-cli
+
+      - name: Download Go dependencies
+        run: go mod download
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Extract version from tag
+        id: version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      - name: Build static binary
+        run: ./scripts/build-static.sh
+
+      - name: Build AppImage
+        run: ./scripts/build-appimage.sh
+
+      - name: Build .deb package
+        run: VERSION=${{ steps.version.outputs.VERSION }} nfpm package --packager deb --target build/bin/
+
+      - name: Build .rpm package
+        run: VERSION=${{ steps.version.outputs.VERSION }} nfpm package --packager rpm --target build/bin/
+
+      - name: Generate checksums
+        run: |
+          cd build/bin
+          sha256sum lankir_static > checksums.txt
+          sha256sum lankir-${{ steps.version.outputs.VERSION }}-x86_64.AppImage >> checksums.txt
+          sha256sum lankir_${{ steps.version.outputs.VERSION }}_amd64.deb >> checksums.txt
+          sha256sum lankir-${{ steps.version.outputs.VERSION }}-1.x86_64.rpm >> checksums.txt
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            build/bin/lankir_static
+            build/bin/lankir-${{ steps.version.outputs.VERSION }}-x86_64.AppImage
+            build/bin/lankir_${{ steps.version.outputs.VERSION }}_amd64.deb
+            build/bin/lankir-${{ steps.version.outputs.VERSION }}-1.x86_64.rpm
+            build/bin/checksums.txt
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload to Cloudsmith
+        if: ${{ secrets.CLOUDSMITH_API_KEY != '' }}
+        env:
+          CLOUDSMITH_API_KEY: ${{ secrets.CLOUDSMITH_API_KEY }}
+        run: |
+          # Upload .deb to Debian/Ubuntu repositories
+          cloudsmith push deb matbe34/lankir/debian/bookworm build/bin/lankir_${{ steps.version.outputs.VERSION }}_amd64.deb
+          cloudsmith push deb matbe34/lankir/debian/bullseye build/bin/lankir_${{ steps.version.outputs.VERSION }}_amd64.deb
+          cloudsmith push deb matbe34/lankir/ubuntu/noble build/bin/lankir_${{ steps.version.outputs.VERSION }}_amd64.deb
+          cloudsmith push deb matbe34/lankir/ubuntu/jammy build/bin/lankir_${{ steps.version.outputs.VERSION }}_amd64.deb
+          cloudsmith push deb matbe34/lankir/ubuntu/focal build/bin/lankir_${{ steps.version.outputs.VERSION }}_amd64.deb
+
+          # Upload .rpm to Fedora/RHEL repositories
+          cloudsmith push rpm matbe34/lankir/fedora/40 build/bin/lankir-${{ steps.version.outputs.VERSION }}-1.x86_64.rpm
+          cloudsmith push rpm matbe34/lankir/fedora/39 build/bin/lankir-${{ steps.version.outputs.VERSION }}-1.x86_64.rpm
+          cloudsmith push rpm matbe34/lankir/el/9 build/bin/lankir-${{ steps.version.outputs.VERSION }}-1.x86_64.rpm
+          cloudsmith push rpm matbe34/lankir/el/8 build/bin/lankir-${{ steps.version.outputs.VERSION }}-1.x86_64.rpm
+
+      - name: Cloudsmith upload notice
+        if: ${{ secrets.CLOUDSMITH_API_KEY == '' }}
+        run: |
+          echo "⚠️  CLOUDSMITH_API_KEY secret not set. Skipping Cloudsmith upload."
+          echo "To enable automatic package repository updates:"
+          echo "  1. Get your API key from https://cloudsmith.io/user/settings/api/"
+          echo "  2. Add it as CLOUDSMITH_API_KEY in repository secrets"
+          echo "  3. Re-run this workflow or create a new release"
