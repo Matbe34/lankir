@@ -102,28 +102,26 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload to Cloudsmith
-        if: ${{ secrets.CLOUDSMITH_API_KEY != '' }}
         env:
           CLOUDSMITH_API_KEY: ${{ secrets.CLOUDSMITH_API_KEY }}
         run: |
-          # Upload .deb to Debian/Ubuntu repositories
-          cloudsmith push deb matbe34/lankir/debian/bookworm build/bin/lankir_${{ steps.version.outputs.VERSION }}_amd64.deb
-          cloudsmith push deb matbe34/lankir/debian/bullseye build/bin/lankir_${{ steps.version.outputs.VERSION }}_amd64.deb
-          cloudsmith push deb matbe34/lankir/ubuntu/noble build/bin/lankir_${{ steps.version.outputs.VERSION }}_amd64.deb
-          cloudsmith push deb matbe34/lankir/ubuntu/jammy build/bin/lankir_${{ steps.version.outputs.VERSION }}_amd64.deb
-          cloudsmith push deb matbe34/lankir/ubuntu/focal build/bin/lankir_${{ steps.version.outputs.VERSION }}_amd64.deb
+          if [ -z "$CLOUDSMITH_API_KEY" ]; then
+            echo "⚠️  CLOUDSMITH_API_KEY secret not set. Skipping Cloudsmith upload."
+            echo "To enable automatic package repository updates:"
+            echo "  1. Get your API key from https://cloudsmith.io/user/settings/api/"
+            echo "  2. Add it as CLOUDSMITH_API_KEY in repository secrets"
+            echo "  3. Re-run this workflow or create a new release"
+          else
+            # Upload .deb to Debian/Ubuntu repositories
+            cloudsmith push deb matbe34/lankir/debian/bookworm build/bin/lankir_${{ steps.version.outputs.VERSION }}_amd64.deb
+            cloudsmith push deb matbe34/lankir/debian/bullseye build/bin/lankir_${{ steps.version.outputs.VERSION }}_amd64.deb
+            cloudsmith push deb matbe34/lankir/ubuntu/noble build/bin/lankir_${{ steps.version.outputs.VERSION }}_amd64.deb
+            cloudsmith push deb matbe34/lankir/ubuntu/jammy build/bin/lankir_${{ steps.version.outputs.VERSION }}_amd64.deb
+            cloudsmith push deb matbe34/lankir/ubuntu/focal build/bin/lankir_${{ steps.version.outputs.VERSION }}_amd64.deb
 
-          # Upload .rpm to Fedora/RHEL repositories
-          cloudsmith push rpm matbe34/lankir/fedora/40 build/bin/lankir-${{ steps.version.outputs.VERSION }}-1.x86_64.rpm
-          cloudsmith push rpm matbe34/lankir/fedora/39 build/bin/lankir-${{ steps.version.outputs.VERSION }}-1.x86_64.rpm
-          cloudsmith push rpm matbe34/lankir/el/9 build/bin/lankir-${{ steps.version.outputs.VERSION }}-1.x86_64.rpm
-          cloudsmith push rpm matbe34/lankir/el/8 build/bin/lankir-${{ steps.version.outputs.VERSION }}-1.x86_64.rpm
-
-      - name: Cloudsmith upload notice
-        if: ${{ secrets.CLOUDSMITH_API_KEY == '' }}
-        run: |
-          echo "⚠️  CLOUDSMITH_API_KEY secret not set. Skipping Cloudsmith upload."
-          echo "To enable automatic package repository updates:"
-          echo "  1. Get your API key from https://cloudsmith.io/user/settings/api/"
-          echo "  2. Add it as CLOUDSMITH_API_KEY in repository secrets"
-          echo "  3. Re-run this workflow or create a new release"
+            # Upload .rpm to Fedora/RHEL repositories
+            cloudsmith push rpm matbe34/lankir/fedora/40 build/bin/lankir-${{ steps.version.outputs.VERSION }}-1.x86_64.rpm
+            cloudsmith push rpm matbe34/lankir/fedora/39 build/bin/lankir-${{ steps.version.outputs.VERSION }}-1.x86_64.rpm
+            cloudsmith push rpm matbe34/lankir/el/9 build/bin/lankir-${{ steps.version.outputs.VERSION }}-1.x86_64.rpm
+            cloudsmith push rpm matbe34/lankir/el/8 build/bin/lankir-${{ steps.version.outputs.VERSION }}-1.x86_64.rpm
+          fi
