@@ -41,8 +41,9 @@ func parseArgs(args []string) (cliArgs, guiFiles []string) {
 }
 
 func main() {
-	if len(os.Args) == 1 {
-		runGUI()
+	cliArgs, guiFiles := parseArgs(os.Args[1:])
+	if cliArgs == nil {
+		runGUI(guiFiles)
 		return
 	}
 
@@ -51,11 +52,12 @@ func main() {
 	// No-op on Linux/macOS.
 	attachParentConsole()
 
-	cli.Execute(runGUI)
+	cli.ExecuteWithArgs(cliArgs, runGUI)
 }
 
-func runGUI() {
+func runGUI(initialFiles []string) {
 	app := NewApp()
+	app.initialFiles = initialFiles
 
 	configService, err := config.NewService()
 	if err != nil {

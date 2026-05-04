@@ -8,7 +8,8 @@ import (
 
 // App exposes system dialogs to the frontend via Wails bindings.
 type App struct {
-	ctx context.Context
+	ctx          context.Context
+	initialFiles []string
 }
 
 // NewApp creates a new App instance.

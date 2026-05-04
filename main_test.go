@@ -18,6 +18,7 @@ func TestParseArgs(t *testing.T) {
 		{"multiple pdf paths", []string{"a.pdf", "b.pdf"}, nil, []string{"a.pdf", "b.pdf"}},
 		{"global flag before subcommand", []string{"--verbose", "pdf", "info", "x.pdf"}, []string{"--verbose", "pdf", "info", "x.pdf"}, nil},
 		{"dot-slash workaround", []string{"./pdf"}, nil, []string{"./pdf"}},
+		{"unknown subcommand routes to GUI", []string{"pdf-info", "x.pdf"}, nil, []string{"pdf-info", "x.pdf"}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

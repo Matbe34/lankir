@@ -32,7 +32,15 @@ var rootCmd = &cobra.Command{
 }
 
 func Execute(runGUI func()) {
-	guiFunc = runGUI
+	ExecuteWithArgs(os.Args[1:], func([]string) { runGUI() })
+}
+
+// ExecuteWithArgs runs the Cobra root command with explicit args. The runGUI
+// callback is wired so that the `gui` subcommand opens an empty GUI; passing
+// startup files happens via main()'s direct call to runGUI(initialFiles).
+func ExecuteWithArgs(args []string, runGUI func([]string)) {
+	guiFunc = func() { runGUI(nil) }
+	rootCmd.SetArgs(args)
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
 	}
