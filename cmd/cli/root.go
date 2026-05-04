@@ -25,7 +25,15 @@ var rootCmd = &cobra.Command{
 - Digital signatures with PKCS#11, PKCS#12, and NSS support
 - Certificate management
 - Signature profiles
-- Configuration management`,
+- Configuration management
+
+Passing a PDF path as the first argument opens it in the GUI:
+  lankir document.pdf
+
+If you have a file literally named after a subcommand (e.g. "pdf"), pass it
+with a leading "./" to disambiguate:
+  lankir ./pdf
+`,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		setupLogger()
 	},
