@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
@@ -306,5 +307,38 @@ func TestResolveSecondInstancePaths(t *testing.T) {
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("got %v want %v", got, want)
+	}
+}
+
+func TestNewWindowEnv(t *testing.T) {
+	in := []string{"PATH=/bin", "LANKIR_NEW_WINDOW=1", "HOME=/root", "LANKIR_NEW_WINDOW=stale"}
+	got := newWindowEnv(in)
+
+	// Must contain exactly one LANKIR_NEW_WINDOW=1 (we strip any prior and re-add).
+	count := 0
+	for _, e := range got {
+		if e == "LANKIR_NEW_WINDOW=1" {
+			count++
+		}
+		if strings.HasPrefix(e, "LANKIR_NEW_WINDOW=") && e != "LANKIR_NEW_WINDOW=1" {
+			t.Errorf("non-canonical LANKIR_NEW_WINDOW entry: %q", e)
+		}
+	}
+	if count != 1 {
+		t.Errorf("expected exactly one LANKIR_NEW_WINDOW=1; got %d in %v", count, got)
+	}
+
+	// Other env entries preserved.
+	hasPath, hasHome := false, false
+	for _, e := range got {
+		if e == "PATH=/bin" {
+			hasPath = true
+		}
+		if e == "HOME=/root" {
+			hasHome = true
+		}
+	}
+	if !hasPath || !hasHome {
+		t.Errorf("non-LANKIR env not preserved: %v", got)
 	}
 }

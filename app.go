@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -90,4 +92,36 @@ func resolveSecondInstancePaths(args []string, cwd string) []string {
 func (a *App) onSecondInstance(data options.SecondInstanceData) {
 	paths := resolveSecondInstancePaths(data.Args, data.WorkingDirectory)
 	runtime.EventsEmit(a.ctx, "open-files", paths)
+}
+
+// newWindowEnv returns a copy of env with any prior LANKIR_NEW_WINDOW entry
+// removed and a single LANKIR_NEW_WINDOW=1 appended. The child process uses
+// this signal to skip SingleInstanceLock acquisition (wired in main.go).
+func newWindowEnv(env []string) []string {
+	out := make([]string, 0, len(env)+1)
+	for _, e := range env {
+		if !strings.HasPrefix(e, "LANKIR_NEW_WINDOW=") {
+			out = append(out, e)
+		}
+	}
+	return append(out, "LANKIR_NEW_WINDOW=1")
+}
+
+// OpenInNewWindow spawns a detached lankir process with the same executable
+// and the given file path as an argument. Bypasses SingleInstanceLock via
+// LANKIR_NEW_WINDOW=1. Empty filePath spawns an empty new window.
+//
+// Exported because the frontend calls it via Wails bindings (App.OpenInNewWindow).
+func (a *App) OpenInNewWindow(filePath string) error {
+	exe, err := os.Executable()
+	if err != nil {
+		return err
+	}
+	args := []string{}
+	if filePath != "" {
+		args = append(args, filePath)
+	}
+	cmd := exec.Command(exe, args...)
+	cmd.Env = newWindowEnv(os.Environ())
+	return cmd.Start()
 }
