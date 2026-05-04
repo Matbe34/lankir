@@ -1,10 +1,11 @@
 [Desktop Entry]
 Name=Lankir
 Comment=Modern PDF Editor and Signer for Linux
-Exec=/usr/bin/lankir
+Exec=/usr/bin/lankir %f
 Icon=lankir
 Terminal=false
 Type=Application
 Categories=Office;Productivity;
 Keywords=pdf;sign;signature;document;editor;
 StartupWMClass=Lankir
+MimeType=application/pdf;
