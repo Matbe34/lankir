@@ -52,3 +52,5 @@ require (
 	golang.org/x/sys v0.38.0 // indirect
 	golang.org/x/text v0.30.0 // indirect
 )
+
+replace github.com/github/smimesign => github.com/nikwo/smimesign-fork v0.0.0-20221130091550-0956e442b5b6
