@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/Matbe34/lankir/internal/signature/certutil"
+	"github.com/Matbe34/lankir/internal/signature/platform"
 	"github.com/Matbe34/lankir/internal/signature/types"
 	goPkcs12 "software.sslmate.com/src/go-pkcs12"
 )
@@ -39,10 +40,11 @@ func (ps *Signer) Certificate() *x509.Certificate {
 	return ps.cert
 }
 
-// DefaultSystemCertDirs contains common system certificate directories on Linux
-var DefaultSystemCertDirs = []string{
-	"/etc/ssl/certs",
-}
+// DefaultSystemCertDirs uses platform-specific system certificate directories
+var DefaultSystemCertDirs = platform.DefaultSystemCertDirs
+
+// DefaultUserCertDirs uses platform-specific user certificate directories (relative to home)
+var DefaultUserCertDirs = platform.DefaultUserCertDirs
 
 // LoadCertificatesFromSystemStore loads certificates from system certificate store.
 func LoadCertificatesFromSystemStore() ([]types.Certificate, error) {
@@ -60,11 +62,6 @@ func LoadCertificatesFromSystemStore() ([]types.Certificate, error) {
 	}
 
 	return certs, nil
-}
-
-// DefaultUserCertDirs contains common user certificate directories
-var DefaultUserCertDirs = []string{
-	".pki/nssdb",
 }
 
 // LoadCertificatesFromUserStore loads certificates from user's certificate store.

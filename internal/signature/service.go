@@ -11,6 +11,7 @@ import (
 	"github.com/Matbe34/lankir/internal/config"
 	"github.com/Matbe34/lankir/internal/signature/pkcs11"
 	"github.com/Matbe34/lankir/internal/signature/pkcs12"
+	"github.com/Matbe34/lankir/internal/signature/platform"
 	"github.com/google/uuid"
 )
 
@@ -89,14 +90,12 @@ func validateCertificateStorePath(path string) error {
 
 	resolvedPath = filepath.Clean(resolvedPath)
 
-	homeDir, _ := os.UserHomeDir()
-	allowedPrefixes := []string{
-		"/etc/ssl/certs",
-		"/usr/share/ca-certificates",
-		"/etc/pki/ca-trust",
-		"/etc/pki/tls/certs",
-	}
+	// Use platform-specific allowed prefixes
+	allowedPrefixes := make([]string, len(platform.AllowedCertPrefixes))
+	copy(allowedPrefixes, platform.AllowedCertPrefixes)
 
+	// Always allow user home directory
+	homeDir, _ := os.UserHomeDir()
 	if homeDir != "" {
 		allowedPrefixes = append(allowedPrefixes, homeDir)
 	}
