@@ -1343,3 +1343,10 @@
     @apply bg-text-secondary;
   }
 }
+
+/* Drop-target marker for Wails drag-drop. Wails fires onFileDrop only when
+   the cursor is over an element with this CSS custom property set to "drop". */
+.pdf-viewer,
+.welcome-screen {
+    --wails-drop-target: drop;
+}
