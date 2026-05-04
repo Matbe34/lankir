@@ -1,0 +1,65 @@
+name: Windows Build
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build:
+    name: Windows amd64 build
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24.0'
+          cache: true
+
+      - name: Setup MSVC environment
+        # MuPDF static libs shipped by gen2brain/go-fitz are built with MSVC,
+        # so cgo must use cl.exe to satisfy MSVC-only intrinsics like
+        # __intrinsic_setjmpex / __memcpy_chk.
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Download Go dependencies
+        run: go mod download
+
+      - name: Setup go-fitz directories
+        shell: bash
+        run: |
+          GOMOD=$(go env GOMODCACHE)
+          cp -r "$GOMOD/github.com/gen2brain/go-fitz@v1.24.15/include" go-fitz-include
+          cp -r "$GOMOD/github.com/gen2brain/go-fitz@v1.24.15/libs"    go-fitz-libs
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Build
+        shell: bash
+        env:
+          CGO_ENABLED: "1"
+          CGO_CFLAGS: "-I${{ github.workspace }}/go-fitz-include"
+          CGO_LDFLAGS: "-L${{ github.workspace }}/go-fitz-libs -lmupdf_windows_amd64 -lmupdfthird_windows_amd64"
+        run: go build -o lankir.exe .
+
+      - name: Verify artifact
+        shell: bash
+        run: |
+          test -f lankir.exe
+          file lankir.exe || true
+          ls -lh lankir.exe
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: lankir-windows-amd64
+          path: lankir.exe
+          retention-days: 14
