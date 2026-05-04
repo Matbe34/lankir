@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"reflect"
 	"testing"
 
@@ -283,6 +285,25 @@ func TestApp_ErrorHandling(t *testing.T) {
 func TestFilterPDFPaths(t *testing.T) {
 	got := filterPDFPaths([]string{"a.pdf", "b.txt", "C.PDF", "/x/y/z.png", "doc.pdf"})
 	want := []string{"a.pdf", "C.PDF", "doc.pdf"}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("got %v want %v", got, want)
+	}
+}
+
+func TestResolveSecondInstancePaths(t *testing.T) {
+	cwd, err := os.MkdirTemp("", "lankir-test-cwd-*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(cwd)
+
+	abs := filepath.Join(cwd, "abs.pdf")
+	got := resolveSecondInstancePaths([]string{"rel.pdf", abs, "other.txt"}, cwd)
+
+	want := []string{
+		filepath.Join(cwd, "rel.pdf"),
+		abs,
+	}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("got %v want %v", got, want)
 	}

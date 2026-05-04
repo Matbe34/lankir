@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
@@ -66,4 +67,27 @@ func filterPDFPaths(paths []string) []string {
 func (a *App) onFileDrop(_, _ int, paths []string) {
 	pdfs := filterPDFPaths(paths)
 	runtime.EventsEmit(a.ctx, "open-files", pdfs)
+}
+
+// resolveSecondInstancePaths takes args from a second-instance launch (which
+// may be relative to that process's working directory) and returns absolute
+// paths to PDFs only. The .pdf filter ensures we never emit non-PDF paths
+// even if a user explicitly passes one on the second-instance command line.
+func resolveSecondInstancePaths(args []string, cwd string) []string {
+	pdfs := filterPDFPaths(args)
+	out := make([]string, 0, len(pdfs))
+	for _, p := range pdfs {
+		if !filepath.IsAbs(p) {
+			p = filepath.Join(cwd, p)
+		}
+		out = append(out, p)
+	}
+	return out
+}
+
+// onSecondInstance is the Wails SingleInstanceLock callback. Forwards the
+// args from a second-launch process to the frontend as "open-files".
+func (a *App) onSecondInstance(data options.SecondInstanceData) {
+	paths := resolveSecondInstancePaths(data.Args, data.WorkingDirectory)
+	runtime.EventsEmit(a.ctx, "open-files", paths)
 }
