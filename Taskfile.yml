@@ -30,6 +30,25 @@ tasks:
     cmds:
       - ./scripts/build-static.sh
 
+  build-windows:
+    desc: Cross-compile a Windows amd64 CLI binary (requires mingw-w64; not the full Wails app)
+    cmds:
+      - |
+        if ! command -v x86_64-w64-mingw32-gcc >/dev/null; then
+          echo "error: mingw-w64 not installed (apt install gcc-mingw-w64-x86-64)"
+          exit 1
+        fi
+      - mkdir -p {{.BUILD_DIR}}
+      - |
+        CGO_ENABLED=1 \
+        CC=x86_64-w64-mingw32-gcc \
+        CXX=x86_64-w64-mingw32-g++ \
+        GOOS=windows GOARCH=amd64 \
+        CGO_CFLAGS="-I${PWD}/go-fitz-include" \
+        CGO_LDFLAGS="-L${PWD}/go-fitz-libs -lmupdf_windows_amd64 -lmupdfthird_windows_amd64" \
+        go build -o {{.BUILD_DIR}}/{{.BINARY_NAME}}.exe .
+      - echo "✓ Built {{.BUILD_DIR}}/{{.BINARY_NAME}}.exe"
+
   appimage:
     desc: Build a truly portable AppImage (runs on any Linux distro)
     cmds:
