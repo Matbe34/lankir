@@ -10,7 +10,7 @@ import { initMessageDialog } from './messageDialog.js';
 import { initSettings, getSetting } from './settings.js';
 import { themeManager } from './themeManager.js';
 import { initLoadingIndicator } from './loadingIndicator.js';
-import { state } from './state.js';
+import { state, getActivePDF } from './state.js';
 import { handleOpenFiles } from './fileOpener.js';
 import * as runtime from '../wailsjs/runtime/runtime.js';
 
@@ -136,6 +136,16 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (!isTyping && matchShortcut(e, cfg.openFile || 'Control+o')) {
                 e.preventDefault();
                 openPDFFile();
+                return;
+            }
+
+            // New window (Ctrl+Shift+N) — spawn a separate lankir process via SingleInstanceLock bypass
+            if (matchShortcut(e, cfg.newWindow || 'Control+Shift+N')) {
+                e.preventDefault();
+                const active = getActivePDF();
+                window.go.main.App.OpenInNewWindow(active?.filePath ?? '').catch(err => {
+                    console.error('OpenInNewWindow failed:', err);
+                });
                 return;
             }
 
