@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"reflect"
 	"testing"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
@@ -277,4 +278,12 @@ func TestApp_ErrorHandling(t *testing.T) {
 	// These will fail without proper Wails runtime, but should not panic
 	// We skip this test as it requires Wails runtime
 	t.Skip("Requires Wails runtime context (tested in E2E)")
+}
+
+func TestFilterPDFPaths(t *testing.T) {
+	got := filterPDFPaths([]string{"a.pdf", "b.txt", "C.PDF", "/x/y/z.png", "doc.pdf"})
+	want := []string{"a.pdf", "C.PDF", "doc.pdf"}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("got %v want %v", got, want)
+	}
 }

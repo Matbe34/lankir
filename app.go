@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"path/filepath"
+	"strings"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
@@ -45,4 +47,23 @@ func (a *App) ShowMessageDialog(title, message string) error {
 		Message: message,
 	})
 	return err
+}
+
+// filterPDFPaths returns only paths whose extension is .pdf (case-insensitive).
+func filterPDFPaths(paths []string) []string {
+	out := make([]string, 0, len(paths))
+	for _, p := range paths {
+		if strings.EqualFold(filepath.Ext(p), ".pdf") {
+			out = append(out, p)
+		}
+	}
+	return out
+}
+
+// onFileDrop is the Wails drag-drop callback. Filters non-PDFs and forwards
+// the path list to the frontend via the "open-files" event. Empty filtered
+// lists still emit so the frontend can show a "no PDF files" toast.
+func (a *App) onFileDrop(_, _ int, paths []string) {
+	pdfs := filterPDFPaths(paths)
+	runtime.EventsEmit(a.ctx, "open-files", pdfs)
 }
