@@ -7,6 +7,7 @@ toolchain go1.24.10
 require (
 	github.com/digitorus/pdfsign v0.0.0-20250819064552-5f74f69dda1d
 	github.com/gen2brain/go-fitz v1.24.15
+	github.com/github/smimesign v0.2.0
 	github.com/google/uuid v1.6.0
 	github.com/miekg/pkcs11 v1.1.1
 	github.com/spf13/cobra v1.10.1
@@ -51,3 +52,5 @@ require (
 	golang.org/x/sys v0.38.0 // indirect
 	golang.org/x/text v0.30.0 // indirect
 )
+
+replace github.com/github/smimesign => github.com/nikwo/smimesign-fork v0.0.0-20221130091550-0956e442b5b6

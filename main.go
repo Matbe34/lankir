@@ -26,6 +26,11 @@ func main() {
 		return
 	}
 
+	// Windows-only: reattach stdout/stderr to the parent console so CLI output
+	// from cmd/PowerShell appears even though the binary uses the GUI subsystem.
+	// No-op on Linux/macOS.
+	attachParentConsole()
+
 	cli.Execute(runGUI)
 }
 

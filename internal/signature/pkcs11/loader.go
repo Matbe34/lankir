@@ -7,14 +7,13 @@ import (
 	"strings"
 
 	"github.com/Matbe34/lankir/internal/signature/certutil"
+	"github.com/Matbe34/lankir/internal/signature/platform"
 	"github.com/Matbe34/lankir/internal/signature/types"
 	"github.com/miekg/pkcs11"
 )
 
-var DefaultModules = []string{
-	"/usr/lib/x86_64-linux-gnu/pkcs11/p11-kit-client.so",
-	"/usr/lib/x86_64-linux-gnu/opensc-pkcs11.so",
-}
+// DefaultModules uses platform-specific PKCS#11 module paths
+var DefaultModules = platform.DefaultPKCS11Modules
 
 // LoadCertificatesFromModules loads certificates from a list of PKCS#11 module paths.
 func LoadCertificatesFromModules(modulePaths []string) ([]types.Certificate, error) {

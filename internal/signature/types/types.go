@@ -1,6 +1,9 @@
 package types
 
-import "strings"
+import (
+	"crypto/x509"
+	"strings"
+)
 
 // Certificate represents an X.509 certificate available for PDF signing.
 type Certificate struct {
@@ -21,6 +24,10 @@ type Certificate struct {
 	CanSign      bool     `json:"canSign"`
 	RequiresPin  bool     `json:"requiresPin"`
 	PinOptional  bool     `json:"pinOptional"`
+
+	// X509Cert stores the raw x509.Certificate for internal use (not serialized)
+	// This is used by platform-specific certificate stores (e.g., Windows Certificate Store)
+	X509Cert *x509.Certificate `json:"-"`
 }
 
 // HasKeyUsage returns true if the certificate has the specified key usage.

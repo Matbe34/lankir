@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Matbe34/lankir/internal/signature/nss"
 	"github.com/Matbe34/lankir/internal/signature/pkcs11"
 	"github.com/Matbe34/lankir/internal/signature/pkcs12"
 	"github.com/Matbe34/lankir/internal/signature/types"
@@ -124,21 +123,18 @@ func (s *SignatureService) SignPDFWithProfileAndPosition(pdfPath string, certFin
 		return s.signWithPKCS11(pdfPath, selectedCert, pin, profile)
 	case "User NSS DB", "NSS Database":
 		return s.signWithNSS(pdfPath, selectedCert, pin, profile)
-	case "user", "system":
+	case "Windows Certificate Store":
+		return s.signWithPlatformStore(pdfPath, selectedCert, pin, profile)
+	case "User File":
+		// Handle PKCS#12 files from user-added paths
 		if selectedCert.FilePath == "" {
 			return "", fmt.Errorf("certificate does not have an associated file path")
 		}
-
 		ext := strings.ToLower(filepath.Ext(selectedCert.FilePath))
 		if ext == ".p12" || ext == ".pfx" {
 			return s.signWithPKCS12(pdfPath, selectedCert, pin, profile)
 		}
-
-		if strings.Contains(selectedCert.FilePath, ".pki/nssdb") {
-			return s.signWithNSS(pdfPath, selectedCert, pin, profile)
-		}
-
-		return "", fmt.Errorf("cannot sign with certificate file '%s': missing private key (use PKCS#11 token or PKCS#12 file)", filepath.Base(selectedCert.FilePath))
+		return "", fmt.Errorf("unsupported certificate file type: %s", ext)
 	default:
 		return "", fmt.Errorf("unsupported certificate source: %s", selectedCert.Source)
 	}
@@ -193,26 +189,6 @@ func (s *SignatureService) signWithPKCS11(pdfPath string, cert *types.Certificat
 	signer, err := pkcs11.GetSignerFromCertificate(modulePath, cert.Fingerprint, pin)
 	if err != nil {
 		return "", fmt.Errorf("failed to access PKCS#11 certificate: %w", err)
-	}
-	defer signer.Close()
-
-	if err := s.signPDFWithSigner(pdfPath, outputPath, signer, cert, profile); err != nil {
-		return "", fmt.Errorf("failed to sign PDF: %w", err)
-	}
-
-	return outputPath, nil
-}
-
-func (s *SignatureService) signWithNSS(pdfPath string, cert *types.Certificate, password string, profile *SignatureProfile) (string, error) {
-	outputPath := generateSignedPDFPath(pdfPath)
-
-	if cert.NSSNickname == "" {
-		return "", fmt.Errorf("NSS certificate is missing nickname field")
-	}
-
-	signer, err := nss.GetNSSSigner(cert.NSSNickname, password)
-	if err != nil {
-		return "", fmt.Errorf("failed to access NSS certificate with nickname '%s': %w", cert.NSSNickname, err)
 	}
 	defer signer.Close()
 

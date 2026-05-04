@@ -6,8 +6,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/Matbe34/lankir/internal/signature/certutil"
-	"github.com/Matbe34/lankir/internal/signature/nss"
 	"github.com/Matbe34/lankir/internal/signature/pkcs11"
 	"github.com/Matbe34/lankir/internal/signature/pkcs12"
 	"github.com/Matbe34/lankir/internal/signature/types"
@@ -81,11 +79,12 @@ func (s *SignatureService) ListCertificatesFiltered(filter CertificateFilter) ([
 		}
 	}
 
-	nssCerts, err := LoadNSSCertificates()
+	// Load platform-specific certificates (NSS on Linux, Windows Certificate Store on Windows, etc.)
+	platformCerts, err := loadPlatformCertificates()
 	if err != nil {
-		slog.Warn("failed to load NSS certificates", "error", err)
+		slog.Warn("failed to load platform certificate store", "error", err)
 	} else {
-		allCerts = append(allCerts, nssCerts...)
+		allCerts = append(allCerts, platformCerts...)
 	}
 
 	uniqueCerts := make([]types.Certificate, 0, len(allCerts))
@@ -148,28 +147,4 @@ func (s *SignatureService) matchesFilter(cert types.Certificate, filter Certific
 	}
 
 	return true
-}
-
-// LoadNSSCertificates retrieves certificates with private keys from the user's NSS database.
-func LoadNSSCertificates() ([]types.Certificate, error) {
-	nssCerts, err := nss.ListCertificates()
-	if err != nil {
-		return nil, err
-	}
-
-	var certs []types.Certificate
-	for _, nc := range nssCerts {
-		if !nc.HasPrivateKey {
-			continue
-		}
-
-		c := certutil.ConvertX509Certificate(nc.X509Cert, "NSS Database", nc.X509Cert.Subject.CommonName)
-		c.NSSNickname = nc.Nickname
-		c.RequiresPin = false
-		c.PinOptional = true
-
-		certs = append(certs, c)
-	}
-
-	return certs, nil
 }
