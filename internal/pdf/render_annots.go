@@ -9,42 +9,11 @@ package pdf
 /*
 #cgo CFLAGS: -I${SRCDIR}/../../go-fitz-include
 #cgo linux,amd64 LDFLAGS: -L${SRCDIR}/../../go-fitz-libs -lmupdf_linux_amd64 -lmupdfthird_linux_amd64 -lm
+#cgo windows,amd64 LDFLAGS: -L${SRCDIR}/../../go-fitz-libs -lmupdf_windows_amd64 -lmupdfthird_windows_amd64
 #include <mupdf/fitz.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-#include <unistd.h>
-#include <fcntl.h>
-
-static int mupdf_warnings_suppressed = 0;
-static int saved_stderr = -1;
-
-// suppress_mupdf_warnings redirects stderr to /dev/null to silence MuPDF warnings
-void suppress_mupdf_warnings() {
-	if (mupdf_warnings_suppressed) return;
-
-	// Save original stderr
-	saved_stderr = dup(STDERR_FILENO);
-
-	// Redirect stderr to /dev/null
-	int devnull = open("/dev/null", O_WRONLY);
-	if (devnull != -1) {
-		dup2(devnull, STDERR_FILENO);
-		close(devnull);
-		mupdf_warnings_suppressed = 1;
-	}
-}
-
-// restore_mupdf_warnings restores stderr to show MuPDF warnings
-void restore_mupdf_warnings() {
-	if (!mupdf_warnings_suppressed || saved_stderr == -1) return;
-
-	// Restore original stderr
-	dup2(saved_stderr, STDERR_FILENO);
-	close(saved_stderr);
-	saved_stderr = -1;
-	mupdf_warnings_suppressed = 0;
-}
 
 // RenderResult contains the result of rendering
 typedef struct {
@@ -190,14 +159,17 @@ import (
 	"unsafe"
 )
 
-// SuppressMuPDFWarnings redirects MuPDF warnings to /dev/null
+// SuppressMuPDFWarnings redirects MuPDF warnings to the platform null device.
+// Not safe for concurrent use; the caller must serialize Suppress / Restore
+// calls and pair each Suppress with exactly one Restore.
 func SuppressMuPDFWarnings() {
-	C.suppress_mupdf_warnings()
+	suppressMuPDFWarnings()
 }
 
-// RestoreMuPDFWarnings restores MuPDF warnings output
+// RestoreMuPDFWarnings restores stderr to its original target. Safe to call
+// when no Suppress is active (no-op).
 func RestoreMuPDFWarnings() {
-	C.restore_mupdf_warnings()
+	restoreMuPDFWarnings()
 }
 
 // renderPageWithAnnotations renders a PDF page including all annotations and signature widgets
