@@ -5,6 +5,7 @@ import (
 	"embed"
 	"log"
 	"os"
+	"strings"
 
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
@@ -19,6 +20,25 @@ import (
 
 //go:embed all:frontend/dist
 var assets embed.FS
+
+// parseArgs splits process args into CLI args (route to Cobra) vs GUI files
+// (open as tabs in the GUI). Cobra subcommand or any leading `-` flag → CLI.
+// Otherwise everything is treated as a GUI file path.
+func parseArgs(args []string) (cliArgs, guiFiles []string) {
+	if len(args) == 0 {
+		return nil, nil
+	}
+	for _, a := range args {
+		if strings.HasPrefix(a, "-") {
+			return args, nil
+		}
+		if cli.IsKnownSubcommand(a) {
+			return args, nil
+		}
+		break
+	}
+	return nil, args
+}
 
 func main() {
 	if len(os.Args) == 1 {

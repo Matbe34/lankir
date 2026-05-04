@@ -38,6 +38,23 @@ func Execute(runGUI func()) {
 	}
 }
 
+// IsKnownSubcommand reports whether name is a registered Cobra subcommand on
+// the root command (or one of its aliases). Used by main.go to disambiguate
+// file paths from CLI verbs.
+func IsKnownSubcommand(name string) bool {
+	for _, c := range rootCmd.Commands() {
+		if c.Name() == name {
+			return true
+		}
+		for _, alias := range c.Aliases {
+			if alias == name {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 var guiFunc func()
 
 func init() {
