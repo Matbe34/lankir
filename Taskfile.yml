@@ -224,6 +224,13 @@ tasks:
       - echo "Running linters..."
       - golangci-lint run ./...
 
+  vet-cross:
+    desc: Run go vet for linux, windows and darwin to catch build-tag mistakes
+    cmds:
+      - echo "vet linux..."   && GOOS=linux   go vet ./...
+      - echo "vet windows..." && GOOS=windows go vet ./...
+      - echo "vet darwin..."  && GOOS=darwin  go vet ./...
+
   deps:
     desc: Download and verify dependencies
     cmds:
