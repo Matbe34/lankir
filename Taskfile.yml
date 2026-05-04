@@ -38,6 +38,7 @@ tasks:
           echo "error: mingw-w64 not installed (apt install gcc-mingw-w64-x86-64)"
           exit 1
         fi
+      - cd {{.FRONTEND_DIR}} && ./build.sh
       - mkdir -p {{.BUILD_DIR}}
       - |
         CGO_ENABLED=1 \
