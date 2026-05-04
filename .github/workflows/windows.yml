@@ -65,7 +65,7 @@ jobs:
           CGO_ENABLED: "1"
           CGO_CFLAGS: "-I${{ github.workspace }}/go-fitz-include"
           CGO_LDFLAGS: "-L${{ github.workspace }}/go-fitz-libs -lmupdf_windows_amd64 -lmupdfthird_windows_amd64"
-        run: go build -tags "desktop,production" -o lankir.exe .
+        run: go build -tags "desktop,production" -ldflags "-H windowsgui" -o lankir.exe .
 
       - name: Verify artifact
         shell: bash

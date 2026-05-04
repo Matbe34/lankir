@@ -47,7 +47,7 @@ tasks:
         GOOS=windows GOARCH=amd64 \
         CGO_CFLAGS="-I${PWD}/go-fitz-include" \
         CGO_LDFLAGS="-L${PWD}/go-fitz-libs -lmupdf_windows_amd64 -lmupdfthird_windows_amd64" \
-        go build -tags "desktop,production" -o {{.BUILD_DIR}}/{{.BINARY_NAME}}.exe .
+        go build -tags "desktop,production" -ldflags "-H windowsgui" -o {{.BUILD_DIR}}/{{.BINARY_NAME}}.exe .
       - echo "✓ Built {{.BUILD_DIR}}/{{.BINARY_NAME}}.exe"
 
   appimage:
