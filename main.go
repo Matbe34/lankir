@@ -11,6 +11,7 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
 	"github.com/wailsapp/wails/v2/pkg/options/linux"
+	"github.com/wailsapp/wails/v2/pkg/runtime"
 
 	"github.com/Matbe34/lankir/cmd/cli"
 	"github.com/Matbe34/lankir/internal/config"
@@ -56,6 +57,8 @@ func main() {
 }
 
 func runGUI(initialFiles []string) {
+	skipLock := os.Getenv("LANKIR_NEW_WINDOW") == "1"
+
 	app := NewApp()
 	app.initialFiles = initialFiles
 
@@ -73,9 +76,19 @@ func runGUI(initialFiles []string) {
 		pdfService.Startup(ctx)
 		recentFilesService.Startup(ctx)
 		signatureService.Startup(ctx)
+
+		// Wire drag-drop. Wails calls app.onFileDrop with absolute paths
+		// whenever the user drops files onto the window.
+		runtime.OnFileDrop(ctx, app.onFileDrop)
+
+		// Hand off any startup files (from CLI args or OS "Open with") to
+		// the frontend via the same event drop and second-instance use.
+		if len(app.initialFiles) > 0 {
+			runtime.EventsEmit(ctx, "open-files", app.initialFiles)
+		}
 	}
 
-	err = wails.Run(&options.App{
+	opts := &options.App{
 		Title:  "Lankir",
 		Width:  1400,
 		Height: 900,
@@ -96,9 +109,19 @@ func runGUI(initialFiles []string) {
 			WindowIsTranslucent: false,
 			WebviewGpuPolicy:    linux.WebviewGpuPolicyAlways,
 		},
-	})
+		DragAndDrop: &options.DragAndDrop{
+			EnableFileDrop: true,
+		},
+	}
 
-	if err != nil {
+	if !skipLock {
+		opts.SingleInstanceLock = &options.SingleInstanceLock{
+			UniqueId:               "com.lankir.singleinstance",
+			OnSecondInstanceLaunch: app.onSecondInstance,
+		}
+	}
+
+	if err := wails.Run(opts); err != nil {
 		log.Fatal("Error:", err.Error())
 	}
 }
