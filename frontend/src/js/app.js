@@ -11,6 +11,8 @@ import { initSettings, getSetting } from './settings.js';
 import { themeManager } from './themeManager.js';
 import { initLoadingIndicator } from './loadingIndicator.js';
 import { state } from './state.js';
+import { handleOpenFiles } from './fileOpener.js';
+import * as runtime from '../wailsjs/runtime/runtime.js';
 
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -34,6 +36,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     await themeManager.init();
     updateStatus('Ready');
     loadRecentFilesWelcome();
+
+    runtime.EventsOn('open-files', handleOpenFiles);
 
     const leftSidebar = document.getElementById('leftSidebar');
     const rightSidebar = document.getElementById('rightSidebar');
