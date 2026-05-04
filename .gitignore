@@ -2,6 +2,10 @@
 /build/
 /bin/
 
+docs/plans/
+CLAUDE.md
+TODOs.md
+
 # Scripts (temporary build files)
 /scripts/
 
