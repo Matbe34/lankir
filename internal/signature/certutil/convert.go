@@ -10,6 +10,12 @@ import (
 	"github.com/Matbe34/lankir/internal/signature/types"
 )
 
+// GetFingerprint calculates SHA-256 fingerprint of an x509 certificate
+func GetFingerprint(cert *x509.Certificate) string {
+	hash := sha256.Sum256(cert.Raw)
+	return hex.EncodeToString(hash[:])
+}
+
 func IsCertificateValidForSigning(cert *x509.Certificate) bool {
 	if cert.KeyUsage&x509.KeyUsageDigitalSignature == 0 {
 		return false
@@ -44,8 +50,7 @@ func ConvertX509Certificate(cert *x509.Certificate, source string, filename stri
 	}
 
 	// Calculate SHA-256 fingerprint
-	hash := sha256.Sum256(cert.Raw)
-	fingerprint := hex.EncodeToString(hash[:])
+	fingerprint := GetFingerprint(cert)
 
 	// Check if certificate is currently valid
 	now := time.Now()
@@ -66,5 +71,6 @@ func ConvertX509Certificate(cert *x509.Certificate, source string, filename stri
 		KeyUsage:     keyUsage,
 		IsValid:      isValid,
 		CanSign:      canSign,
+		X509Cert:     cert,
 	}
 }
