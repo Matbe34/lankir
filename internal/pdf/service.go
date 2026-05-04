@@ -228,9 +228,11 @@ type PageDimensions struct {
 }
 
 // GetPageDimensions returns the width and height of a page in PDF points.
+// Holds an exclusive lock because MuPDF's fz_context is not safe for concurrent
+// access — see also GetMetadata.
 func (s *PDFService) GetPageDimensions(pageNum int) (*PageDimensions, error) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
 	if s.doc == nil {
 		return nil, fmt.Errorf("no PDF document is open")
@@ -252,9 +254,11 @@ func (s *PDFService) GetPageDimensions(pageNum int) (*PageDimensions, error) {
 }
 
 // GetMetadata returns title, author, and other metadata for the open PDF.
+// Holds an exclusive lock because MuPDF's fz_context is not safe for concurrent
+// access; concurrent fitz.Document.Metadata() calls corrupt internal state.
 func (s *PDFService) GetMetadata() (*PDFMetadata, error) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
 	if s.doc == nil {
 		return nil, fmt.Errorf("no PDF document is open")
