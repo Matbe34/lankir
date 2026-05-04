@@ -7,6 +7,7 @@ toolchain go1.24.10
 require (
 	github.com/digitorus/pdfsign v0.0.0-20250819064552-5f74f69dda1d
 	github.com/gen2brain/go-fitz v1.24.15
+	github.com/github/smimesign v0.2.0
 	github.com/google/uuid v1.6.0
 	github.com/miekg/pkcs11 v1.1.1
 	github.com/spf13/cobra v1.10.1
