@@ -11,7 +11,7 @@ import { initSettings, getSetting } from './settings.js';
 import { themeManager } from './themeManager.js';
 import { initLoadingIndicator } from './loadingIndicator.js';
 import { state, getActivePDF } from './state.js';
-import { handleOpenFiles } from './fileOpener.js';
+import { handleOpenFiles, suppressWebViewDropDefault } from './fileOpener.js';
 import * as runtime from '../wailsjs/runtime/runtime.js';
 
 
@@ -38,6 +38,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     loadRecentFilesWelcome();
 
     runtime.EventsOn('open-files', handleOpenFiles);
+    suppressWebViewDropDefault();
 
     const leftSidebar = document.getElementById('leftSidebar');
     const rightSidebar = document.getElementById('rightSidebar');
