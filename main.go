@@ -110,7 +110,8 @@ func runGUI(initialFiles []string) {
 			WebviewGpuPolicy:    linux.WebviewGpuPolicyAlways,
 		},
 		DragAndDrop: &options.DragAndDrop{
-			EnableFileDrop: true,
+			EnableFileDrop:     true,
+			DisableWebViewDrop: true, // prevent the webview from navigating to dropped files
 		},
 	}
 
