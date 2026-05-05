@@ -1345,7 +1345,11 @@
 }
 
 /* Drop-target marker for Wails drag-drop. Wails fires onFileDrop only when
-   the cursor is over an element with this CSS custom property set to "drop". */
+   the cursor is over an element with this CSS custom property set to "drop".
+   Cover the entire viewport so any drop is captured — without this, drops on
+   unmarked elements fall through to the WebView which would try to navigate
+   to the dropped file. */
+body,
 .pdf-viewer,
 .welcome-screen {
     --wails-drop-target: drop;
