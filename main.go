@@ -5,11 +5,13 @@ import (
 	"embed"
 	"log"
 	"os"
+	"strings"
 
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
 	"github.com/wailsapp/wails/v2/pkg/options/linux"
+	"github.com/wailsapp/wails/v2/pkg/runtime"
 
 	"github.com/Matbe34/lankir/cmd/cli"
 	"github.com/Matbe34/lankir/internal/config"
@@ -20,9 +22,29 @@ import (
 //go:embed all:frontend/dist
 var assets embed.FS
 
+// parseArgs splits process args into CLI args (route to Cobra) vs GUI files
+// (open as tabs in the GUI). Cobra subcommand or any leading `-` flag → CLI.
+// Otherwise everything is treated as a GUI file path.
+func parseArgs(args []string) (cliArgs, guiFiles []string) {
+	if len(args) == 0 {
+		return nil, nil
+	}
+	for _, a := range args {
+		if strings.HasPrefix(a, "-") {
+			return args, nil
+		}
+		if cli.IsKnownSubcommand(a) {
+			return args, nil
+		}
+		break
+	}
+	return nil, args
+}
+
 func main() {
-	if len(os.Args) == 1 {
-		runGUI()
+	cliArgs, guiFiles := parseArgs(os.Args[1:])
+	if cliArgs == nil {
+		runGUI(guiFiles)
 		return
 	}
 
@@ -31,11 +53,14 @@ func main() {
 	// No-op on Linux/macOS.
 	attachParentConsole()
 
-	cli.Execute(runGUI)
+	cli.ExecuteWithArgs(cliArgs, runGUI)
 }
 
-func runGUI() {
+func runGUI(initialFiles []string) {
+	skipLock := os.Getenv("LANKIR_NEW_WINDOW") == "1"
+
 	app := NewApp()
+	app.initialFiles = initialFiles
 
 	configService, err := config.NewService()
 	if err != nil {
@@ -51,9 +76,21 @@ func runGUI() {
 		pdfService.Startup(ctx)
 		recentFilesService.Startup(ctx)
 		signatureService.Startup(ctx)
+
+		// Wire drag-drop. The Wails v2 fork in our go.mod replace directive
+		// patches the Linux GTK handler to return TRUE so WebKit's default
+		// file-navigation does not hijack the window. See wailsapp/wails#3686
+		// and Matbe34/wails fix/linux-drag-drop-return-true branch.
+		runtime.OnFileDrop(ctx, app.onFileDrop)
+
+		// Hand off any startup files (from CLI args or OS "Open with") to the
+		// frontend via the same event used by SingleInstanceLock.
+		if len(app.initialFiles) > 0 {
+			runtime.EventsEmit(ctx, "open-files", app.initialFiles)
+		}
 	}
 
-	err = wails.Run(&options.App{
+	opts := &options.App{
 		Title:  "Lankir",
 		Width:  1400,
 		Height: 900,
@@ -74,9 +111,19 @@ func runGUI() {
 			WindowIsTranslucent: false,
 			WebviewGpuPolicy:    linux.WebviewGpuPolicyAlways,
 		},
-	})
+		DragAndDrop: &options.DragAndDrop{
+			EnableFileDrop: true,
+		},
+	}
 
-	if err != nil {
+	if !skipLock {
+		opts.SingleInstanceLock = &options.SingleInstanceLock{
+			UniqueId:               "com.lankir.singleinstance",
+			OnSecondInstanceLaunch: app.onSecondInstance,
+		}
+	}
+
+	if err := wails.Run(opts); err != nil {
 		log.Fatal("Error:", err.Error())
 	}
 }

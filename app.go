@@ -2,13 +2,19 @@ package main
 
 import (
 	"context"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
 
+	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 // App exposes system dialogs to the frontend via Wails bindings.
 type App struct {
-	ctx context.Context
+	ctx          context.Context
+	initialFiles []string
 }
 
 // NewApp creates a new App instance.
@@ -44,4 +50,89 @@ func (a *App) ShowMessageDialog(title, message string) error {
 		Message: message,
 	})
 	return err
+}
+
+// filterPDFPaths returns only paths whose extension is .pdf (case-insensitive).
+func filterPDFPaths(paths []string) []string {
+	out := make([]string, 0, len(paths))
+	for _, p := range paths {
+		if strings.EqualFold(filepath.Ext(p), ".pdf") {
+			out = append(out, p)
+		}
+	}
+	return out
+}
+
+// onFileDrop is the Wails drag-drop callback. Filters non-PDFs and forwards
+// the path list to the frontend via the "open-files" event. Wails on Linux
+// can fire this twice per drop (once with paths, once empty as WebKit's
+// internal handling re-triggers the GTK signal); skip the empty fires so the
+// frontend doesn't show a spurious "No PDF files in drop" toast right after
+// a successful tab open.
+func (a *App) onFileDrop(_, _ int, paths []string) {
+	if len(paths) == 0 {
+		return
+	}
+	pdfs := filterPDFPaths(paths)
+	runtime.EventsEmit(a.ctx, "open-files", pdfs)
+}
+
+// resolveSecondInstancePaths takes args from a second-instance launch (which
+// may be relative to that process's working directory) and returns absolute
+// paths to PDFs only. The .pdf filter ensures we never emit non-PDF paths
+// even if a user explicitly passes one on the second-instance command line.
+func resolveSecondInstancePaths(args []string, cwd string) []string {
+	pdfs := filterPDFPaths(args)
+	out := make([]string, 0, len(pdfs))
+	for _, p := range pdfs {
+		if !filepath.IsAbs(p) {
+			p = filepath.Join(cwd, p)
+		}
+		out = append(out, p)
+	}
+	return out
+}
+
+// onSecondInstance is the Wails SingleInstanceLock callback. Forwards the
+// args from a second-launch process to the frontend as "open-files". Skips
+// emitting when the second instance had no PDF args so a bare relaunch
+// doesn't pop a "No PDF files" toast in the first window.
+func (a *App) onSecondInstance(data options.SecondInstanceData) {
+	paths := resolveSecondInstancePaths(data.Args, data.WorkingDirectory)
+	if len(paths) == 0 {
+		return
+	}
+	runtime.EventsEmit(a.ctx, "open-files", paths)
+}
+
+// newWindowEnv returns a copy of env with any prior LANKIR_NEW_WINDOW entry
+// removed and a single LANKIR_NEW_WINDOW=1 appended. The child process uses
+// this signal to skip SingleInstanceLock acquisition (wired in main.go).
+func newWindowEnv(env []string) []string {
+	out := make([]string, 0, len(env)+1)
+	for _, e := range env {
+		if !strings.HasPrefix(e, "LANKIR_NEW_WINDOW=") {
+			out = append(out, e)
+		}
+	}
+	return append(out, "LANKIR_NEW_WINDOW=1")
+}
+
+// OpenInNewWindow spawns a detached lankir process with the same executable
+// and the given file path as an argument. Bypasses SingleInstanceLock via
+// LANKIR_NEW_WINDOW=1. Empty filePath spawns an empty new window.
+//
+// Exported because the frontend calls it via Wails bindings (App.OpenInNewWindow).
+func (a *App) OpenInNewWindow(filePath string) error {
+	exe, err := os.Executable()
+	if err != nil {
+		return err
+	}
+	args := []string{}
+	if filePath != "" {
+		args = append(args, filePath)
+	}
+	cmd := exec.Command(exe, args...)
+	cmd.Env = newWindowEnv(os.Environ())
+	return cmd.Start()
 }
