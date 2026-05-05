@@ -22,7 +22,7 @@ tasks:
       - echo "Building frontend..."
       - cd {{.FRONTEND_DIR}} && ./build.sh
       - echo "Building application..."
-      - wails build -clean
+      - wails build -clean -tags webkit2_41
       - echo "✓ Build complete! Binary at {{.BUILD_DIR}}/{{.BINARY_NAME}}"
 
   build-static:

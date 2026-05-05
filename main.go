@@ -110,8 +110,14 @@ func runGUI(initialFiles []string) {
 			WebviewGpuPolicy:    linux.WebviewGpuPolicyAlways,
 		},
 		DragAndDrop: &options.DragAndDrop{
-			EnableFileDrop:     true,
-			DisableWebViewDrop: true, // prevent the webview from navigating to dropped files
+			// EnableFileDrop installs a Wails-side drop callback that fires only on
+			// elements marked with --wails-drop-target: drop. Drops on any other
+			// element fall through to the WebView (which would try to navigate to
+			// the file). To avoid that, the CSS marker covers the entire body in
+			// style.css. Do NOT also set DisableWebViewDrop: that calls
+			// gtk_drag_dest_unset on Linux/GTK and prevents the drag-drop signal
+			// from firing at all, which silently disables drop everywhere.
+			EnableFileDrop: true,
 		},
 	}
 
