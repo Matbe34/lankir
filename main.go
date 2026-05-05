@@ -77,11 +77,11 @@ func runGUI(initialFiles []string) {
 		recentFilesService.Startup(ctx)
 		signatureService.Startup(ctx)
 
-		// Drag-drop is handled in the frontend via HTML5 dragover/drop events
-		// (see frontend/src/js/fileOpener.js::registerDragDrop). Wails v2.10.2's
-		// native Linux DragAndDrop.EnableFileDrop is broken — its GTK handler
-		// returns FALSE, so WebKit's default file-navigation hijacks the
-		// window. Bypassing it entirely keeps drag-drop working.
+		// Wire drag-drop. The Wails v2 fork in our go.mod replace directive
+		// patches the Linux GTK handler to return TRUE so WebKit's default
+		// file-navigation does not hijack the window. See wailsapp/wails#3686
+		// and Matbe34/wails fix/linux-drag-drop-return-true branch.
+		runtime.OnFileDrop(ctx, app.onFileDrop)
 
 		// Hand off any startup files (from CLI args or OS "Open with") to the
 		// frontend via the same event used by SingleInstanceLock.
@@ -110,6 +110,9 @@ func runGUI(initialFiles []string) {
 			Icon:                []byte{},
 			WindowIsTranslucent: false,
 			WebviewGpuPolicy:    linux.WebviewGpuPolicyAlways,
+		},
+		DragAndDrop: &options.DragAndDrop{
+			EnableFileDrop: true,
 		},
 	}
 

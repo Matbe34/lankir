@@ -1344,3 +1344,11 @@
   }
 }
 
+/* Wails drag-drop target. Wails fires our OnFileDrop callback only when the
+   element under the cursor at drop time has --wails-drop-target: drop. CSS
+   custom properties inherit, so marking body covers every drop on the
+   window. */
+body {
+    --wails-drop-target: drop;
+}
+

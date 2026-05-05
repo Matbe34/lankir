@@ -54,3 +54,5 @@ require (
 )
 
 replace github.com/github/smimesign => github.com/nikwo/smimesign-fork v0.0.0-20221130091550-0956e442b5b6
+
+replace github.com/wailsapp/wails/v2 => github.com/Matbe34/wails/v2 v2.10.3-0.20260505094453-fe793ce5bfc8
