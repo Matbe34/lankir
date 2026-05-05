@@ -63,14 +63,6 @@ func filterPDFPaths(paths []string) []string {
 	return out
 }
 
-// onFileDrop is the Wails drag-drop callback. Filters non-PDFs and forwards
-// the path list to the frontend via the "open-files" event. Empty filtered
-// lists still emit so the frontend can show a "no PDF files" toast.
-func (a *App) onFileDrop(_, _ int, paths []string) {
-	pdfs := filterPDFPaths(paths)
-	runtime.EventsEmit(a.ctx, "open-files", pdfs)
-}
-
 // resolveSecondInstancePaths takes args from a second-instance launch (which
 // may be relative to that process's working directory) and returns absolute
 // paths to PDFs only. The .pdf filter ensures we never emit non-PDF paths

@@ -77,12 +77,14 @@ func runGUI(initialFiles []string) {
 		recentFilesService.Startup(ctx)
 		signatureService.Startup(ctx)
 
-		// Wire drag-drop. Wails calls app.onFileDrop with absolute paths
-		// whenever the user drops files onto the window.
-		runtime.OnFileDrop(ctx, app.onFileDrop)
+		// Drag-drop is handled in the frontend via HTML5 dragover/drop events
+		// (see frontend/src/js/fileOpener.js::registerDragDrop). Wails v2.10.2's
+		// native Linux DragAndDrop.EnableFileDrop is broken — its GTK handler
+		// returns FALSE, so WebKit's default file-navigation hijacks the
+		// window. Bypassing it entirely keeps drag-drop working.
 
-		// Hand off any startup files (from CLI args or OS "Open with") to
-		// the frontend via the same event drop and second-instance use.
+		// Hand off any startup files (from CLI args or OS "Open with") to the
+		// frontend via the same event used by SingleInstanceLock.
 		if len(app.initialFiles) > 0 {
 			runtime.EventsEmit(ctx, "open-files", app.initialFiles)
 		}
@@ -108,16 +110,6 @@ func runGUI(initialFiles []string) {
 			Icon:                []byte{},
 			WindowIsTranslucent: false,
 			WebviewGpuPolicy:    linux.WebviewGpuPolicyAlways,
-		},
-		DragAndDrop: &options.DragAndDrop{
-			// EnableFileDrop installs a Wails-side drop callback that fires only on
-			// elements marked with --wails-drop-target: drop. Drops on any other
-			// element fall through to the WebView (which would try to navigate to
-			// the file). To avoid that, the CSS marker covers the entire body in
-			// style.css. Do NOT also set DisableWebViewDrop: that calls
-			// gtk_drag_dest_unset on Linux/GTK and prevents the drag-drop signal
-			// from firing at all, which silently disables drop everywhere.
-			EnableFileDrop: true,
 		},
 	}
 
