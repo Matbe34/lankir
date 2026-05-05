@@ -64,8 +64,15 @@ func filterPDFPaths(paths []string) []string {
 }
 
 // onFileDrop is the Wails drag-drop callback. Filters non-PDFs and forwards
-// the path list to the frontend via the "open-files" event.
+// the path list to the frontend via the "open-files" event. Wails on Linux
+// can fire this twice per drop (once with paths, once empty as WebKit's
+// internal handling re-triggers the GTK signal); skip the empty fires so the
+// frontend doesn't show a spurious "No PDF files in drop" toast right after
+// a successful tab open.
 func (a *App) onFileDrop(_, _ int, paths []string) {
+	if len(paths) == 0 {
+		return
+	}
 	pdfs := filterPDFPaths(paths)
 	runtime.EventsEmit(a.ctx, "open-files", pdfs)
 }
@@ -87,9 +94,14 @@ func resolveSecondInstancePaths(args []string, cwd string) []string {
 }
 
 // onSecondInstance is the Wails SingleInstanceLock callback. Forwards the
-// args from a second-launch process to the frontend as "open-files".
+// args from a second-launch process to the frontend as "open-files". Skips
+// emitting when the second instance had no PDF args so a bare relaunch
+// doesn't pop a "No PDF files" toast in the first window.
 func (a *App) onSecondInstance(data options.SecondInstanceData) {
 	paths := resolveSecondInstancePaths(data.Args, data.WorkingDirectory)
+	if len(paths) == 0 {
+		return
+	}
 	runtime.EventsEmit(a.ctx, "open-files", paths)
 }
 
