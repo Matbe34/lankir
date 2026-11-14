@@ -90,6 +90,16 @@ curl -1sLf 'https://dl.cloudsmith.io/public/matbe34/lankir/setup.rpm.sh' | sudo 
 sudo dnf install lankir
 ```
 
+On Fedora 44 and later, the repository file the setup script writes points at a
+CA bundle (`/etc/pki/tls/certs/ca-bundle.crt`) that these releases no longer
+have, so `dnf` can't reach the repository. Remove that line so `dnf` uses the
+system's trusted certificates, then install:
+
+```bash
+sudo sed -i '/^sslcacert=/d' /etc/yum.repos.d/matbe34-lankir.repo
+sudo dnf install lankir
+```
+
 ## Standalone program
 
 `lankir-<version>-linux-x86_64` needs GTK 3, WebKitGTK 4.1 and NSS from the system:
