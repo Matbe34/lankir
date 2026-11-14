@@ -11,6 +11,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode"
 
 	"github.com/gen2brain/go-fitz"
 )
@@ -105,11 +106,12 @@ func (s *Renderer) OpenPDFByPath(filePath string) (*PDFMetadata, error) {
 		s.pageCount = result.doc.NumPage()
 		s.annotationRenderingFailed = false
 
+		info := result.doc.Metadata()
 		return &PDFMetadata{
-			Title:     result.doc.Metadata()["title"],
-			Author:    result.doc.Metadata()["author"],
-			Subject:   result.doc.Metadata()["subject"],
-			Creator:   result.doc.Metadata()["creator"],
+			Title:     metadataString(info["title"]),
+			Author:    metadataString(info["author"]),
+			Subject:   metadataString(info["subject"]),
+			Creator:   metadataString(info["creator"]),
 			PageCount: s.pageCount,
 			FilePath:  filePath,
 		}, nil
@@ -117,6 +119,13 @@ func (s *Renderer) OpenPDFByPath(filePath string) (*PDFMetadata, error) {
 	case <-ctx.Done():
 		return nil, fmt.Errorf("timeout opening PDF file (exceeded %v)", PDFOpenTimeout)
 	}
+}
+
+// metadataString turns a go-fitz metadata value, a C string in a NUL-padded
+// fixed buffer, into the string it holds, without trailing whitespace.
+func metadataString(s string) string {
+	s, _, _ = strings.Cut(s, "\x00")
+	return strings.TrimRightFunc(s, unicode.IsSpace)
 }
 
 // ClosePDF closes the currently open PDF document and releases resources.

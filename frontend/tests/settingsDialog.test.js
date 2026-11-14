@@ -10,6 +10,7 @@ vi.mock('../src/js/messageDialog.js', () => ({
 const { initSettings, openSettings, getSetting } = await import('../src/js/settings.js');
 const { showMessage } = await import('../src/js/messageDialog.js');
 const { formatDate, renderCertificateItem } = await import('../src/js/certificateRenderer.js');
+const { SETTINGS } = await import('../src/js/constants.js');
 
 const page = fs.readFileSync(new URL('index.html', `file://${process.cwd()}/`), 'utf8');
 const body = page.slice(page.indexOf('<body'), page.lastIndexOf('</body>')).replace(/^<body[^>]*>/, '').replace(/<script[\s\S]*?<\/script>/g, '');
@@ -53,6 +54,69 @@ describe('settings dialog', () => {
     expect(getSetting('checkRevocationOnline')).toBe(false);
     openSettings('signatures');
     expect($('settingCheckRevocationOnline').checked).toBe(false);
+  });
+
+  it('has no Auto-save setting, and saving keeps the stored autosaveInterval', async () => {
+    ConfigService.Get.mockResolvedValue({ theme: 'dark', autosaveInterval: 30 });
+    await initSettings();
+    openSettings('files');
+    expect($('settingAutosaveInterval')).toBeNull();
+    expect($('filesSection').textContent).not.toMatch(/auto-save/i);
+    $('settingsSave').click();
+    await vi.waitFor(() => expect(ConfigService.Update).toHaveBeenCalledWith(expect.objectContaining({ autosaveInterval: 30 })));
+  });
+
+  it('says Hardware acceleration applies after a restart, and saves the switch', async () => {
+    openSettings('advanced');
+    expect($('settingHardwareAccel').checked).toBe(true);
+    expect($('settingHardwareAccel').closest('.pref-row').textContent).toMatch(/restart/i);
+    $('settingHardwareAccel').click();
+    $('settingsSave').click();
+    await vi.waitFor(() => expect(ConfigService.Update).toHaveBeenCalledWith(expect.objectContaining({ hardwareAccel: false })));
+  });
+
+  it('offers default zoom from 10 to 400% and 1 to 50 recent files, the limits the CLI keeps too', () => {
+    expect([$('settingDefaultZoom').min, $('settingDefaultZoom').max]).toEqual([String(SETTINGS.ZOOM.MIN), String(SETTINGS.ZOOM.MAX)]);
+    expect([SETTINGS.ZOOM.MIN, SETTINGS.ZOOM.MAX]).toEqual([10, 400]);
+    expect([$('settingRecentFilesLength').min, $('settingRecentFilesLength').max]).toEqual([String(SETTINGS.RECENT_FILES.MIN), String(SETTINGS.RECENT_FILES.MAX)]);
+    expect([SETTINGS.RECENT_FILES.MIN, SETTINGS.RECENT_FILES.MAX]).toEqual([1, 50]);
+    expect($('settingDefaultZoom').closest('.pref-row').textContent).toMatch(/from 10 to 400%/);
+    expect($('settingRecentFilesLength').closest('.pref-row').textContent).toMatch(/up to 50/);
+  });
+
+  it('saves zoom and recent files within the limits, and brings a changed value outside them to the nearest limit', async () => {
+    const save = async (zoom, recent) => {
+      openSettings('viewer');
+      $('settingDefaultZoom').value = zoom;
+      $('settingRecentFilesLength').value = recent;
+      ConfigService.Update.mockClear();
+      $('settingsSave').click();
+      await vi.waitFor(() => expect(ConfigService.Update).toHaveBeenCalled());
+      await vi.waitFor(() => expect(shown('settingsModal')).toBe(false));
+      return [getSetting('defaultZoom'), getSetting('recentFilesLength')];
+    };
+    expect(await save('200', '20')).toEqual([200, 20]);
+    expect(await save('450', '0')).toEqual([400, 1]);
+    expect(await save('5', '80')).toEqual([10, 50]);
+    // A number field accepts exponents; 1e3 is a thousand, not 1.
+    expect(await save('1e3', '1e2')).toEqual([400, 50]);
+  });
+
+  it('keeps an older file\'s values outside the limits when saved untouched', async () => {
+    ConfigService.Get.mockResolvedValue({ theme: 'dark', defaultZoom: 500, recentFilesLength: 0 });
+    await initSettings();
+    openSettings('viewer');
+    $('settingsSave').click();
+    await vi.waitFor(() => expect(ConfigService.Update).toHaveBeenCalledWith(expect.objectContaining({ defaultZoom: 500, recentFilesLength: 0 })));
+  });
+
+  it('brings an older file\'s value outside the limits to the nearest one once it is changed', async () => {
+    ConfigService.Get.mockResolvedValue({ theme: 'dark', defaultZoom: 500, recentFilesLength: 0 });
+    await initSettings();
+    openSettings('viewer');
+    $('settingDefaultZoom').value = '450';
+    $('settingsSave').click();
+    await vi.waitFor(() => expect(ConfigService.Update).toHaveBeenCalledWith(expect.objectContaining({ defaultZoom: 400, recentFilesLength: 0 })));
   });
 
   it('shows the app version under Advanced', async () => {

@@ -3,7 +3,21 @@ package main
 import (
 	"reflect"
 	"testing"
+
+	"github.com/wailsapp/wails/v3/pkg/application"
+
+	"github.com/Matbe34/lankir/internal/config"
 )
+
+// The Hardware acceleration setting picks WebKit's acceleration policy.
+func TestWebviewGpuPolicy(t *testing.T) {
+	if got := webviewGpuPolicy(&config.Config{HardwareAccel: true}); got != application.WebviewGpuPolicyAlways {
+		t.Errorf("hardwareAccel on: policy %v, want always", got)
+	}
+	if got := webviewGpuPolicy(&config.Config{HardwareAccel: false}); got != application.WebviewGpuPolicyNever {
+		t.Errorf("hardwareAccel off: policy %v, want never", got)
+	}
+}
 
 func TestParseArgs(t *testing.T) {
 	cases := []struct {

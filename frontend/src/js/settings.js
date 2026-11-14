@@ -6,6 +6,7 @@ import { initSignatureProfiles, loadSignatureProfiles, closeProfileEditor } from
 import { themeManager } from './themeManager.js';
 import { initCertificatesSettings, renderPathLists } from './certificates.js';
 import { App, ConfigService } from './backend.js';
+import { SETTINGS } from './constants.js';
 
 const DEFAULT_SETTINGS = {
     theme: 'dark',
@@ -433,7 +434,6 @@ export function openSettings(section) {
     document.getElementById('settingShowLeftSidebar').checked = currentSettings.showLeftSidebar;
     document.getElementById('settingShowRightSidebar').checked = currentSettings.showRightSidebar;
     document.getElementById('settingRecentFilesLength').value = currentSettings.recentFilesLength;
-    document.getElementById('settingAutosaveInterval').value = currentSettings.autosaveInterval;
     document.getElementById('settingDebugMode').checked = currentSettings.debugMode;
     document.getElementById('settingHardwareAccel').checked = currentSettings.hardwareAccel;
     document.getElementById('settingTsaUrl').value = currentSettings.tsaUrl || '';
@@ -464,20 +464,22 @@ async function saveSettingsFromModal() {
         currentSettings.accentColor = document.getElementById('settingAccentColor').value;
         currentSettings.secondaryAccent = document.getElementById('settingSecondaryAccent').value;
 
-        let defaultZoom = parseInt(document.getElementById('settingDefaultZoom').value);
-        if (isNaN(defaultZoom) || defaultZoom < 10 || defaultZoom > 500) defaultZoom = 100;
-        currentSettings.defaultZoom = defaultZoom;
+        // A changed value outside the limits goes to the nearest one; an older
+        // file's value outside them stays until it is changed.
+        const within = (id, { MIN, MAX }, stored) => {
+            const input = document.getElementById(id);
+            // Number(), not parseInt: a number field accepts exponents such as 1e3.
+            const value = input.value.trim() === '' ? NaN : Math.trunc(Number(input.value));
+            if (input.value === String(stored) || Number.isNaN(value)) return stored;
+            return Math.min(MAX, Math.max(MIN, value));
+        };
+        currentSettings.defaultZoom = within('settingDefaultZoom', SETTINGS.ZOOM, currentSettings.defaultZoom);
 
         currentSettings.showLeftSidebar = document.getElementById('settingShowLeftSidebar').checked;
         currentSettings.showRightSidebar = document.getElementById('settingShowRightSidebar').checked;
 
-        let recentFilesLength = parseInt(document.getElementById('settingRecentFilesLength').value);
-        if (isNaN(recentFilesLength) || recentFilesLength < 0 || recentFilesLength > 100) recentFilesLength = 10;
-        currentSettings.recentFilesLength = recentFilesLength;
+        currentSettings.recentFilesLength = within('settingRecentFilesLength', SETTINGS.RECENT_FILES, currentSettings.recentFilesLength);
 
-        let autosaveInterval = parseInt(document.getElementById('settingAutosaveInterval').value);
-        if (isNaN(autosaveInterval) || autosaveInterval < 0 || autosaveInterval > 3600) autosaveInterval = 60;
-        currentSettings.autosaveInterval = autosaveInterval;
         currentSettings.debugMode = document.getElementById('settingDebugMode').checked;
         currentSettings.hardwareAccel = document.getElementById('settingHardwareAccel').checked;
         currentSettings.tsaUrl = document.getElementById('settingTsaUrl').value.trim();

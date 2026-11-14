@@ -9,6 +9,7 @@ export {
 
 export {
     CertificateFilter,
+    CertificateRevocation,
     SignRequest,
     SignatureAppearance,
     SignaturePosition,

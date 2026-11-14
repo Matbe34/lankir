@@ -94,7 +94,7 @@ func TestConvertSignerToInfoDetails(t *testing.T) {
 		Warnings:        []error{errors.New("Timestamp certificate chain validation failed: unknown authority")},
 	}
 
-	info := (&SignatureService{}).convertSignerToInfo(signer, "", true)
+	info, _ := (&SignatureService{}).convertSignerToInfo(signer, "", true)
 
 	checks := map[string][2]string{
 		"SignerName":            {info.SignerName, "GARCIA LOPEZ MARIA - 12345678Z"},
@@ -143,7 +143,7 @@ func TestConvertSignerToInfoWithoutExtras(t *testing.T) {
 		TimestampStatus:  "missing",
 	}
 
-	info := (&SignatureService{}).convertSignerToInfo(signer, "", true)
+	info, _ := (&SignatureService{}).convertSignerToInfo(signer, "", true)
 
 	if info.SigningTime != "" || info.SigningTimeSource != "" {
 		t.Errorf("no recorded signing time: got %q (%q), want none", info.SigningTime, info.SigningTimeSource)
@@ -181,7 +181,7 @@ func TestConvertSignerToInfoTrustedTimestampAndRevocation(t *testing.T) {
 		TimeSource:       "embedded_timestamp",
 	}
 
-	info := (&SignatureService{}).convertSignerToInfo(signer, "", true)
+	info, _ := (&SignatureService{}).convertSignerToInfo(signer, "", true)
 
 	if info.SigningTime != "2026-11-09T11:32:05Z" || info.SigningTimeSource != "timestamp" {
 		t.Errorf("signing time = %q (%q), want the trusted timestamp", info.SigningTime, info.SigningTimeSource)
@@ -223,13 +223,13 @@ func TestConvertSignerToInfoPrefersTheTrustedTimestamp(t *testing.T) {
 		TimeSource:       "embedded_timestamp",
 	}
 
-	info := (&SignatureService{}).convertSignerToInfo(signer, "", true)
+	info, _ := (&SignatureService{}).convertSignerToInfo(signer, "", true)
 	if info.SigningTime != "2026-11-09T11:32:05Z" || info.SigningTimeSource != "timestamp" {
 		t.Errorf("valid timestamp: signing time = %q (%q), want the timestamp's", info.SigningTime, info.SigningTimeSource)
 	}
 
 	signer.TimestampStatus = "untrusted"
-	info = (&SignatureService{}).convertSignerToInfo(signer, "", true)
+	info, _ = (&SignatureService{}).convertSignerToInfo(signer, "", true)
 	if info.SigningTime != "2026-11-09T11:00:00Z" || info.SigningTimeSource != "signer" {
 		t.Errorf("untrusted timestamp: signing time = %q (%q), want the signer's", info.SigningTime, info.SigningTimeSource)
 	}

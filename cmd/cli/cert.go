@@ -229,7 +229,7 @@ func init() {
 	certCmd.AddCommand(certSearchCmd)
 	certCmd.AddCommand(certInfoCmd)
 
-	certListCmd.Flags().StringVarP(&certSource, "source", "s", "", "filter by source (system, user, pkcs11)")
+	certListCmd.Flags().StringVarP(&certSource, "source", "s", "", `only certificates from one source: "User File", "User Store", pkcs11 or "NSS Database" (not case sensitive)`)
 	certListCmd.Flags().StringVar(&certSearch, "search", "", "search query")
 	certListCmd.Flags().BoolVar(&certValidOnly, "valid-only", false, "only show valid certificates")
 	certListCmd.Flags().BoolVarP(&jsonOutput, "json", "j", false, "output in JSON format")

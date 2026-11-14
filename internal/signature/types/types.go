@@ -33,6 +33,9 @@ type Certificate struct {
 	// X509Cert stores the raw x509.Certificate for internal use (not serialized)
 	// This is used by platform-specific certificate stores (e.g., Windows Certificate Store)
 	X509Cert *x509.Certificate `json:"-"`
+	// Issuers are the other certificates its store held when listed, which
+	// may be its issuing chain (internal, not serialized).
+	Issuers []*x509.Certificate `json:"-"`
 }
 
 // HasKeyUsage returns true if the certificate has the specified key usage.

@@ -171,22 +171,26 @@ var signVerifyCmd = &cobra.Command{
 
 		GetLogger().Info("verifying signatures", "file", SanitizePath(pdfPath))
 
-		signatures, err := service.VerifySignatures(pdfPath)
+		verify := service.VerifySignatures
+		if signVerifyOffline {
+			verify = service.VerifySignaturesOffline
+		}
+		signatures, err := verify(pdfPath)
 		if err != nil {
 			ExitWithError("failed to verify signatures", err)
 		}
 
-		if len(signatures) == 0 {
-			fmt.Println("No signatures found in PDF")
-			return
-		}
-
 		if jsonOutput {
+			if signatures == nil {
+				signatures = []types.SignatureInfo{}
+			}
 			data, err := json.MarshalIndent(signatures, "", "  ")
 			if err != nil {
 				ExitWithError("failed to marshal signatures to JSON", err)
 			}
-			fmt.Println(string(data))
+			fmt.Fprintln(cmd.OutOrStdout(), string(data))
+		} else if len(signatures) == 0 {
+			fmt.Fprintln(cmd.OutOrStdout(), "No signatures found in PDF")
 		} else {
 			fmt.Printf("Found %d signature(s):\n\n", len(signatures))
 
@@ -346,6 +350,7 @@ var (
 	signHeight          float64
 	signVisible         bool
 	signTSA             string
+	signVerifyOffline   bool
 )
 
 func init() {
@@ -370,6 +375,7 @@ func init() {
 	signPDFCmd.Flags().StringVar(&signTSA, "tsa", "", "RFC 3161 timestamp server URL (default: the tsaUrl setting)")
 
 	signVerifyCmd.Flags().BoolVarP(&jsonOutput, "json", "j", false, "output in JSON format")
+	signVerifyCmd.Flags().BoolVar(&signVerifyOffline, "offline", false, "don't ask certificate authorities about revocation, whatever the checkRevocationOnline setting")
 	signProfileListCmd.Flags().BoolVarP(&jsonOutput, "json", "j", false, "output in JSON format")
 	signProfileInfoCmd.Flags().BoolVarP(&jsonOutput, "json", "j", false, "output in JSON format")
 }

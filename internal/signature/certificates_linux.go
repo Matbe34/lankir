@@ -3,6 +3,8 @@
 package signature
 
 import (
+	"crypto/x509"
+
 	"github.com/Matbe34/lankir/internal/signature/certutil"
 	"github.com/Matbe34/lankir/internal/signature/nss"
 	"github.com/Matbe34/lankir/internal/signature/types"
@@ -21,6 +23,11 @@ func LoadNSSCertificates() ([]types.Certificate, error) {
 		return nil, err
 	}
 
+	// The database's CA certificates, for the pre-sign revocation check.
+	all := make([]*x509.Certificate, 0, len(nssCerts))
+	for _, nc := range nssCerts {
+		all = append(all, nc.X509Cert)
+	}
 	var certs []types.Certificate
 	for _, nc := range nssCerts {
 		if !nc.HasPrivateKey {
@@ -31,6 +38,7 @@ func LoadNSSCertificates() ([]types.Certificate, error) {
 		c.NSSNickname = nc.Nickname
 		c.RequiresPin = false
 		c.PinOptional = true
+		c.Issuers = all
 
 		certs = append(certs, c)
 	}

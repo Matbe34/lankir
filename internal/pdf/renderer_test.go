@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"sync"
 	"testing"
+
+	"github.com/Matbe34/lankir/internal/pdfops"
 )
 
 // TestClosePDF tests closing PDF documents
@@ -125,6 +127,29 @@ func TestOpenPDFByPath(t *testing.T) {
 	}
 
 	service.ClosePDF()
+}
+
+// MuPDF fills a fixed buffer per metadata entry; the strings must not carry
+// its NUL padding, nor trailing whitespace.
+func TestOpenPDFByPathMetadataHasNoPadding(t *testing.T) {
+	dir := t.TempDir()
+	plain := filepath.Join(dir, "plain.pdf")
+	CreateTestPDF(t, plain, 1)
+	withInfo := filepath.Join(dir, "info.pdf")
+	if err := pdfops.SetMetadata(plain, withInfo, pdfops.Metadata{Title: "Master Services Agreement  ", Creator: "Writer"}); err != nil {
+		t.Fatal(err)
+	}
+
+	service := NewRenderer()
+	defer service.ClosePDF()
+	metadata, err := service.OpenPDFByPath(withInfo)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := [4]string{metadata.Title, metadata.Author, metadata.Subject, metadata.Creator}
+	if want := [4]string{"Master Services Agreement", "", "", "Writer"}; got != want {
+		t.Errorf("title, author, subject, creator = %q, want %q", got, want)
+	}
 }
 
 // TestOpenPDFByPath_NonExistent tests opening non-existent file

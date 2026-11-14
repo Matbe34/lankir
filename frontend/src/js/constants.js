@@ -14,13 +14,14 @@ export const LIMITS = {
 
 // Settings Validation Ranges
 export const SETTINGS = {
+    // The Settings dialog's limits; the CLI's config set keeps the same.
     ZOOM: {
         MIN: 10,        // Minimum zoom setting in %
-        MAX: 500        // Maximum zoom setting in %
+        MAX: 400        // Maximum zoom setting in %
     },
     RECENT_FILES: {
-        MIN: 0,         // Minimum number of recent files to track
-        MAX: 100        // Maximum number of recent files to track
+        MIN: 1,         // Minimum number of recent files to list
+        MAX: 50         // Maximum number of recent files to list
     },
     AUTOSAVE: {
         MIN: 0,         // Minimum autosave interval in seconds (0 = disabled)

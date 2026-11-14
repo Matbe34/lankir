@@ -49,12 +49,22 @@ func main() {
 	cli.ExecuteWithArgs(cliArgs, runGUI)
 }
 
+// webviewGpuPolicy maps the Hardware acceleration setting to WebKit's
+// policy. The webview is made once, so a change applies after a restart.
+func webviewGpuPolicy(cfg *config.Config) application.WebviewGpuPolicy {
+	if cfg.HardwareAccel {
+		return application.WebviewGpuPolicyAlways
+	}
+	return application.WebviewGpuPolicyNever
+}
+
 func runGUI(initialFiles []string) {
 	configService, err := config.NewService()
 	if err != nil {
 		log.Fatal("Failed to create config service:", err)
 	}
-	if cfg := configService.Get(); cfg != nil && cfg.DebugMode {
+	cfg := configService.Get()
+	if cfg.DebugMode {
 		slog.SetLogLoggerLevel(slog.LevelDebug)
 	}
 
@@ -124,7 +134,7 @@ func runGUI(initialFiles []string) {
 			"CmdOrCtrl+Shift+Z": func(application.Window) { app.emit("edit-command", "redo") },
 		},
 		Linux: application.LinuxWindow{
-			WebviewGpuPolicy: application.WebviewGpuPolicyAlways,
+			WebviewGpuPolicy: webviewGpuPolicy(cfg),
 		},
 	})
 	window.OnWindowEvent(events.Common.WindowFilesDropped, func(e *application.WindowEvent) {

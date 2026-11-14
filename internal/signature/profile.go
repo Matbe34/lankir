@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/Matbe34/lankir/internal/config"
 	"github.com/google/uuid"
 )
 
@@ -107,12 +108,15 @@ type ProfileManager struct {
 	configDir string
 }
 
-// NewProfileManager creates a new profile manager
+// NewProfileManager creates a profile manager for the profiles next to
+// config.json.
 func NewProfileManager() *ProfileManager {
-	homeDir, _ := os.UserHomeDir()
-	configDir := filepath.Join(homeDir, ".config", "lankir", "signature_profiles")
-
-	return NewProfileManagerWithDir(configDir)
+	dir, err := config.Dir()
+	if err != nil {
+		homeDir, _ := os.UserHomeDir()
+		dir = filepath.Join(homeDir, ".config", "lankir")
+	}
+	return NewProfileManagerWithDir(filepath.Join(dir, config.ProfilesDirName))
 }
 
 // NewProfileManagerWithDir creates a new profile manager with a custom directory

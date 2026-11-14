@@ -164,14 +164,11 @@ Open **Settings** from the menu. Changes apply when you press **Save**.
 |---------|---------------|
 | Appearance | Theme (light, dark or the same as the system), accent colour, window tint. |
 | Viewer | Default zoom for newly opened documents. Whether a new document opens with the side panel on Pages or on Info (signatures). |
-| Files | How many recent files to list (up to 50). Auto-save interval. |
+| Files | How many recent files to list (up to 50). |
 | Signing | Timestamp server, location lookup, online revocation checking, and signature profiles. See [Signing](signing.md). |
 | Certificates | The certificates found, the folders searched for certificate files, and the smart card and token libraries. See [Signing](signing.md#certificates). |
 | Shortcuts | Click a shortcut to record a new one. Esc is kept for closing dialogs and menus. |
-| Advanced | Hardware acceleration, debug logging (more detail in the log, for bug reports), and the app's version. |
-
-In 1.0 the Auto-save and Hardware acceleration settings are stored but have
-no effect yet.
+| Advanced | Hardware acceleration (drawing with the graphics card; a change applies the next time Lankir starts), debug logging (more detail in the log, for bug reports), and the app's version. |
 
 The settings are kept in `~/.config/lankir/config.json`; see
 [Install](install.md#files-lankir-keeps). Shortcuts, the window tint and the

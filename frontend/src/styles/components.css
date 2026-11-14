@@ -844,6 +844,37 @@
   .pill.warning { background: var(--warning-subtle); color: var(--warning); }
   .pill.danger { background: var(--danger-subtle); color: var(--danger); }
 
+  /* ---------- Notice ----------
+   * A short message in a form's flow, with an icon, that changes what the form
+   * can do. .danger: the action is stopped. */
+  .notice {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--sp-2);
+    margin-top: var(--sp-2);
+    padding: var(--sp-2) var(--sp-3);
+    border-radius: var(--r-md);
+    background: var(--fill);
+    color: var(--text);
+    font-size: var(--fs-small);
+    line-height: var(--lh-body);
+  }
+
+  .notice-icon {
+    display: inline-grid;
+    flex: none;
+    place-items: center;
+    height: calc(var(--fs-small) * var(--lh-body));
+    color: var(--icon-color);
+  }
+
+  .notice time {
+    white-space: nowrap;
+  }
+
+  .notice.danger { background: var(--danger-subtle); }
+  .notice.danger .notice-icon { color: var(--danger); }
+
   /* ---------- Empty state ---------- */
   .empty-state {
     display: flex;

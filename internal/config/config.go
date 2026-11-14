@@ -55,16 +55,13 @@ type Service struct {
 
 // NewService creates a config service using the default config directory.
 func NewService() (*Service, error) {
-	// Use os.UserConfigDir() for cross-platform config directory
-	// Linux: ~/.config/lankir
+	// Linux: $XDG_CONFIG_HOME/lankir or ~/.config/lankir
 	// Windows: %APPDATA%\lankir (C:\Users\<user>\AppData\Roaming\lankir)
 	// macOS: ~/Library/Application Support/lankir
-	configDir, err := os.UserConfigDir()
+	configDir, err := Dir()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get user config directory: %w", err)
+		return nil, err
 	}
-
-	configDir = filepath.Join(configDir, "lankir")
 	return NewServiceWithDir(configDir)
 }
 

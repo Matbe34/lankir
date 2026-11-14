@@ -20,6 +20,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -199,7 +200,7 @@ func TestRevocationOf(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			status, msg := revocationOf(tt.signer, tt.online)
+			status, msg, _ := revocationOf(tt.signer, tt.online)
 			if status != tt.status || msg != tt.msg {
 				t.Errorf("revocationOf = %q, %q; want %q, %q", status, msg, tt.status, tt.msg)
 			}
@@ -356,11 +357,11 @@ func TestEmbeddedOCSPCountsOnlyWhenTheIssuerSignedIt(t *testing.T) {
 			{Certificate: leaf, OCSPEmbedded: true, OCSPResponse: resp}, {Certificate: forger.cert}, {Certificate: inter.cert},
 		}}
 	}
-	status, msg := revocationOf(signer(ocspGood(t, leaf, inter)), false)
+	status, msg, _ := revocationOf(signer(ocspGood(t, leaf, inter)), false)
 	if status != "good" || msg != "Embedded in the PDF" {
 		t.Errorf("signed by the issuer: revocationOf = %q, %q; want good, embedded", status, msg)
 	}
-	status, msg = revocationOf(signer(ocspGood(t, leaf, forger)), false)
+	status, msg, _ = revocationOf(signer(ocspGood(t, leaf, forger)), false)
 	if status != "not_checked" || msg != "Revocation data in the PDF couldn't be verified" {
 		t.Errorf("signed by another key: revocationOf = %q, %q; want not checked, unverified", status, msg)
 	}
@@ -380,7 +381,7 @@ func TestEmbeddedOCSPCountsOnlyWhenTheIssuerSignedIt(t *testing.T) {
 	selfSigned := verify.Signer{TrustedIssuer: true, Certificates: []verify.Certificate{
 		{Certificate: self.cert, OCSPEmbedded: true, OCSPResponse: resp}, {Certificate: inter.cert},
 	}}
-	if status, msg = revocationOf(selfSigned, false); status != "not_checked" {
+	if status, msg, _ = revocationOf(selfSigned, false); status != "not_checked" {
 		t.Errorf("answered by the signer's own certificate: revocationOf = %q, %q; want not checked", status, msg)
 	}
 }
@@ -399,7 +400,7 @@ func TestEmbeddedOCSPIssuerFromTheTrustedRoots(t *testing.T) {
 		{Certificate: leaf, OCSPEmbedded: true, OCSPResponse: ocspGood(t, leaf, inter)},
 		{Certificate: inter.cert, OCSPEmbedded: true, OCSPResponse: ocspGood(t, inter.cert, root)},
 	}}
-	if status, msg := revocationOf(signer, false); status != "good" || msg != "Embedded in the PDF" {
+	if status, msg, _ := revocationOf(signer, false); status != "good" || msg != "Embedded in the PDF" {
 		t.Errorf("revocationOf = %q, %q; want good, embedded", status, msg)
 	}
 }
@@ -419,9 +420,9 @@ func TestVerifySignaturesAsksOnlyAboutATrustedChain(t *testing.T) {
 
 func TestVerifySignaturesKeepsTheAnswerForAnUnchangedFile(t *testing.T) {
 	calls := 0
-	verifyPDF = func(*SignatureService, string, bool) ([]types.SignatureInfo, error) {
+	verifyPDF = func(*SignatureService, string, bool) ([]types.SignatureInfo, bool, error) {
 		calls++
-		return []types.SignatureInfo{{SignerName: "Signer"}}, nil
+		return []types.SignatureInfo{{SignerName: "Signer"}}, false, nil
 	}
 	defer func() { verifyPDF = (*SignatureService).verifyPDF }()
 
@@ -532,8 +533,8 @@ func TestAForgedIssuerNameDoesNotReplaceTheIntermediate(t *testing.T) {
 			leafCert := verify.Certificate{Certificate: leaf, OCSPEmbedded: true, OCSPResponse: ocspGood(t, leaf, inter)}
 			return verify.Signer{TrustedIssuer: true, TimeSource: tt.ts, Certificates: append([]verify.Certificate{leafCert}, certs...)}
 		}
-		wantStatus, wantMsg := revocationOf(signer(tt.inter), false)
-		status, msg := revocationOf(signer(verify.Certificate{Certificate: forgery}, tt.inter), false)
+		wantStatus, wantMsg, _ := revocationOf(signer(tt.inter), false)
+		status, msg, _ := revocationOf(signer(verify.Certificate{Certificate: forgery}, tt.inter), false)
 		if status != wantStatus || msg != wantMsg || status == "good" {
 			t.Errorf("%s, forgery ahead: revocationOf = %q, %q; want %q, %q", tt.name, status, msg, wantStatus, wantMsg)
 		}
@@ -707,8 +708,8 @@ func TestASameKeyForgeryDoesNotReplaceTheIntermediate(t *testing.T) {
 		{Certificate: &evilWithURL, VerifyError: "x509: certificate signed by unknown authority"},
 		{Certificate: &interCRL},
 	}}
-	wantStatus, wantMsg := revocationOf(honest, false)
-	if status, msg := revocationOf(forged, false); status != wantStatus || msg != wantMsg {
+	wantStatus, wantMsg, _ := revocationOf(honest, false)
+	if status, msg, _ := revocationOf(forged, false); status != wantStatus || msg != wantMsg {
 		t.Errorf("revocationOf = %q, %q; want %q, %q", status, msg, wantStatus, wantMsg)
 	}
 	if chain := chainOf(forged.Certificates); !reflect.DeepEqual(chain, chainOf(honest.Certificates)) {
@@ -907,4 +908,266 @@ func mustExplicit(t *testing.T, inner []byte) []byte {
 		t.Fatal(err)
 	}
 	return b
+}
+
+// ocspAnswer is an OCSP answer about cert with status, signed by signer's key.
+func ocspAnswer(t *testing.T, cert *x509.Certificate, signer *testCA, status int) []byte {
+	t.Helper()
+	der, err := ocsp.CreateResponse(signer.cert, signer.cert, ocsp.Response{
+		Status: status, SerialNumber: cert.SerialNumber, ThisUpdate: time.Now().Add(-time.Minute), NextUpdate: time.Now().Add(time.Hour),
+		RevokedAt: time.Now().Add(-30 * time.Minute).Truncate(time.Second),
+	}, signer.key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return der
+}
+
+// ocspServer answers every OCSP request with what answer returns, and counts them.
+func ocspServer(t *testing.T, answer func() []byte) (*httptest.Server, *atomic.Int32) {
+	t.Helper()
+	hits := new(atomic.Int32)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hits.Add(1)
+		w.Header().Set("Content-Type", "application/ocsp-response")
+		_, _ = w.Write(answer())
+	}))
+	t.Cleanup(srv.Close)
+	return srv, hits
+}
+
+// newLeaf is a signing certificate under ca naming these OCSP and CRL URLs, and its key.
+func newLeaf(t *testing.T, ca *testCA, ocspURL, crlURL string) (*x509.Certificate, *rsa.PrivateKey) {
+	t.Helper()
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tpl := &x509.Certificate{
+		SerialNumber: big.NewInt(42), Subject: pkix.Name{CommonName: "Signer"},
+		NotBefore: time.Now().Add(-time.Hour), NotAfter: time.Now().Add(time.Hour),
+		KeyUsage: x509.KeyUsageDigitalSignature, SubjectKeyId: []byte{1, 2, 3},
+	}
+	if ocspURL != "" {
+		tpl.OCSPServer = []string{ocspURL}
+	}
+	if crlURL != "" {
+		tpl.CRLDistributionPoints = []string{crlURL}
+	}
+	return newTestCert(t, tpl, key, ca), key
+}
+
+// signedLeaf signs a PDF with a new certificate under ca naming these OCSP and CRL URLs.
+func signedLeaf(t *testing.T, ca *testCA, ocspURL, crlURL string) (pdf string, leaf *x509.Certificate) {
+	t.Helper()
+	leaf, key := newLeaf(t, ca, ocspURL, crlURL)
+	pdf = filepath.Join(t.TempDir(), "signed.pdf")
+	if err := NewSignatureService(nil).signPDFWithSigner(plainTestPDF(t), pdf, testSigner{key, leaf}, &types.Certificate{Name: "Signer"}, DefaultInvisibleProfile(), "", ""); err != nil {
+		t.Fatal(err)
+	}
+	return pdf, leaf
+}
+
+// trustRoot makes ca the only trusted root for the test.
+func trustRoot(t *testing.T, ca *testCA) {
+	t.Helper()
+	roots := x509.NewCertPool()
+	roots.AddCert(ca.cert)
+	trustedRoots = roots
+	t.Cleanup(func() { trustedRoots = nil })
+}
+
+// emptyCRL is a current CRL from ca listing these revoked certificates.
+func emptyCRL(t *testing.T, ca *testCA, revoked ...x509.RevocationListEntry) []byte {
+	t.Helper()
+	der, err := x509.CreateRevocationList(rand.Reader, &x509.RevocationList{
+		Number: big.NewInt(1), ThisUpdate: time.Now().Add(-time.Minute), NextUpdate: time.Now().Add(time.Hour),
+		RevokedCertificateEntries: revoked,
+	}, ca.cert, ca.key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return der
+}
+
+func TestAnUnknownOCSPAnswerIsNotARevocation(t *testing.T) {
+	root := testCAUnder(t, "Test Root", nil)
+	trustRoot(t, root)
+	var leaf atomic.Pointer[x509.Certificate]
+	srv, _ := ocspServer(t, func() []byte { return ocspAnswer(t, leaf.Load(), root, ocsp.Unknown) })
+	pdf, cert := signedLeaf(t, root, srv.URL, "")
+	leaf.Store(cert)
+
+	sig := verifyWith(t, pdf, true)
+	if sig.RevocationStatus != "unavailable" || sig.RevocationCheck != "The certificate authority doesn't know this certificate" {
+		t.Errorf("revocation = %q %q; want unavailable, unknown to the CA", sig.RevocationStatus, sig.RevocationCheck)
+	}
+	if !sig.CertificateValid || sig.CertificateValidationMessage != "Certificate is valid and trusted" {
+		t.Errorf("certificate valid %v, %q; want valid and trusted", sig.CertificateValid, sig.CertificateValidationMessage)
+	}
+	for _, w := range sig.Warnings {
+		if strings.Contains(strings.ToLower(w), "revoked") {
+			t.Errorf("warning %q calls the certificate revoked", w)
+		}
+	}
+}
+
+func TestAnUnknownOCSPAnswerEmbeddedIsNotARevocation(t *testing.T) {
+	root := testCAUnder(t, "Root", nil)
+	inter := testCAUnder(t, "Intermediate", root)
+	leaf := testCAUnder(t, "Signer", inter).cert
+	resp, err := ocsp.ParseResponse(ocspAnswer(t, leaf, inter, ocsp.Unknown), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// What pdfsign reports for it: revoked at the zero time.
+	zero := resp.RevokedAt
+	signer := verify.Signer{TrustedIssuer: true, RevokedCertificate: true, Certificates: []verify.Certificate{
+		{Certificate: leaf, OCSPEmbedded: true, OCSPResponse: resp, RevocationTime: &zero, RevokedBeforeSigning: true}, {Certificate: inter.cert},
+	}}
+	if status, msg, _ := revocationOf(signer, false); status != "unavailable" || msg != "The certificate authority doesn't know this certificate" {
+		t.Errorf("revocationOf = %q, %q; want unavailable, unknown to the CA", status, msg)
+	}
+	if info, _ := NewSignatureService(nil).convertSignerToInfo(signer, "", false); !info.CertificateValid || info.RevocationStatus == "revoked" {
+		t.Errorf("certificate valid %v, revocation %q; want valid, not revoked", info.CertificateValid, info.RevocationStatus)
+	}
+
+	// Revoked in a CRL too: that is a revocation.
+	crlAt := time.Now().Add(-time.Hour)
+	signer.Certificates[0].CRLEmbedded, signer.Certificates[0].RevocationTime = true, &crlAt
+	if status, _, _ := revocationOf(signer, false); status != "revoked" {
+		t.Errorf("unknown to OCSP, revoked in the CRL: revocationOf = %q, want revoked", status)
+	}
+}
+
+// Round 4: an online OCSP answer that fails the check and a CRL the network
+// didn't deliver; the CRL may come the next time.
+func TestVerifySignaturesAsksAgainAfterACRLWentUnanswered(t *testing.T) {
+	root := testCAUnder(t, "Test Root", nil)
+	trustRoot(t, root)
+	sibKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Another certificate the CA issued, without the OCSP Signing EKU.
+	sib := &testCA{newTestCert(t, &x509.Certificate{
+		SerialNumber: big.NewInt(5), Subject: pkix.Name{CommonName: "Some other citizen"},
+		NotBefore: time.Now().Add(-time.Hour), NotAfter: time.Now().Add(time.Hour), KeyUsage: x509.KeyUsageDigitalSignature,
+	}, sibKey, root), sibKey}
+	var leaf atomic.Pointer[x509.Certificate]
+	ocspSrv, _ := ocspServer(t, func() []byte {
+		der, err := ocsp.CreateResponse(root.cert, sib.cert, ocsp.Response{
+			Status: ocsp.Good, SerialNumber: leaf.Load().SerialNumber, ThisUpdate: time.Now().Add(-time.Minute), NextUpdate: time.Now().Add(time.Hour), Certificate: sib.cert,
+		}, sib.key)
+		if err != nil {
+			t.Error(err)
+		}
+		return der
+	})
+	crlSrv, _, crl, failing := crlServer(t)
+	pdf, cert := signedLeaf(t, root, ocspSrv.URL, crlSrv.URL+"/ca.crl")
+	leaf.Store(cert)
+	cfg, err := config.NewServiceWithDir(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	svc := NewSignatureService(cfg)
+
+	failing.Store(true)
+	sigs, err := svc.VerifySignatures(pdf)
+	if err != nil || sigs[0].RevocationStatus != "unavailable" {
+		t.Fatalf("CRL down: %v, %v; want unavailable", sigs, err)
+	}
+	der := emptyCRL(t, root)
+	crl.Store(&der)
+	failing.Store(false)
+	sigs, err = svc.VerifySignatures(pdf)
+	if err != nil || sigs[0].RevocationStatus != "good" || sigs[0].RevocationCheck != "CRL checked online with the certificate authority" {
+		t.Errorf("CRL back: revocation = %q %q, %v; want good from the CRL", sigs[0].RevocationStatus, sigs[0].RevocationCheck, err)
+	}
+}
+
+// An OCSP "unknown" on top of a CRL revocation after a trusted signing time
+// reads the same as that revocation alone.
+func TestAnUnknownOCSPAnswerKeepsARevocationAfterSigning(t *testing.T) {
+	root := testCAUnder(t, "Root", nil)
+	inter := testCAUnder(t, "Intermediate", root)
+	leaf := testCAUnder(t, "Signer", inter).cert
+	resp, err := ocsp.ParseResponse(ocspAnswer(t, leaf, inter, ocsp.Unknown), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	signed := time.Now().Add(-2 * time.Hour)
+	crlAt := time.Now().Add(-time.Hour)
+	signer := verify.Signer{
+		TrustedIssuer: true, RevokedCertificate: true, // set by the unknown
+		TimeSource: "embedded_timestamp", TimestampStatus: "valid", TimestampTrusted: true, VerificationTime: &signed,
+		Certificates: []verify.Certificate{
+			{Certificate: leaf, OCSPExternal: true, OCSPResponse: resp, CRLExternal: true, RevocationTime: &crlAt},
+			{Certificate: inter.cert},
+		},
+	}
+	info, _ := NewSignatureService(nil).convertSignerToInfo(signer, "", true)
+	if info.RevocationStatus != "revoked_later" || !info.CertificateValid {
+		t.Errorf("revocation %q, certificate valid %v; want revoked_later, valid", info.RevocationStatus, info.CertificateValid)
+	}
+
+	// Revoked before signing in the CRL: revoked.
+	before := signed.Add(-time.Hour)
+	signer.Certificates[0].RevocationTime = &before
+	if info, _ := NewSignatureService(nil).convertSignerToInfo(signer, "", true); info.RevocationStatus != "revoked" || info.CertificateValid {
+		t.Errorf("revoked before signing: revocation %q, certificate valid %v; want revoked, not valid", info.RevocationStatus, info.CertificateValid)
+	}
+}
+
+// A revoked intermediate above a signer only "unknown" to OCSP: the message
+// has no zero date for the signer.
+func TestRevokedMessageHasNoDateFromAnUnknownOCSPAnswer(t *testing.T) {
+	root := testCAUnder(t, "Root", nil)
+	inter := testCAUnder(t, "Intermediate", root)
+	leaf := testCAUnder(t, "Signer", inter).cert
+	resp, err := ocsp.ParseResponse(ocspAnswer(t, leaf, inter, ocsp.Unknown), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	zero := resp.RevokedAt
+	interAt := time.Now().Add(-time.Hour)
+	signer := verify.Signer{TrustedIssuer: true, RevokedCertificate: true, Certificates: []verify.Certificate{
+		{Certificate: leaf, OCSPEmbedded: true, OCSPResponse: resp, RevocationTime: &zero, RevokedBeforeSigning: true},
+		{Certificate: inter.cert, CRLEmbedded: true, RevocationTime: &interAt, RevokedBeforeSigning: true},
+	}}
+	info, _ := NewSignatureService(nil).convertSignerToInfo(signer, "", false)
+	if info.RevocationStatus != "revoked" || info.CertificateValidationMessage != "Certificate has been revoked" {
+		t.Errorf("revocation %q, message %q; want revoked, no date for the signer", info.RevocationStatus, info.CertificateValidationMessage)
+	}
+}
+
+// An offline check says so, not that the setting is off, and leaves the
+// setting's own text alone for the same file.
+func TestVerifySignaturesOfflineSaysItIsOffline(t *testing.T) {
+	root := testCAUnder(t, "Test Root", nil)
+	trustRoot(t, root)
+	srv := newSwitchable(t)
+	pdf, _ := signedLeaf(t, root, "", srv.URL+"/ca.crl")
+	cfg, err := config.NewServiceWithDir(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	service := NewSignatureService(cfg)
+	sigs, err := service.VerifySignaturesOffline(pdf)
+	if err != nil || len(sigs) != 1 {
+		t.Fatalf("VerifySignaturesOffline = %v, %v; want one signature", sigs, err)
+	}
+	if sigs[0].RevocationStatus != "not_checked" || sigs[0].RevocationCheck != "Not checked online (offline check)" || srv.hits.Load() != 0 {
+		t.Errorf("offline: revocation %q %q, %d requests; want not checked offline, none", sigs[0].RevocationStatus, sigs[0].RevocationCheck, srv.hits.Load())
+	}
+
+	c := cfg.Get()
+	c.CheckRevocationOnline = false
+	if err := cfg.Update(c); err != nil {
+		t.Fatal(err)
+	}
+	if sigs, err = service.VerifySignatures(pdf); err != nil || sigs[0].RevocationCheck != "Not checked (turned off in settings)" {
+		t.Errorf("setting off after an offline check: %v, %v; want turned off in settings", sigs, err)
+	}
 }

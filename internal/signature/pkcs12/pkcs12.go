@@ -195,6 +195,20 @@ func GetSignerFromPKCS12File(filePath string, password string) (*Signer, error) 
 	}, nil
 }
 
+// CACertificates are the certificates besides the key's own in a PKCS#12 file
+// that opens without a password, usually its issuing chain.
+func CACertificates(filePath string) []*x509.Certificate {
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return nil
+	}
+	_, _, caCerts, err := goPkcs12.DecodeChain(data, "")
+	if err != nil {
+		return nil
+	}
+	return caCerts
+}
+
 // LoadCertificateFromPKCS12File loads certificate metadata from a PKCS#12 file
 // If the file requires a password, it returns a certificate with basic info and RequiresPin=true
 func LoadCertificateFromPKCS12File(filePath string) (*types.Certificate, error) {

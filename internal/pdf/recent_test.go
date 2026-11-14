@@ -30,6 +30,17 @@ func TestNewRecentFilesService(t *testing.T) {
 	}
 }
 
+// Recent files live next to config.json, which follows XDG_CONFIG_HOME.
+func TestNewRecentFilesServiceFollowsXDGConfigHome(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("HOME", filepath.Join(root, "home"))
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(root, "xdg"))
+
+	if got, want := NewRecentFilesService().configPath, filepath.Join(root, "xdg", "lankir", "recent.json"); got != want {
+		t.Errorf("configPath = %s, want %s", got, want)
+	}
+}
+
 // TestRecentFilesStartup tests service startup
 func TestRecentFilesStartup(t *testing.T) {
 	tmpDir := t.TempDir()

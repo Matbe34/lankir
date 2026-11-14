@@ -501,11 +501,12 @@ signature has them.
 When the `checkRevocationOnline` setting is on (the default), this contacts the
 OCSP and CRL servers named in trusted certificates; see
 [Signing: revocation](signing.md#online-revocation-checking). A PDF with no
-signatures prints `No signatures found in PDF`, also with `--json`.
+signatures prints `No signatures found in PDF`, or `[]` with `--json`.
 
 | Flag | Default | Meaning |
 |------|---------|---------|
 | `-j`, `--json` | off | Print a JSON list with every field, such as `isValid`, `certificateValid`, `issuerTrusted`, `keyAlgorithm`, `revocationStatus` (`good`, `revoked`, `revoked_later`, `unavailable`, `not_checked`), `revocationCheck`, `timestampStatus`, `chain` and `warnings`. |
+| `--offline` | off | Use only the revocation data embedded in the PDF and contact no server, whatever the `checkRevocationOnline` setting. |
 
 ```bash
 lankir sign verify contract_signed.pdf --json
@@ -550,7 +551,26 @@ lankir sign profile-info 00000000-0000-0000-0000-000000000002
 
 Commands that read and change `config.json`, the settings file the app also
 uses (see [Install: files](install.md#files-lankir-keeps)). Key names are not
-case sensitive.
+case sensitive. Change settings while the app is closed: the app saves the
+settings it has open when you press **Save** in Settings.
+
+| Key | Type | Meaning |
+|-----|------|---------|
+| `theme` | text | `light`, `dark` or `auto` (same as the system). |
+| `accentColor` | text | Accent colour, `#rrggbb`. |
+| `defaultZoom` | number | Zoom for newly opened documents, in percent, from 10 to 400. |
+| `showLeftSidebar`, `showRightSidebar` | true or false | Whether a new document opens with the side panel on Pages, or on Info. |
+| `defaultViewMode` | text | Not used by the app. |
+| `recentFilesLength` | number | How many recent files to list, from 1 to 50. |
+| `autosaveInterval` | number | Ignored; there is no auto-save. Kept so older files still load. |
+| `certificateStores` | list | Folders searched for certificate files. Change with `config add` and `config remove`. |
+| `tokenLibraries` | list | PKCS#11 libraries for smart cards and tokens. Change with `config add` and `config remove`. |
+| `tsaUrl` | text | Timestamp server URL; empty for none. |
+| `signatureLocationLookup` | true or false | When a profile shows the location, look it up from your IP address (see [Signing: privacy](signing.md#privacy)). |
+| `checkRevocationOnline` | true or false | Ask certificate authorities online whether a certificate was revoked. |
+| `lastCertificateFingerprint`, `lastSignatureProfileId` | text | The certificate and profile used last. Saved by the app when you sign; `config set` can't change them. |
+| `debugMode` | true or false | Debug logging. |
+| `hardwareAccel` | true or false | Hardware acceleration in the app's web view; applies the next time the app starts. |
 
 ### `lankir config get`
 
@@ -558,11 +578,9 @@ case sensitive.
 lankir config get [key] [flags]
 ```
 
-Without a key, prints the main settings; with `--json`, prints the whole file.
-With a key, prints that setting. Keys: `theme`, `accentColor`, `defaultZoom`,
-`showLeftSidebar`, `showRightSidebar`, `defaultViewMode`, `recentFilesLength`,
-`autosaveInterval`, `certificateStores`, `tokenLibraries`, `debugMode`,
-`hardwareAccel`.
+Without a key, prints every setting as `key: value`, a list as its key and then
+one item per line; with `--json`, prints the whole file. With a key, prints
+that setting.
 
 | Flag | Default | Meaning |
 |------|---------|---------|
@@ -578,17 +596,45 @@ lankir config get tokenLibraries
 lankir config set <key> <value>
 ```
 
-Changes one setting. Keys: `theme` (`light`, `dark` or `auto`), `accentColor`
-(`#rrggbb`), `defaultZoom` (percent), `showLeftSidebar`, `showRightSidebar`
-(`true` or `false`), `defaultViewMode`, `recentFilesLength`,
-`autosaveInterval`, `debugMode`, `hardwareAccel`.
-
-The certificate folders and libraries, and the signing settings (`tsaUrl`,
-`signatureLocationLookup`, `checkRevocationOnline`), can't be set here: change
-them in the app's Settings, or edit `config.json` while the app is closed.
+Changes one setting that is text, a number, or `true` or `false` (also `1`
+and `0`). It takes only the values the app's Settings would store, listed in the
+table above, and exits with an error for any other. Lists are changed with [`config add`](#lankir-config-add) and
+[`config remove`](#lankir-config-remove).
 
 ```bash
 lankir config set theme light
+lankir config set checkRevocationOnline false
+lankir config set tsaUrl http://timestamp.digicert.com
+```
+
+### `lankir config add`
+
+```text
+lankir config add <key> <path>
+```
+
+Adds a path to `certificateStores` or `tokenLibraries`, checked the way
+Settings checks it: a certificate folder must be in your home folder or a
+system certificate folder, a library must end in `.so`, `.dylib` or `.dll`. A
+relative path is made absolute.
+
+```bash
+lankir config add certificateStores ~/certificates
+lankir config add tokenLibraries /usr/lib/x86_64-linux-gnu/opensc-pkcs11.so
+```
+
+### `lankir config remove`
+
+```text
+lankir config remove <key> <path>
+```
+
+Removes a path from `certificateStores` or `tokenLibraries`. If you remove every
+certificate folder or every library, the defaults come back the next time
+the settings are loaded.
+
+```bash
+lankir config remove certificateStores ~/certificates
 ```
 
 ### `lankir config reset`

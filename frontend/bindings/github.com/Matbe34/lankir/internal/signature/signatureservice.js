@@ -38,6 +38,21 @@ export function AddTokenLibrary(path) {
 }
 
 /**
+ * CheckCertificateRevocation asks the certificate authority whether the
+ * certificate with this fingerprint was revoked, with the rules verifying
+ * follows: only for a chain this system trusts, only the OCSP and CRL servers
+ * the certificate itself names, OCSP first and then an HTTP CRL. An answer is
+ * kept for a few minutes, unless a server didn't answer.
+ * @param {string} fingerprint
+ * @returns {$CancellablePromise<$models.CertificateRevocation>}
+ */
+export function CheckCertificateRevocation(fingerprint) {
+    return $Call.ByID(84991689, fingerprint).then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType0($result);
+    }));
+}
+
+/**
  * DeleteSignatureProfile removes a signature profile by its UUID string.
  * @param {string} profileIDStr
  * @returns {$CancellablePromise<void>}
@@ -52,7 +67,7 @@ export function DeleteSignatureProfile(profileIDStr) {
  */
 export function GetDefaultCertificateSources() {
     return $Call.ByID(2212225564).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType1($result);
+        return $$createType2($result);
     }));
 }
 
@@ -62,7 +77,7 @@ export function GetDefaultCertificateSources() {
  */
 export function GetDefaultSignatureProfile() {
     return $Call.ByID(752321584).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType3($result);
+        return $$createType4($result);
     }));
 }
 
@@ -72,7 +87,7 @@ export function GetDefaultSignatureProfile() {
  */
 export function GetDefaultTokenLibraries() {
     return $Call.ByID(1656557219).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType0($result);
+        return $$createType1($result);
     }));
 }
 
@@ -83,7 +98,7 @@ export function GetDefaultTokenLibraries() {
  */
 export function GetSignatureProfile(profileIDStr) {
     return $Call.ByID(3114295737, profileIDStr).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType3($result);
+        return $$createType4($result);
     }));
 }
 
@@ -93,7 +108,7 @@ export function GetSignatureProfile(profileIDStr) {
  */
 export function ListCertificates() {
     return $Call.ByID(2105723398).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType5($result);
+        return $$createType6($result);
     }));
 }
 
@@ -104,7 +119,7 @@ export function ListCertificates() {
  */
 export function ListCertificatesFiltered(filter) {
     return $Call.ByID(3202822433, filter).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType5($result);
+        return $$createType6($result);
     }));
 }
 
@@ -114,7 +129,7 @@ export function ListCertificatesFiltered(filter) {
  */
 export function ListSignatureProfiles() {
     return $Call.ByID(3690325022).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType6($result);
+        return $$createType7($result);
     }));
 }
 
@@ -152,7 +167,7 @@ export function SaveSignatureProfile(profile) {
  */
 export function SearchCertificates(query) {
     return $Call.ByID(3622920378, query).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType5($result);
+        return $$createType6($result);
     }));
 }
 
@@ -173,17 +188,30 @@ export function SignPDF(req) {
  */
 export function VerifySignatures(pdfPath) {
     return $Call.ByID(3665142940, pdfPath).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType8($result);
+        return $$createType9($result);
+    }));
+}
+
+/**
+ * VerifySignaturesOffline is VerifySignatures without asking any certificate
+ * authority, whatever the setting.
+ * @param {string} pdfPath
+ * @returns {$CancellablePromise<types$0.SignatureInfo[]>}
+ */
+export function VerifySignaturesOffline(pdfPath) {
+    return $Call.ByID(3988147099, pdfPath).then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType9($result);
     }));
 }
 
 // Private type creation functions
-const $$createType0 = $Create.Array($Create.Any);
-const $$createType1 = $Create.Map($Create.Any, $$createType0);
-const $$createType2 = $models.SignatureProfile.createFrom;
-const $$createType3 = $Create.Nullable($$createType2);
-const $$createType4 = types$0.Certificate.createFrom;
-const $$createType5 = $Create.Array($$createType4);
-const $$createType6 = $Create.Array($$createType3);
-const $$createType7 = types$0.SignatureInfo.createFrom;
-const $$createType8 = $Create.Array($$createType7);
+const $$createType0 = $models.CertificateRevocation.createFrom;
+const $$createType1 = $Create.Array($Create.Any);
+const $$createType2 = $Create.Map($Create.Any, $$createType1);
+const $$createType3 = $models.SignatureProfile.createFrom;
+const $$createType4 = $Create.Nullable($$createType3);
+const $$createType5 = types$0.Certificate.createFrom;
+const $$createType6 = $Create.Array($$createType5);
+const $$createType7 = $Create.Array($$createType4);
+const $$createType8 = types$0.SignatureInfo.createFrom;
+const $$createType9 = $Create.Array($$createType8);

@@ -77,6 +77,17 @@ func TestNewProfileManager(t *testing.T) {
 	}
 }
 
+// Profiles live next to config.json, which follows XDG_CONFIG_HOME.
+func TestNewProfileManagerFollowsXDGConfigHome(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("HOME", filepath.Join(root, "home"))
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(root, "xdg"))
+
+	if got, want := NewProfileManager().configDir, filepath.Join(root, "xdg", "lankir", "signature_profiles"); got != want {
+		t.Errorf("configDir = %s, want %s", got, want)
+	}
+}
+
 // TestNewProfileManagerWithDir tests profile manager with custom directory
 func TestNewProfileManagerWithDir(t *testing.T) {
 	tmpDir := t.TempDir()

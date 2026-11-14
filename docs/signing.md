@@ -102,8 +102,8 @@ For a visible profile:
   left of the page. Off, the box starts in the middle of the page you are on.
   Either way you can move it when you sign.
 
-Profiles are saved in `~/.config/lankir/signature_profiles/`, one file per
-profile.
+Profiles are saved in `~/.config/lankir/signature_profiles/` (under
+`$XDG_CONFIG_HOME` if you set it), one file per profile.
 
 ## Sign a document
 
@@ -199,6 +199,17 @@ it checks signatures.
   list is published only over LDAP (some FNMT certificates, for example) and
   that names no OCSP server can't be checked: **Not checked: the revocation
   list is only on LDAP**.
+- An OCSP server that answers "unknown" doesn't know the certificate. Lankir
+  doesn't read that as a revocation: with no other answer the status is
+  **Valid, revocation couldn't be checked** (**The certificate authority
+  doesn't know this certificate**).
+- The sign panel asks the same way about the certificate you chose, OCSP first,
+  then the revocation list. If it was revoked, the panel says since when and
+  Sign is off; choose another certificate. If no server answered, a note says
+  so and you can still sign. Lankir needs the certificate's issuer for this: a
+  `.p12` that opens without a password, or the NSS database, has to hold it,
+  unless the system trusts it directly. An answer is reused for 5 minutes.
+- `lankir sign verify --offline` contacts no server, whatever the setting.
 
 ## Timestamps
 
@@ -219,7 +230,8 @@ pass `--tsa`.
   or the setting is off, the profile's own Location text is used. Off, nothing
   is sent.
 - **Check revocation online**: contacts the OCSP and CRL servers named in
-  trusted signers' certificates, as described above. The certificate
+  trusted signers' certificates, and in the certificate you choose to sign
+  with, as described above. The certificate
   authority can see which certificate was checked.
 - **Timestamp server**: when set, sends a hash of the signature (not the
   document) to that server.

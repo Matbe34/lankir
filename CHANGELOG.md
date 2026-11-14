@@ -1,3 +1,56 @@
+# Release v1.0.1
+
+**Release Date:** TBD
+
+---
+
+## Added
+
+- The sign panel checks the chosen certificate with its certificate authority
+  (when Settings › Signing › Check revocation online is on) and won't sign
+  with a revoked one: it says when the certificate was revoked and disables
+  Sign. If the check can't be made, a quiet note says so and signing still
+  works.
+- `lankir sign verify --offline` checks revocation only from data in the PDF,
+  whatever the setting.
+- The package repositories also carry Debian 13 (trixie), Ubuntu 26.04
+  (resolute) and Fedora 43, 44 and 45.
+
+## Changed
+
+- **Settings › Advanced › Hardware acceleration** now works: off, the app's
+  web view draws without the graphics card. A change applies the next time
+  Lankir starts.
+- The Auto-save setting is gone from Settings; it never did anything. The
+  `autosaveInterval` key stays in `config.json` and is ignored.
+- `lankir config get` and `lankir config set` know every `config.json` key,
+  `tsaUrl`, `checkRevocationOnline` and `signatureLocationLookup` included,
+  and `lankir config get` without a key lists them all. `lankir config set`
+  takes only the values Settings would store: `theme` light, dark or auto,
+  `accentColor` as `#rrggbb`, `defaultZoom` from 10 to 400 and
+  `recentFilesLength` from 1 to 50. New
+  `lankir config add` and `lankir config remove` change the certificate
+  folders (`certificateStores`) and token libraries (`tokenLibraries`).
+- With `XDG_CONFIG_HOME` set, signature profiles and recent files are kept in
+  `$XDG_CONFIG_HOME/lankir` next to `config.json`. The first run copies them
+  there from `~/.config/lankir`, where 1.0 kept them; the originals stay.
+
+## Fixed
+
+- An OCSP answer of "unknown" (the certificate authority doesn't know the
+  certificate) no longer reads as a revoked certificate; it reads as
+  revocation not checked.
+- A signature whose revocation service didn't answer is checked again the
+  next time instead of being remembered for 10 minutes.
+- `lankir pdf info` no longer pads the title, author, subject and creator
+  with NUL bytes.
+- `lankir cert list --source` help names the real sources: `User File`,
+  `User Store`, `pkcs11` and `NSS Database`.
+- `lankir sign verify --json` on a PDF without signatures prints `[]`, so the
+  output is always JSON.
+
+---
+
 # Release v1.0.0
 
 **Release Date:** 2026-11-14

@@ -11,6 +11,8 @@ import (
 	"time"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
+
+	"github.com/Matbe34/lankir/internal/config"
 )
 
 const (
@@ -38,11 +40,10 @@ type RecentFilesService struct {
 
 // NewRecentFilesService creates a new recent files service
 func NewRecentFilesService() *RecentFilesService {
-	homeDir, err := os.UserHomeDir()
+	configDir, err := config.Dir()
 	if err != nil {
-		homeDir = "."
+		configDir = filepath.Join(".", ".config", "lankir")
 	}
-	configDir := filepath.Join(homeDir, ".config", "lankir")
 	if err := os.MkdirAll(configDir, 0700); err != nil {
 		slog.Warn("failed to create config directory", "error", err, "path", configDir)
 	}
@@ -52,7 +53,7 @@ func NewRecentFilesService() *RecentFilesService {
 	return &RecentFilesService{
 		ctx:        ctx,
 		cancel:     cancel,
-		configPath: filepath.Join(configDir, "recent.json"),
+		configPath: filepath.Join(configDir, config.RecentFilesName),
 		files:      []RecentFile{},
 		maxRecent:  DefaultMaxRecentFiles,
 	}

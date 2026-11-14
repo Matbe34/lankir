@@ -4,7 +4,8 @@ import { SignatureService, PDFService } from '../src/js/backend.js';
 
 const openRecentFile = vi.fn(async () => 9);
 const closeTab = vi.fn(async () => true);
-const saveTab = vi.fn(async () => true);
+// Like the real one, a save leaves the tab without unsaved edits.
+const saveTab = vi.fn(async (id) => { const tab = state.openPDFs.get(id); if (tab) tab.dirty = false; return true; });
 vi.mock('../src/js/documents.js', () => ({
   openRecentFile: (...a) => openRecentFile(...a),
   closeTab: (...a) => closeTab(...a),
@@ -483,6 +484,262 @@ describe('sign panel', () => {
       expect(SignatureService.ListCertificates).not.toHaveBeenCalled();
       saveTab.mockClear();
     }
+  });
+});
+
+describe('revocation of the chosen certificate', () => {
+  const REVOKED = { status: 'revoked', check: 'OCSP checked online with the certificate authority', revokedAt: '2026-10-30T12:00:00Z' };
+  const revokedDay = new Date(REVOKED.revokedAt).toLocaleDateString([], { day: 'numeric', month: 'short', year: 'numeric' });
+  const notice = () => $('#signCertStatus .notice');
+  const note = () => $('#signCertStatus .field-hint');
+  const answer = (result) => SignatureService.CheckCertificateRevocation.mockResolvedValue(result);
+  /** The next check waits until its returned function is called with the answer. */
+  const pending = () => {
+    let settle;
+    SignatureService.CheckCertificateRevocation.mockReturnValueOnce(new Promise((resolve) => { settle = resolve; }));
+    return (result) => settle(result);
+  };
+
+  beforeEach(() => {
+    settings.checkRevocationOnline = true;
+    SignatureService.CheckCertificateRevocation.mockReset();
+  });
+
+  it('warns about a revoked certificate and keeps it from signing', async () => {
+    answer(REVOKED);
+    await openPanel([cert('a'), cert('b')]);
+    await vi.waitFor(() => expect(notice()).not.toBeNull());
+    expect(SignatureService.CheckCertificateRevocation).toHaveBeenCalledWith('a');
+    expect(notice().classList.contains('danger')).toBe(true);
+    expect(notice().textContent).toBe(`This certificate was revoked on ${revokedDay}. Signatures made with it can't be trusted.`);
+    expect($('#signSubmit').disabled).toBe(true);
+    expect($('#signSaveAs').disabled).toBe(true);
+
+    $('#signProfileSelect').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    await Promise.resolve();
+    expect(SignatureService.SignPDF).not.toHaveBeenCalled();
+  });
+
+  it('signs again once another certificate is chosen', async () => {
+    SignatureService.CheckCertificateRevocation.mockImplementation(async (fp) => (fp === 'a' ? REVOKED : { status: 'good', check: '' }));
+    await openPanel([cert('a'), cert('b')]);
+    await vi.waitFor(() => expect(notice()).not.toBeNull());
+    pickCert('b');
+    await vi.waitFor(() => expect(SignatureService.CheckCertificateRevocation).toHaveBeenLastCalledWith('b'));
+    expect($('#signCertStatus').textContent).toBe('');
+    expect($('#signSubmit').disabled).toBe(false);
+    expect($('#signSaveAs').disabled).toBe(false);
+  });
+
+  it('notes quietly when the check got no answer, and still signs', async () => {
+    answer({ status: 'unavailable', check: "Couldn't reach the certificate authority's revocation service" });
+    await openPanel([cert('a')]);
+    await vi.waitFor(() => expect(note()).not.toBeNull());
+    expect(note().textContent).toBe("Couldn't check whether this certificate was revoked.");
+    expect(notice()).toBeNull();
+    expect($('#signSubmit').disabled).toBe(false);
+  });
+
+  it('notes quietly when the check failed', async () => {
+    SignatureService.CheckCertificateRevocation.mockRejectedValue(new Error('certificate not found'));
+    await openPanel([cert('a')]);
+    await vi.waitFor(() => expect(note()).not.toBeNull());
+    expect($('#signSubmit').disabled).toBe(false);
+  });
+
+  it('says nothing for a good or unchecked certificate', async () => {
+    for (const result of [{ status: 'good', check: '' }, { status: 'not_checked', check: "Not checked: the issuer isn't trusted" }, null]) {
+      answer(result);
+      await openPanel([cert('a')]);
+      await vi.waitFor(() => expect(SignatureService.CheckCertificateRevocation).toHaveBeenCalled());
+      await Promise.resolve();
+      expect($('#signCertStatus').textContent).toBe('');
+      expect($('#signSubmit').disabled).toBe(false);
+      closeSignPanel();
+      SignatureService.CheckCertificateRevocation.mockClear();
+    }
+  });
+
+  it('asks nothing with online checks off', async () => {
+    settings.checkRevocationOnline = false;
+    await openPanel([cert('a'), cert('b')]);
+    pickCert('b');
+    expect(SignatureService.CheckCertificateRevocation).not.toHaveBeenCalled();
+    expect($('#signCertStatus').textContent).toBe('');
+  });
+
+  it('drops the answer for a certificate no longer chosen', async () => {
+    const settleA = pending();
+    answer({ status: 'good', check: '' });
+    await openPanel([cert('a'), cert('b')]);
+    pickCert('b');
+    await vi.waitFor(() => expect(SignatureService.CheckCertificateRevocation).toHaveBeenLastCalledWith('b'));
+    settleA(REVOKED);
+    await new Promise((resolve) => setTimeout(resolve));
+    expect(notice()).toBeNull();
+    expect($('#signSubmit').disabled).toBe(false);
+  });
+
+  it('keeps the latest answer when the same certificate is chosen again', async () => {
+    const settleFirst = pending();
+    answer(REVOKED);
+    await openPanel([cert('a'), cert('b')]);
+    pickCert('b');
+    pickCert('a');
+    await vi.waitFor(() => expect(notice()).not.toBeNull());
+    settleFirst({ status: 'unavailable', check: '' });
+    await new Promise((resolve) => setTimeout(resolve));
+    expect(notice()).not.toBeNull();
+    expect($('#signSubmit').disabled).toBe(true);
+  });
+
+  it('drops the answer when the panel was closed, also once open again', async () => {
+    const settleFirst = pending();
+    await openPanel([cert('a')]);
+    closeSignPanel();
+    answer({ status: 'good', check: '' });
+    await openPanel([cert('a')]);
+    settleFirst(REVOKED);
+    await new Promise((resolve) => setTimeout(resolve));
+    expect(notice()).toBeNull();
+    expect($('#signSubmit').disabled).toBe(false);
+  });
+
+  it('waits for the check before signing and does not sign with a certificate found revoked', async () => {
+    const settle = pending();
+    await openPanel([cert('a')]);
+    $('#signSubmit').click();
+    await vi.waitFor(() => expect($('#signSubmit').getAttribute('aria-busy')).toBe('true'));
+    expect($('#signSubmit').textContent).toBe('Checking certificate…');
+    $('#signSubmit').click();
+    settle(REVOKED);
+    await vi.waitFor(() => expect($('#signSubmit').getAttribute('aria-busy')).toBe('false'));
+    expect(SignatureService.SignPDF).not.toHaveBeenCalled();
+    expect(notice()).not.toBeNull();
+    expect($('#signSubmit').disabled).toBe(true);
+    expect($('#signSaveAs').disabled).toBe(true);
+  });
+
+  it('does not save a copy signed with a certificate found revoked after the save dialog', async () => {
+    const settle = pending();
+    PDFService.ChooseSavePath.mockResolvedValueOnce({ path: '/out/copy.pdf', exists: false });
+    await openPanel([cert('a')]);
+    $('#signSaveAs').click();
+    await vi.waitFor(() => expect($('#signSubmit').getAttribute('aria-busy')).toBe('true'));
+    expect(PDFService.ChooseSavePath).toHaveBeenCalled();
+    settle(REVOKED);
+    await vi.waitFor(() => expect($('#signSubmit').getAttribute('aria-busy')).toBe('false'));
+    expect(SignatureService.SignPDF).not.toHaveBeenCalled();
+    expect(notice()).not.toBeNull();
+  });
+
+  it('does not sign when the revoked answer came while the save dialog was open', async () => {
+    const settle = pending();
+    let choose;
+    PDFService.ChooseSavePath.mockReturnValueOnce(new Promise((resolve) => { choose = resolve; }));
+    await openPanel([cert('a')]);
+    $('#signSaveAs').click();
+    settle(REVOKED);
+    await vi.waitFor(() => expect(notice()).not.toBeNull());
+    choose({ path: '/out/copy.pdf', exists: false });
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(SignatureService.SignPDF).not.toHaveBeenCalled();
+    expect($('#signSubmit').disabled).toBe(true);
+  });
+
+  /** Clicks Sign with the check still pending; resolves once the panel shows it is checking. */
+  const signWhileChecking = async () => {
+    const settle = pending();
+    SignatureService.SignPDF.mockResolvedValueOnce('/docs/a_signed.pdf');
+    await openPanel([cert('a')]);
+    $('#signSubmit').click();
+    await vi.waitFor(() => expect($('#signSubmit').getAttribute('aria-busy')).toBe('true'));
+    return settle;
+  };
+
+  it('can be closed while checking, and then does not sign', async () => {
+    const settle = await signWhileChecking();
+    expect($('#signCancel').disabled).toBe(false);
+    expect($('#signCancelX').disabled).toBe(false);
+    $('#signCancel').click();
+    expect(panelOpen()).toBe(false);
+    settle({ status: 'good', check: '' });
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(SignatureService.SignPDF).not.toHaveBeenCalled();
+  });
+
+  it('closes on Esc while checking, and then does not sign', async () => {
+    const settle = await signWhileChecking();
+    closeSignPanel(); // what Esc calls
+    expect(panelOpen()).toBe(false);
+    settle({ status: 'good', check: '' });
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(SignatureService.SignPDF).not.toHaveBeenCalled();
+  });
+
+  it('closes when its tab is left while checking, and then does not sign', async () => {
+    const settle = await signWhileChecking();
+    state.openPDFs.get(1).cancelPlacement();
+    expect(panelOpen()).toBe(false);
+    settle({ status: 'good', check: '' });
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(SignatureService.SignPDF).not.toHaveBeenCalled();
+  });
+
+  const CHANGED = 'The document changed before signing started. Sign again to save and sign it.';
+
+  it('stops without asking when the page was edited while checking, and asks on the next Sign', async () => {
+    const settle = await signWhileChecking();
+    const tab = state.openPDFs.get(1);
+    tab.dirty = true;
+    settle({ status: 'good', check: '' });
+    await vi.waitFor(() => expect($('#signSubmit').getAttribute('aria-busy')).toBe('false'));
+    expect(showChoice).not.toHaveBeenCalled();
+    expect(saveTab).not.toHaveBeenCalled();
+    expect(SignatureService.SignPDF).not.toHaveBeenCalled();
+    expect($('#signError').textContent).toBe(CHANGED);
+    expect($('#signSubmit').disabled).toBe(false);
+
+    showChoice.mockResolvedValueOnce('save');
+    // The note was about the last attempt, not this one.
+    let noteWhileSigning;
+    // Drop the one-time result signWhileChecking queued for the attempt that stopped.
+    SignatureService.SignPDF.mockReset().mockImplementationOnce(async () => {
+      noteWhileSigning = $('#signError').textContent;
+      return '/docs/a_signed.pdf';
+    });
+    $('#signSubmit').click();
+    await vi.waitFor(() => expect(SignatureService.SignPDF).toHaveBeenCalledTimes(1));
+    expect(showChoice).toHaveBeenCalledTimes(1);
+    expect(saveTab).toHaveBeenCalledWith(1);
+    expect(noteWhileSigning).toBe('');
+  });
+
+  it('neither asks nor signs when the certificate was found revoked and the page edited while checking', async () => {
+    const settle = await signWhileChecking();
+    state.openPDFs.get(1).dirty = true;
+    settle(REVOKED);
+    await vi.waitFor(() => expect($('#signSubmit').getAttribute('aria-busy')).toBe('false'));
+    expect(showChoice).not.toHaveBeenCalled();
+    expect(saveTab).not.toHaveBeenCalled();
+    expect(SignatureService.SignPDF).not.toHaveBeenCalled();
+    expect(notice()).not.toBeNull();
+    expect($('#signSubmit').disabled).toBe(true);
+  });
+
+  it('signs once the pending check finds the certificate good', async () => {
+    const settle = pending();
+    SignatureService.SignPDF.mockResolvedValueOnce('/docs/a_signed.pdf');
+    await openPanel([cert('a')]);
+    $('#signSubmit').click();
+    await vi.waitFor(() => expect($('#signSubmit').getAttribute('aria-busy')).toBe('true'));
+    $('#signSubmit').click();
+    $('#signProfileSelect').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    expect(SignatureService.SignPDF).not.toHaveBeenCalled();
+    settle({ status: 'good', check: '' });
+    await vi.waitFor(() => expect(SignatureService.SignPDF).toHaveBeenCalledTimes(1));
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(SignatureService.SignPDF).toHaveBeenCalledTimes(1);
   });
 });
 

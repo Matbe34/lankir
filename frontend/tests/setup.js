@@ -29,6 +29,7 @@ vi.mock('../src/js/backend.js', () => ({
     ListCertificates: vi.fn(),
     SignPDF: vi.fn(),
     VerifySignatures: vi.fn(),
+    CheckCertificateRevocation: vi.fn(),
     ListSignatureProfiles: vi.fn(),
     SaveSignatureProfile: vi.fn(),
     DeleteSignatureProfile: vi.fn()

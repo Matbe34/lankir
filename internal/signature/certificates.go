@@ -27,7 +27,6 @@ func (s *SignatureService) ListCertificates() ([]types.Certificate, error) {
 // ListCertificatesFiltered returns certificates matching the given filter criteria.
 func (s *SignatureService) ListCertificatesFiltered(filter CertificateFilter) ([]types.Certificate, error) {
 	var allCerts []types.Certificate
-	seenFingerprints := make(map[string]bool)
 
 	// Load certificates from configured stores only
 	if s.configService != nil {
@@ -88,15 +87,19 @@ func (s *SignatureService) ListCertificatesFiltered(filter CertificateFilter) ([
 	}
 
 	uniqueCerts := make([]types.Certificate, 0, len(allCerts))
+	listed := make(map[string]types.Certificate, len(allCerts))
 	for _, cert := range allCerts {
-		if !seenFingerprints[cert.Fingerprint] {
-			seenFingerprints[cert.Fingerprint] = true
+		if _, seen := listed[cert.Fingerprint]; !seen {
+			listed[cert.Fingerprint] = cert
 
 			if s.matchesFilter(cert, filter) {
 				uniqueCerts = append(uniqueCerts, cert)
 			}
 		}
 	}
+	s.mu.Lock()
+	s.listed = listed
+	s.mu.Unlock()
 
 	return uniqueCerts, nil
 }

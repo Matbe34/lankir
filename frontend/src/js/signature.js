@@ -249,7 +249,7 @@ function renderPanel() {
            <div id="signCertMenu" class="menu hidden" role="menu" aria-label="Certificate"></div>`;
 
     showPanel(panelShell(`
-        <div class="dock-field">${certField}</div>
+        <div class="dock-field">${certField}<div id="signCertStatus" aria-live="polite"></div></div>
         <div class="dock-field">
             <label class="field-label" for="signProfileSelect">Profile</label>
             <select id="signProfileSelect" class="input" aria-describedby="signProfileHint"></select>
@@ -364,6 +364,54 @@ function updateFields() {
     byId('signPinLabel').textContent = cert.requiresPin ? 'PIN or password' : 'PIN or password (optional)';
     showPinError('');
     showError('');
+    checkRevocation();
+}
+
+const chosenRevoked = () => panel?.revocation?.status === 'revoked';
+
+/**
+ * With online checks on, asks Go whether the chosen certificate was revoked.
+ * Only the answer to the latest question in this panel is shown.
+ */
+function checkRevocation() {
+    const current = panel;
+    const seq = (current.revocationSeq ?? 0) + 1;
+    Object.assign(current, { revocationSeq: seq, revocation: null, revocationPending: null });
+    showRevocation();
+    if (!getSetting('checkRevocationOnline')) return;
+    // Signing waits for this, so a revoked answer can still stop it.
+    current.revocationPending = askRevocation(current, seq);
+}
+
+async function askRevocation(current, seq) {
+    let result;
+    try {
+        result = await SignatureService.CheckCertificateRevocation(current.certFp);
+    } catch (error) {
+        console.error('Error checking certificate revocation:', error);
+        result = { status: 'unavailable' };
+    }
+    if (panel !== current || current.revocationSeq !== seq) return;
+    current.revocation = result;
+    showRevocation();
+}
+
+/** A revoked certificate: a danger notice, and no signing with it. No answer: a quiet note. */
+function showRevocation() {
+    const { status, revokedAt } = panel.revocation || {};
+    const el = byId('signCertStatus');
+    if (status === 'revoked') {
+        const date = new Date(revokedAt);
+        const when = revokedAt && !Number.isNaN(date.getTime())
+            ? ` on <time datetime="${escapeAttr(revokedAt)}">${escapeHtml(formatDay(date))}</time>` : '';
+        el.innerHTML = `<div class="notice danger" role="alert"><span class="notice-icon">${iconSvg('shield-x', 'icon-sm')}</span>`
+            + `<span>This certificate was revoked${when}. Signatures made with it can't be trusted.</span></div>`;
+    } else if (status === 'unavailable') {
+        el.innerHTML = '<p class="field-hint">Couldn\'t check whether this certificate was revoked.</p>';
+    } else {
+        el.innerHTML = '';
+    }
+    for (const id of ['signSubmit', 'signSaveAs']) byId(id).disabled = panel.busy || panel.checking || chosenRevoked();
 }
 
 /** Puts the box of a visible profile on the page, or takes it off for an invisible one. */
@@ -405,19 +453,22 @@ function showPinError(message) {
     else input.removeAttribute('aria-invalid');
 }
 
-function setBusy(busy) {
-    panel.busy = busy;
+/** Signing, or with checking only waiting for the certificate check, which the panel can still be closed during. */
+function setBusy(busy, checking = false) {
+    panel.busy = busy && !checking;
+    panel.checking = busy && checking;
     for (const id of ['signSubmit', 'signSaveAs', 'signProfileSelect', 'signCertButton', 'signPinInput', 'signPinToggle', 'signCancel', 'signCancelX']) {
         const el = byId(id);
-        if (el) el.disabled = busy;
+        const closes = id === 'signCancel' || id === 'signCancelX';
+        if (el) el.disabled = (panel.busy || (panel.checking && !closes)) || (chosenRevoked() && (id === 'signSubmit' || id === 'signSaveAs'));
     }
     const submitBtn = byId('signSubmit');
     submitBtn.setAttribute('aria-busy', String(busy));
-    submitBtn.innerHTML = busy ? '<span class="spinner" aria-hidden="true"></span>Signing…' : 'Sign';
+    submitBtn.innerHTML = busy ? `<span class="spinner" aria-hidden="true"></span>${checking ? 'Checking certificate…' : 'Signing…'}` : 'Sign';
 }
 
 async function submit(saveAs) {
-    if (!panel || panel.loading || panel.busy) return;
+    if (!panel || panel.loading || panel.busy || panel.checking || chosenRevoked()) return;
     const current = panel;
     const { tab } = current;
     const cert = selectedCert();
@@ -430,6 +481,7 @@ async function submit(saveAs) {
         pinInput.focus();
         return;
     }
+    showError('');
     // The page stays usable while the panel is open, so it may have been edited since.
     if (refreshDirty(tab) && (!(await saveFirst(tab)) || panel !== current)) return;
 
@@ -447,6 +499,20 @@ async function submit(saveAs) {
         outputPath = target.path;
     }
 
+    setBusy(true, true);
+    await current.revocationPending;
+    if (panel !== current) return;
+    if (chosenRevoked() || selectedCert() !== cert) {
+        setBusy(false);
+        return;
+    }
+    // Edited while waiting (or while saving): asking now could answer another
+    // prompt that is open, so the next Sign asks.
+    if (refreshDirty(tab)) {
+        setBusy(false);
+        showError('The document changed before signing started. Sign again to save and sign it.');
+        return;
+    }
     setBusy(true);
     updateStatus('Signing…');
     try {

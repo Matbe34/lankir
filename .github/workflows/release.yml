@@ -27,16 +27,16 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Setup Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
           cache: true
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: frontend/.nvmrc
           cache: 'npm'
@@ -80,18 +80,18 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
 
       - name: Setup Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
           cache: true
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: frontend/.nvmrc
           cache: 'npm'
@@ -163,7 +163,7 @@ jobs:
           "./lankir-${VERSION}-linux-x86_64" --version
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: lankir-${{ steps.version.outputs.VERSION }}
           path: dist/
@@ -184,13 +184,13 @@ jobs:
 
     steps:
       - name: Download artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: lankir-${{ needs.build.outputs.version }}
           path: dist
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
+        uses: softprops/action-gh-release@8a0cd651e5b2365bd640854a3fa5dfc70e4875f3 # v3.0.4
         with:
           files: dist/*
           draft: false
@@ -226,9 +226,9 @@ jobs:
           DEB="dist/lankir_${VERSION}_amd64.deb"
           RPM="dist/lankir-${VERSION}-1.x86_64.rpm"
           # Only distros that have glibc >= 2.35 (the build runner's) and webkit2gtk-4.1.
-          for dist in debian/bookworm ubuntu/noble ubuntu/jammy; do
+          for dist in debian/trixie debian/bookworm ubuntu/resolute ubuntu/noble ubuntu/jammy; do
             cloudsmith push deb "matbe34/lankir/${dist}" "$DEB"
           done
-          for dist in fedora/40 fedora/39; do
+          for dist in fedora/45 fedora/44 fedora/43 fedora/40 fedora/39; do
             cloudsmith push rpm "matbe34/lankir/${dist}" "$RPM"
           done

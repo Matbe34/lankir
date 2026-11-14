@@ -65,8 +65,9 @@ sudo dnf install gtk3 webkit2gtk4.1 nss
 
 Each release's `.deb` and `.rpm` are also published to package repositories on
 Cloudsmith, so `apt` and `dnf` install updates along with the rest of the
-system. New releases go to exactly these distributions: Debian 12 (bookworm),
-Ubuntu 22.04 (jammy) and 24.04 (noble), and Fedora 39 and 40. Release
+system. New releases go to exactly these distributions: Debian 12 (bookworm)
+and 13 (trixie), Ubuntu 22.04 (jammy), 24.04 (noble) and 26.04 (resolute), and
+Fedora 39, 40, 43, 44 and 45. Release
 candidates are not published there. Older distributions that had 0.1.x
 packages (Debian 11, Ubuntu 20.04, RHEL/AlmaLinux/Rocky 8 and 9) keep 0.1.1,
 because 1.0 needs glibc 2.35. On other distributions and newer versions,
@@ -167,7 +168,7 @@ file you added.
 
 Removing the program keeps your settings. To remove them too, delete
 `~/.config/lankir`, and `$XDG_CONFIG_HOME/lankir` if you set `XDG_CONFIG_HOME`
-(only `config.json` goes there; see below), and the web view's storage in
+(see below), and the web view's storage in
 `~/.local/share/com.lankir.Lankir` and `~/.cache/com.lankir.Lankir` (under
 `$XDG_DATA_HOME` and `$XDG_CACHE_HOME` if you set them). After upgrading from
 0.1.x you can also delete the old `~/.local/share/lankir` and `~/.cache/lankir`
@@ -177,14 +178,18 @@ Removing the program keeps your settings. To remove them too, delete
 
 | Path | Contents |
 |------|----------|
-| `~/.config/lankir/config.json` | Settings: theme, zoom, certificate folders and libraries, timestamp server, revocation and location settings, the last certificate and profile used. If `XDG_CONFIG_HOME` is set, this file is in `$XDG_CONFIG_HOME/lankir/` instead. |
+| `~/.config/lankir/config.json` | Settings: theme, zoom, certificate folders and libraries, timestamp server, revocation and location settings, the last certificate and profile used. |
 | `~/.config/lankir/signature_profiles/` | One JSON file per signature profile. |
 | `~/.config/lankir/recent.json` | Recent files. |
 | `~/.local/share/com.lankir.Lankir/` | The app's web view storage: keyboard shortcuts, the window tint and the side panel width. |
 | `~/.cache/com.lankir.Lankir/` | The web view's cache. |
 
-The two web view folders follow `XDG_DATA_HOME` and `XDG_CACHE_HOME` when
-those are set.
+If `XDG_CONFIG_HOME` is set, the three `~/.config/lankir` entries are in
+`$XDG_CONFIG_HOME/lankir/` instead. Lankir 1.0 kept the profiles and recent
+files in `~/.config/lankir` even then; 1.0.1 copies them to
+`$XDG_CONFIG_HOME/lankir/` the first time it runs, when that folder has none
+yet, and leaves the old copies in place. The two web view folders follow
+`XDG_DATA_HOME` and `XDG_CACHE_HOME` when those are set.
 
 `lankir config` reads and changes `config.json` from the command line
 ([Command line](cli.md#lankir-config)).

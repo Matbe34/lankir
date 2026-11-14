@@ -114,7 +114,7 @@ Signing and verification use `digitorus/pdfsign`. `verification.go` adds the
 trust, timestamp and revocation interpretation the UI and `sign verify` show;
 it goes online for revocation only for trusted chains, and only to the hosts
 those certificates name. Profiles are stored by `profile.go`, one JSON file per
-profile under `~/.config/lankir/signature_profiles/`.
+profile under `signature_profiles/` next to `config.json` (`config.Dir()`).
 
 ## Frontend
 
@@ -211,7 +211,8 @@ source.
    `-`, such as `1.0.0-rc1`) is published as a GitHub prerelease and is not
    uploaded to the package repositories. For other versions it then uploads
    the `.deb` to the Cloudsmith repository `matbe34/lankir` for Debian
-   bookworm and Ubuntu jammy and noble, and the `.rpm` for Fedora 39 and 40
+   bookworm and trixie and Ubuntu jammy, noble and resolute, and the `.rpm` for
+   Fedora 39, 40, 43, 44 and 45
    (see
    [Install: package repositories](install.md#package-repositories)). That
    step needs the repository secret `CLOUDSMITH_API_KEY`; without it the step

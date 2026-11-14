@@ -72,7 +72,22 @@ func (s *SignatureService) checkRevocationOnline() bool {
 // VerifySignatures validates all digital signatures in a PDF and returns their
 // status, the same one for a file unchanged on disk for verifiedTTL.
 func (s *SignatureService) VerifySignatures(pdfPath string) ([]types.SignatureInfo, error) {
-	online := s.checkRevocationOnline()
+	return s.verifySignatures(pdfPath, s.checkRevocationOnline())
+}
+
+// VerifySignaturesOffline is VerifySignatures without asking any certificate
+// authority, whatever the setting.
+func (s *SignatureService) VerifySignaturesOffline(pdfPath string) ([]types.SignatureInfo, error) {
+	cached, err := s.verifySignatures(pdfPath, false)
+	// The setting had no say here. A copy: the cache answers the setting too.
+	signatures := slices.Clone(cached)
+	for i := range signatures {
+		signatures[i].RevocationCheck = strings.ReplaceAll(signatures[i].RevocationCheck, " (turned off in settings)", " online (offline check)")
+	}
+	return signatures, err
+}
+
+func (s *SignatureService) verifySignatures(pdfPath string, online bool) ([]types.SignatureInfo, error) {
 	path, err := filepath.Abs(pdfPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open PDF: %w", err)
@@ -89,15 +104,12 @@ func (s *SignatureService) VerifySignatures(pdfPath string) ([]types.SignatureIn
 		return entry.signatures, nil
 	}
 
-	signatures, err := verifyPDF(s, path, online)
+	signatures, unanswered, err := verifyPDF(s, path, online)
 	if err != nil {
 		return nil, err
 	}
-	// An unreachable authority may answer the next time; the check text says
-	// so for the signer or, lower-cased, for an intermediate.
-	if slices.ContainsFunc(signatures, func(sig types.SignatureInfo) bool {
-		return strings.Contains(strings.ToLower(sig.RevocationCheck), strings.ToLower(unreachableText))
-	}) {
+	// A revocation service that didn't answer may answer the next time.
+	if unanswered {
 		return signatures, nil
 	}
 	s.mu.Lock()
@@ -105,15 +117,7 @@ func (s *SignatureService) VerifySignatures(pdfPath string) ([]types.SignatureIn
 	if s.verified == nil {
 		s.verified = map[verifiedKey]verifiedEntry{}
 	}
-	if len(s.verified) >= verifiedSize {
-		var oldest verifiedKey
-		for k, e := range s.verified {
-			if o, ok := s.verified[oldest]; !ok || e.at.Before(o.at) {
-				oldest = k
-			}
-		}
-		delete(s.verified, oldest)
-	}
+	keepUnder(s.verified, verifiedSize, func(e verifiedEntry) time.Time { return e.at })
 	s.verified[key] = verifiedEntry{signatures, time.Now()}
 	return signatures, nil
 }
@@ -156,10 +160,11 @@ func (f hostFilter) RoundTrip(req *http.Request) (*http.Response, error) {
 // verifyPDF is swapped in tests to count verifications.
 var verifyPDF = (*SignatureService).verifyPDF
 
-func (s *SignatureService) verifyPDF(pdfPath string, online bool) ([]types.SignatureInfo, error) {
+// It also says whether a revocation service went unanswered (see revocationOf).
+func (s *SignatureService) verifyPDF(pdfPath string, online bool) (_ []types.SignatureInfo, unanswered bool, _ error) {
 	file, err := os.Open(pdfPath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open PDF: %w", err)
+		return nil, false, fmt.Errorf("failed to open PDF: %w", err)
 	}
 	defer file.Close()
 
@@ -185,32 +190,35 @@ func (s *SignatureService) verifyPDF(pdfPath string, online bool) ([]types.Signa
 		// SigFlags without any signed /Sig field is a form prepared for signing, not a broken signature.
 		if strings.Contains(errMsg, "no digital signature in document") ||
 			strings.Contains(errMsg, "SigFlags implies signatures but none found") {
-			return []types.SignatureInfo{}, nil
+			return []types.SignatureInfo{}, false, nil
 		}
-		return nil, fmt.Errorf("verification failed: %w", err)
+		return nil, false, fmt.Errorf("verification failed: %w", err)
 	}
 
 	if len(response.Signers) == 0 {
-		return []types.SignatureInfo{}, nil
+		return []types.SignatureInfo{}, false, nil
 	}
 
 	var signatures []types.SignatureInfo
 	for _, signer := range response.Signers {
-		sigInfo := s.convertSignerToInfo(signer, response.Error, online)
+		sigInfo, retry := s.convertSignerToInfo(signer, response.Error, online)
 		signatures = append(signatures, sigInfo)
+		unanswered = unanswered || retry
 	}
 
-	return signatures, nil
+	return signatures, unanswered, nil
 }
 
-func (s *SignatureService) convertSignerToInfo(signer verify.Signer, responseError string, online bool) types.SignatureInfo {
+// convertSignerToInfo also says whether a revocation service went unanswered (see revocationOf).
+func (s *SignatureService) convertSignerToInfo(signer verify.Signer, responseError string, online bool) (_ types.SignatureInfo, unanswered bool) {
+	revoked := isRevoked(signer)
 	info := types.SignatureInfo{
 		SignerName:       signer.Name,
 		Reason:           signer.Reason,
 		Location:         signer.Location,
 		ContactInfo:      signer.ContactInfo,
 		IsValid:          signer.ValidSignature,
-		CertificateValid: signer.TrustedIssuer && !signer.RevokedCertificate,
+		CertificateValid: signer.TrustedIssuer && !revoked,
 		IssuerTrusted:    signer.TrustedIssuer,
 	}
 
@@ -235,7 +243,7 @@ func (s *SignatureService) convertSignerToInfo(signer verify.Signer, responseErr
 		info.Warnings = append(info.Warnings, warning.Error())
 	}
 	info.Chain = chainOf(signer.Certificates)
-	info.RevocationStatus, info.RevocationCheck = revocationOf(signer, online)
+	info.RevocationStatus, info.RevocationCheck, unanswered = revocationOf(signer, online)
 
 	if len(signer.Certificates) > 0 {
 		certWrapper := signer.Certificates[0]
@@ -278,16 +286,16 @@ func (s *SignatureService) convertSignerToInfo(signer verify.Signer, responseErr
 		}
 	}
 
-	if signer.RevokedCertificate {
+	if revoked {
 		info.CertificateValidationMessage = "Certificate has been revoked"
 		info.CertificateValid = false
 
 		if len(signer.Certificates) > 0 {
 			certWrapper := signer.Certificates[0]
-			if certWrapper.RevocationTime != nil {
+			if certWrapper.RevocationTime != nil && !unknownOnly(certWrapper) {
 				info.CertificateValidationMessage += " on " + certWrapper.RevocationTime.Format("2006-01-02 15:04:05")
 			}
-			if certWrapper.RevokedBeforeSigning {
+			if certWrapper.RevokedBeforeSigning && !unknownOnly(certWrapper) {
 				info.CertificateValidationMessage += " (revoked before signing)"
 			}
 		}
@@ -317,7 +325,7 @@ func (s *SignatureService) convertSignerToInfo(signer verify.Signer, responseErr
 		info.ValidationMessage += " with invalid timestamp"
 	}
 
-	return info
+	return info, unanswered
 }
 
 func timestampStatus(status string) string {
@@ -416,11 +424,13 @@ func selfIssued(cert *x509.Certificate) bool {
 
 // revocationOf says whether the signer's certificate, and the intermediates
 // above it, were checked for revocation, and how: data embedded in the PDF or
-// an online answer from the certificate authority.
-func revocationOf(signer verify.Signer, online bool) (status, check string) {
+// an online answer from the certificate authority. unanswered: a revocation
+// service of a certificate left without a good answer didn't answer, so asking
+// again later may give one.
+func revocationOf(signer verify.Signer, online bool) (status, check string, unanswered bool) {
 	chain := orderedChain(signer.Certificates)
 	if len(chain) == 0 {
-		return "not_checked", "Not checked"
+		return "not_checked", "Not checked", false
 	}
 	at := time.Now()
 	if signer.VerificationTime != nil {
@@ -433,7 +443,7 @@ func revocationOf(signer verify.Signer, online bool) (status, check string) {
 		}
 		return issuerOf(c.Certificate, signer.Certificates, at)
 	}
-	status, check = certRevocation(chain[0], issuer(chain[0]), online, signer.TrustedIssuer)
+	status, check, unanswered = certRevocation(chain[0], issuer(chain[0]), online, signer.TrustedIssuer)
 	if status == "none" {
 		status = "not_checked"
 	}
@@ -444,7 +454,8 @@ func revocationOf(signer verify.Signer, online bool) (status, check string) {
 			if selfIssued(c.Certificate) {
 				continue
 			}
-			s, text := certRevocation(c, issuer(c), online, true)
+			s, text, retry := certRevocation(c, issuer(c), online, true)
+			unanswered = unanswered || retry
 			if s == "good" || s == "none" {
 				continue
 			}
@@ -456,46 +467,71 @@ func revocationOf(signer verify.Signer, online bool) (status, check string) {
 			}
 		}
 	}
-	if signer.RevokedCertificate {
-		return "revoked", strings.Join(parts, "; ")
+	if isRevoked(signer) {
+		return "revoked", strings.Join(parts, "; "), unanswered
 	}
 	// pdfsign marks a revocation after a trusted signing time only by its date.
 	// Under an untrusted issuer that date comes from data nobody checked.
 	for i, c := range chain {
-		if !signer.TrustedIssuer || c.RevocationTime == nil {
+		if !signer.TrustedIssuer || c.RevocationTime == nil || unknownOnly(c) {
 			continue
 		}
 		text := "Revoked on " + c.RevocationTime.UTC().Format("2 Jan 2006") + ", after the trusted signing time"
 		if i > 0 {
 			text = commonName(c.Certificate.Subject) + ": r" + text[1:]
 		}
-		return "revoked_later", text
+		return "revoked_later", text, unanswered
 	}
-	return status, strings.Join(parts, "; ")
+	return status, strings.Join(parts, "; "), unanswered
+}
+
+// isRevoked is pdfsign's verdict, less a revocation it read into an OCSP
+// "unknown" (any answer but "good", at the zero time): with one, only another
+// revocation before signing counts, as pdfsign counts it without the unknown.
+func isRevoked(signer verify.Signer) bool {
+	if !signer.RevokedCertificate {
+		return false
+	}
+	if !slices.ContainsFunc(signer.Certificates, func(c verify.Certificate) bool {
+		return c.OCSPResponse != nil && c.OCSPResponse.Status == ocsp.Unknown
+	}) {
+		return true
+	}
+	return slices.ContainsFunc(signer.Certificates, func(c verify.Certificate) bool {
+		return c.RevocationTime != nil && !unknownOnly(c) && signer.IsRevokedBeforeSigning(*c.RevocationTime)
+	})
+}
+
+// unknownOnly says the certificate's revocation time is only pdfsign's reading of an OCSP "unknown".
+func unknownOnly(c verify.Certificate) bool {
+	return c.RevocationTime != nil && c.RevocationTime.IsZero() && c.OCSPResponse != nil && c.OCSPResponse.Status == ocsp.Unknown
 }
 
 // certRevocation is one certificate's revocation status: "good" only from an
 // answer whose signature checks out against a trusted issuer, else
-// "unavailable", "not_checked" or "none" (no service named).
-func certRevocation(c verify.Certificate, issuer *x509.Certificate, online, trusted bool) (status, check string) {
+// "unavailable", "not_checked" or "none" (no service named). unanswered: a
+// service it names that pdfsign asks online gave no answer.
+func certRevocation(c verify.Certificate, issuer *x509.Certificate, online, trusted bool) (status, check string, unanswered bool) {
 	cert := c.Certificate
 	hasOCSP := len(cert.OCSPServer) > 0
 	if !hasOCSP && len(cert.CRLDistributionPoints) == 0 && !c.OCSPEmbedded && !c.CRLEmbedded {
-		return "none", "The certificate names no revocation service"
+		return "none", "The certificate names no revocation service", false
 	}
 	// Without a trusted chain pdfsign has no issuer to check an answer against.
 	if !trusted {
-		return "not_checked", "Not checked: the issuer isn't trusted"
+		return "not_checked", "Not checked: the issuer isn't trusted", false
 	}
 	var sources []string
 	// pdfsign keeps an embedded OCSP answer whose signature fails, and takes
 	// an online one from any certificate the issuer signed, so check both here.
 	ocspVerified := ocspSignedBy(c.OCSPResponse, issuer)
-	if c.OCSPEmbedded && ocspVerified {
+	// "Unknown" says nothing about revocation.
+	unknown := ocspVerified && c.OCSPResponse.Status == ocsp.Unknown
+	if c.OCSPEmbedded && ocspVerified && !unknown {
 		sources = append(sources, "Embedded in the PDF")
 	}
 	var asked []string
-	if c.OCSPExternal && ocspVerified {
+	if c.OCSPExternal && ocspVerified && !unknown {
 		asked = append(asked, "OCSP")
 	}
 	// A downloaded CRL is checked against the issuer pdfsign found for a
@@ -507,31 +543,30 @@ func certRevocation(c verify.Certificate, issuer *x509.Certificate, online, trus
 		sources = append(sources, strings.Join(asked, " and ")+" checked online with the certificate authority")
 	}
 	if len(sources) > 0 {
-		return "good", strings.Join(sources, "; ")
-	}
-	// pdfsign never checks an embedded CRL's signature, and asks online only
-	// for what the PDF doesn't carry.
-	if c.OCSPEmbedded || c.CRLEmbedded {
-		return "not_checked", "Revocation data in the PDF couldn't be verified"
-	}
-	if c.OCSPExternal {
-		return "unavailable", "The certificate authority's answer couldn't be verified"
+		return "good", strings.Join(sources, "; "), false
 	}
 	// pdfsign downloads a CRL over HTTP only; FNMT, for one, also lists LDAP ones.
 	hasCRL := slices.ContainsFunc(cert.CRLDistributionPoints, func(u string) bool {
 		return strings.HasPrefix(u, "http://") || strings.HasPrefix(u, "https://")
 	})
+	// pdfsign asks online only for what the PDF doesn't carry.
+	unanswered = online && (hasOCSP && !c.OCSPEmbedded && !c.OCSPExternal || hasCRL && !c.CRLEmbedded && !c.CRLExternal)
 	switch {
+	case unknown:
+		return "unavailable", "The certificate authority doesn't know this certificate", unanswered
+	// pdfsign never checks an embedded CRL's signature.
+	case c.OCSPEmbedded || c.CRLEmbedded:
+		return "not_checked", "Revocation data in the PDF couldn't be verified", unanswered
+	case c.OCSPExternal:
+		return "unavailable", "The certificate authority's answer couldn't be verified", unanswered
 	case !online:
-		return "not_checked", "Not checked (turned off in settings)"
+		return "not_checked", "Not checked (turned off in settings)", false
 	case !hasCRL && !hasOCSP:
-		return "not_checked", "Not checked: the revocation list is only on LDAP"
+		return "not_checked", "Not checked: the revocation list is only on LDAP", false
 	default:
-		return "unavailable", unreachableText
+		return "unavailable", "Couldn't reach the certificate authority's revocation service", unanswered
 	}
 }
-
-const unreachableText = "Couldn't reach the certificate authority's revocation service"
 
 // trustedRoots are the roots chains are checked against; nil is the system's.
 var trustedRoots *x509.CertPool

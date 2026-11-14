@@ -12,6 +12,7 @@ import (
 	"github.com/Matbe34/lankir/internal/signature/pkcs11"
 	"github.com/Matbe34/lankir/internal/signature/pkcs12"
 	"github.com/Matbe34/lankir/internal/signature/platform"
+	"github.com/Matbe34/lankir/internal/signature/types"
 	"github.com/google/uuid"
 )
 
@@ -20,8 +21,10 @@ type SignatureService struct {
 	profileManager *ProfileManager
 	configService  *config.Service
 
-	mu       sync.RWMutex
-	verified map[verifiedKey]verifiedEntry
+	mu              sync.RWMutex
+	verified        map[verifiedKey]verifiedEntry
+	certRevocations map[string]certRevocationEntry // by fingerprint
+	listed          map[string]types.Certificate   // the certificates last listed, by fingerprint
 }
 
 // NewSignatureService creates a new signature service instance with the given configuration service.

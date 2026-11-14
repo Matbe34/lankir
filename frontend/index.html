@@ -354,20 +354,8 @@
                                 </div>
                                 <div class="pref-control">
                                     <div class="unit-field">
-                                        <input type="number" id="settingRecentFilesLength" class="setting-input" min="0" max="50" value="10">
+                                        <input type="number" id="settingRecentFilesLength" class="setting-input" min="1" max="50" value="10">
                                         <span class="unit-field-unit">files</span>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="pref-row">
-                                <div class="pref-text">
-                                    <label class="pref-label" for="settingAutosaveInterval">Auto-save</label>
-                                    <p class="pref-help">Save changes every so often; 0 turns it off</p>
-                                </div>
-                                <div class="pref-control">
-                                    <div class="unit-field">
-                                        <input type="number" id="settingAutosaveInterval" class="setting-input" min="0" max="600" value="0">
-                                        <span class="unit-field-unit">seconds</span>
                                     </div>
                                 </div>
                             </div>
@@ -507,7 +495,7 @@
                             <div class="pref-row">
                                 <div class="pref-text">
                                     <label class="pref-label" for="settingHardwareAccel">Hardware acceleration</label>
-                                    <p class="pref-help">Use the graphics card to draw pages. Recommended.</p>
+                                    <p class="pref-help">Use the graphics card to draw pages. Applies after a restart.</p>
                                 </div>
                                 <input type="checkbox" id="settingHardwareAccel" class="switch" role="switch" checked>
                             </div>

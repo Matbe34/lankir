@@ -172,6 +172,22 @@ export const SCENES = {
     await waitFor(() => $('#signSubmit').getAttribute('aria-busy') === 'true', 'busy Sign button');
   },
 
+  // Not scored: the chosen certificate was revoked, so it can't sign.
+  async 'sign-revoked'() {
+    SignatureService.CheckCertificateRevocation = async () => ({ status: 'revoked', check: 'OCSP checked online with the certificate authority', revokedAt: '2026-10-30T12:00:00Z' });
+    await openSignPanel();
+    await waitFor(() => $('#signCertStatus .notice'), 'revoked notice');
+    $('#signPinInput').focus();
+  },
+
+  // Not scored: the certificate authority didn't answer about the chosen certificate.
+  async 'sign-revocation-unchecked'() {
+    SignatureService.CheckCertificateRevocation = async () => ({ status: 'unavailable', check: 'Couldn\'t reach the certificate authority\'s revocation service', revokedAt: '' });
+    await openSignPanel();
+    await waitFor(() => $('#signCertStatus .field-hint'), 'unchecked note');
+    $('#signPinInput').focus();
+  },
+
   // Not scored: no certificate can sign.
   async 'sign-empty'() {
     SignatureService.ListCertificates = async () => [];

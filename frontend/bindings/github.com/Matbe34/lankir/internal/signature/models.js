@@ -67,6 +67,55 @@ export class CertificateFilter {
 }
 
 /**
+ * CertificateRevocation says whether a certificate offered for signing was revoked.
+ */
+export class CertificateRevocation {
+    /**
+     * Creates a new CertificateRevocation instance.
+     * @param {Partial<CertificateRevocation>} [$$source = {}] - The source object to create the CertificateRevocation.
+     */
+    constructor($$source = {}) {
+        if (!("status" in $$source)) {
+            /**
+             * Status is "good", "revoked", "unavailable" (no usable answer) or
+             * "not_checked" (setting off, untrusted chain, nothing to ask).
+             * @member
+             * @type {string}
+             */
+            this["status"] = "";
+        }
+        if (!("check" in $$source)) {
+            /**
+             * Check says how it was checked, or why not.
+             * @member
+             * @type {string}
+             */
+            this["check"] = "";
+        }
+        if (!("revokedAt" in $$source)) {
+            /**
+             * RevokedAt is when it was revoked, RFC 3339; empty unless revoked.
+             * @member
+             * @type {string}
+             */
+            this["revokedAt"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new CertificateRevocation instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {CertificateRevocation}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new CertificateRevocation(/** @type {Partial<CertificateRevocation>} */($$parsedSource));
+    }
+}
+
+/**
  * SignRequest describes one signing operation.
  */
 export class SignRequest {
