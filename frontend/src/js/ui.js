@@ -1,260 +1,158 @@
-import { state, setActiveTab } from './state.js';
-import { switchToHome } from './pdfManager.js';
-import { openPDFFile } from './pdfOperations.js';
-import { signPDF, closeCertificateDialog, showCertificateDialog, performSigning } from './signature.js';
-import { changeZoom, setZoomFromInput } from './zoom.js';
+import { state, getActivePDF } from './state.js';
+import { openPDFFile, saveTab, closeTab, switchToHome, switchToTab } from './documents.js';
+import { signPDF } from './signature.js';
+import { zoomIn, zoomOut, setZoom, setZoomFromInput, goToPage, nextPage, previousPage } from './navigation.js';
+import { openFindBar, closeFindBar } from './findBar.js';
+import { fillRecentMenu } from './recentFiles.js';
+import { openSettings } from './settings.js';
+import { bindMenu } from './menus.js';
+import { App } from './backend.js';
+import { initTabStrip } from './tabStrip.js';
+import { updatePageRoom } from './pageRoom.js';
+import { initPanelResize } from './panelResize.js';
 
-/** Binds click handlers to toolbar buttons and dialog controls. */
+const $ = (id) => document.getElementById(id);
+const on = (id, type, handler) => $(id)?.addEventListener(type, handler);
+const withActiveTab = (fn) => () => {
+    if (state.activeTabId) fn(state.activeTabId);
+};
+
+/** Binds the header, page pill and menus to their actions. */
 export function setupEventListeners() {
-    const openBtn = document.getElementById('openBtn');
-    const signBtn = document.getElementById('signBtn');
-    const zoomInBtn = document.getElementById('zoomInBtn');
-    const zoomOutBtn = document.getElementById('zoomOutBtn');
-    const zoomInput = document.getElementById('zoomInput');
-    const collapseLeft = document.getElementById('collapseLeft');
-    const expandLeft = document.getElementById('expandLeft');
-    const collapseRight = document.getElementById('collapseRight');
-    const expandRight = document.getElementById('expandRight');
-    
-    // Certificate dialog buttons
-    const certDialogClose = document.getElementById('certDialogClose');
-    const certDialogRefresh = document.getElementById('certDialogRefresh');
-    const certDialogCancel = document.getElementById('certDialogCancel');
-    const certDialogSign = document.getElementById('certDialogSign');
-    
-    // Use dynamic imports to avoid circular dependencies
-    if (openBtn) {
-        openBtn.addEventListener('click', () => {
-            openPDFFile();
+    on('openBtn', 'click', () => openPDFFile());
+    on('welcomeOpenBtn', 'click', () => openPDFFile());
+    on('signBtn', 'click', () => signPDF());
+    on('sidePanelBtn', 'click', () => setSidePanel($('sidePanel').classList.contains('hidden')));
+    on('findBtn', 'click', () => ($('findBar').classList.contains('hidden') ? openFindBar() : closeFindBar()));
+
+    on('saveBtn', 'click', withActiveTab((id) => saveTab(id)));
+    on('saveAsBtn', 'click', withActiveTab((id) => saveTab(id, { saveAs: true })));
+    on('closeTabBtn', 'click', withActiveTab((id) => closeTab(id)));
+    on('newWindowBtn', 'click', () => {
+        App.OpenInNewWindow(getActivePDF()?.filePath ?? '').catch((err) => console.error('OpenInNewWindow failed:', err));
+    });
+    on('shortcutsBtn', 'click', () => openSettings('shortcuts'));
+
+    const recentMenu = $('recentMenu');
+    if (recentMenu) {
+        bindMenu($('recentBtn'), recentMenu, { anchor: $('openBtn'), onOpen: () => fillRecentMenu(recentMenu) });
+    }
+    const mainMenu = $('mainMenu');
+    if (mainMenu) {
+        bindMenu($('mainMenuBtn'), mainMenu, {
+            onOpen: () => {
+                for (const item of mainMenu.querySelectorAll('[data-needs-doc]')) item.disabled = !getActivePDF();
+            }
         });
     }
-    
-    if (signBtn) {
-        signBtn.addEventListener('click', () => {
-            signPDF();
+    const zoomMenu = $('zoomMenu');
+    if (zoomMenu) {
+        bindMenu($('zoomMenuBtn'), zoomMenu, {
+            anchor: zoomMenu.previousElementSibling?.querySelector('.zoom-control'),
+            onOpen: () => {
+                const current = getActivePDF()?.view?.pdfViewer?.currentScaleValue;
+                for (const item of zoomMenu.querySelectorAll('[data-zoom]')) {
+                    item.setAttribute('aria-checked', String(String(current) === item.dataset.zoom));
+                }
+            }
         });
+        for (const item of zoomMenu.querySelectorAll('[data-zoom]')) {
+            item.addEventListener('click', () => setZoom(item.dataset.zoom));
+        }
     }
-    
-    if (zoomInBtn) {
-        zoomInBtn.addEventListener('click', () => {
-            changeZoom(0.1);
-        });
-    }
-    
-    if (zoomOutBtn) {
-        zoomOutBtn.addEventListener('click', () => {
-            changeZoom(-0.1);
-        });
-    }
-    
-    if (zoomInput) {
-        zoomInput.addEventListener('change', () => {
+
+    const pageInput = $('pageInput');
+    pageInput?.addEventListener('change', () => goToPage(pageInput.value));
+    pageInput?.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            goToPage(pageInput.value);
+            pageInput.blur();
+        }
+    });
+    pageInput?.addEventListener('focus', () => pageInput.select());
+    on('nextPageBtn', 'click', nextPage);
+    on('prevPageBtn', 'click', previousPage);
+    on('zoomInBtn', 'click', zoomIn);
+    on('zoomOutBtn', 'click', zoomOut);
+
+    const zoomInput = $('zoomInput');
+    zoomInput?.addEventListener('change', () => setZoomFromInput(zoomInput.value));
+    zoomInput?.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
             setZoomFromInput(zoomInput.value);
-        });
-        
-        zoomInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                setZoomFromInput(zoomInput.value);
-                zoomInput.blur(); // Remove focus after setting
-            }
-        });
-        
-        // Allow selecting all text on focus
-        zoomInput.addEventListener('focus', () => {
-            zoomInput.select();
-        });
-    }
-    
-    if (collapseLeft) collapseLeft.addEventListener('click', () => toggleSidebar('left', false));
-    if (expandLeft) expandLeft.addEventListener('click', () => toggleSidebar('left', true));
-    if (collapseRight) collapseRight.addEventListener('click', () => toggleSidebar('right', false));
-    if (expandRight) expandRight.addEventListener('click', () => toggleSidebar('right', true));
-    
-    // Certificate dialog event listeners
-    if (certDialogClose) {
-        certDialogClose.addEventListener('click', () => {
-            closeCertificateDialog();
-        });
-    }
-    
-    if (certDialogRefresh) {
-        certDialogRefresh.addEventListener('click', async () => {
-            const { getActivePDF } = await import('./state.js');
-            
-            const activePDF = getActivePDF();
-            if (activePDF) {
-                await showCertificateDialog(activePDF.filePath);
-            }
-        });
-    }
-    
-    if (certDialogCancel) {
-        certDialogCancel.addEventListener('click', () => {
-            closeCertificateDialog();
-        });
-    }
-    
-    if (certDialogSign) {
-        certDialogSign.addEventListener('click', () => {
-            performSigning();
-        });
-    }
-    
-    // Close dialog on overlay click
-    const certDialog = document.getElementById('certDialog');
-    if (certDialog) {
-        certDialog.addEventListener('click', (e) => {
-            if (e.target === certDialog) {
-                closeCertificateDialog();
-            }
-        });
-    }
-    
-    // Allow Enter key in PIN input to trigger signing
-    const pinInput = document.getElementById('pinInput');
-    if (pinInput) {
-        pinInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter' && !certDialogSign.disabled) {
-                performSigning();
-            }
-        });
-    }
+            zoomInput.blur();
+        }
+    });
+    zoomInput?.addEventListener('focus', () => zoomInput.select());
 }
 
-/** Initializes sidebar tab button click handlers. */
+/** Binds the side panel's Pages / Outline / Signatures segments; arrow keys move between them. */
 export function setupTabs() {
-    const tabBtns = document.querySelectorAll('.tab-btn');
-    tabBtns.forEach(btn => {
-        btn.addEventListener('click', () => {
-            const tabName = btn.dataset.tab;
-            switchTab(tabName);
+    for (const btn of document.querySelectorAll('.tab-btn')) {
+        btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+        btn.addEventListener('keydown', (e) => {
+            if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+            const shown = [...document.querySelectorAll('.tab-btn:not([hidden])')];
+            const next = shown[(shown.indexOf(btn) + (e.key === 'ArrowRight' ? 1 : -1) + shown.length) % shown.length];
+            e.preventDefault();
+            next.click();
+            next.focus();
         });
-    });
+    }
 }
 
-/** Switches the active sidebar tab and shows corresponding content. */
+/** Shows one segment of the side panel and remembers it for the active tab. */
 export function switchTab(tabName) {
-    // Update button states
-    document.querySelectorAll('.tab-btn').forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.tab === tabName);
-    });
-    
-    // Update content visibility
-    document.querySelectorAll('.tab-content').forEach(content => {
-        content.classList.remove('active');
-    });
-    
-    const targetTab = document.getElementById(tabName + 'Tab');
-    if (targetTab) {
-        targetTab.classList.add('active');
+    for (const btn of document.querySelectorAll('.tab-btn')) {
+        const active = btn.dataset.tab === tabName;
+        btn.classList.toggle('active', active);
+        btn.setAttribute('aria-selected', String(active));
+        btn.tabIndex = active ? 0 : -1;
     }
+    for (const content of document.querySelectorAll('.tab-content')) {
+        content.classList.toggle('active', content.id === `${tabName}Tab`);
+    }
+    const tab = getActivePDF();
+    if (tab) tab.panelTab = tabName;
 }
 
-/** Shows or hides the left or right sidebar and saves state to active PDF. */
-export function toggleSidebar(side, show) {
-    const sidebar = document.getElementById(side === 'left' ? 'leftSidebar' : 'rightSidebar');
-    const expandBtn = document.getElementById(side === 'left' ? 'expandLeft' : 'expandRight');
-    
-    if (show) {
-        sidebar.classList.remove('collapsed');
-        expandBtn.classList.add('hidden');
-    } else {
-        sidebar.classList.add('collapsed');
-        expandBtn.classList.remove('hidden');
-    }
-    
-    // Save the state to the active PDF
-    const activePDF = state.openPDFs.get(state.activeTabId);
-    if (activePDF) {
-        if (side === 'left') {
-            activePDF.leftSidebarCollapsed = !show;
-        } else {
-            activePDF.rightSidebarCollapsed = !show;
-        }
-    }
+/** Opens or closes the side panel and remembers it for the active tab. */
+export function setSidePanel(open) {
+    $('sidePanel')?.classList.toggle('hidden', !open);
+    $('sidePanelBtn')?.setAttribute('aria-pressed', String(open));
+    const tab = getActivePDF();
+    if (tab) tab.panelOpen = open;
+    updatePageRoom();
 }
 
-/** Adds click handler to home tab button. */
-export function setupHomeTab() {
-    const homeTab = document.getElementById('homeTab');
-    if (homeTab) {
-        homeTab.addEventListener('click', () => {
-            switchToHome();
-        });
-    }
-}
-
-/** Hides both sidebars and their expand buttons. */
+/** Closes the side panel without touching any tab's remembered state. */
 export function hideSidebars() {
-    const leftSidebar = document.getElementById('leftSidebar');
-    const rightSidebar = document.getElementById('rightSidebar');
-    const expandLeft = document.getElementById('expandLeft');
-    const expandRight = document.getElementById('expandRight');
-    
-    if (leftSidebar) leftSidebar.style.display = 'none';
-    if (rightSidebar) rightSidebar.style.display = 'none';
-    if (expandLeft) expandLeft.style.display = 'none';
-    if (expandRight) expandRight.style.display = 'none';
+    $('sidePanel')?.classList.add('hidden');
+    const btn = $('sidePanelBtn');
+    if (!btn) return;
+    btn.setAttribute('aria-pressed', 'false');
+    // The start page keeps the toggle in place, off, so the header doesn't change shape.
+    btn.disabled = !getActivePDF();
 }
 
-/** Shows sidebars according to PDF state or user settings. */
+/** Shows the side panel the way the active tab last had it. */
 export function showSidebars() {
-    const leftSidebar = document.getElementById('leftSidebar');
-    const rightSidebar = document.getElementById('rightSidebar');
-    const expandLeft = document.getElementById('expandLeft');
-    const expandRight = document.getElementById('expandRight');
-    
-    // Make sidebars and expand buttons visible
-    if (leftSidebar) leftSidebar.style.display = '';
-    if (rightSidebar) rightSidebar.style.display = '';
-    if (expandLeft) expandLeft.style.display = '';
-    if (expandRight) expandRight.style.display = '';
-    
-    // Get settings to determine default sidebar state for new PDFs
-    const settings = JSON.parse(localStorage.getItem('pdfEditorSettings') || '{}');
-    const defaultShowLeft = settings.showLeftSidebar !== false; // default true
-    const defaultShowRight = settings.showRightSidebar === true; // default false
-    
-    // Check if there's an active PDF with saved state
-    const activePDF = state.openPDFs.get(state.activeTabId);
-    
-    // Use PDF-specific state if available, otherwise use settings
-    const showLeft = activePDF ? !activePDF.leftSidebarCollapsed : defaultShowLeft;
-    const showRight = activePDF ? !activePDF.rightSidebarCollapsed : defaultShowRight;
-    
-    // Show/collapse left sidebar
-    if (leftSidebar) {
-        if (showLeft) {
-            leftSidebar.classList.remove('collapsed');
-            if (expandLeft) expandLeft.classList.add('hidden');
-        } else {
-            leftSidebar.classList.add('collapsed');
-            if (expandLeft) {
-                expandLeft.classList.remove('hidden');
-                expandLeft.style.display = '';
-            }
-        }
+    const tab = getActivePDF();
+    const btn = $('sidePanelBtn');
+    if (btn) btn.disabled = !tab;
+    if (!tab) {
+        hideSidebars();
+        return;
     }
-    
-    // Show/collapse right sidebar
-    if (rightSidebar) {
-        if (showRight) {
-            rightSidebar.classList.remove('collapsed');
-            if (expandRight) expandRight.classList.add('hidden');
-        } else {
-            rightSidebar.classList.add('collapsed');
-            if (expandRight) {
-                expandRight.classList.remove('hidden');
-                expandRight.style.display = '';
-            }
-        }
-    }
+    switchTab(tab.panelTab || 'pages');
+    setSidePanel(Boolean(tab.panelOpen));
 }
 
 /** Initializes all UI event handlers on application startup. */
 export function initializeUI() {
     setupEventListeners();
     setupTabs();
-    setupHomeTab();
+    initTabStrip({ onSelect: (id) => switchToTab(id) });
+    initPanelResize();
     hideSidebars();
 }

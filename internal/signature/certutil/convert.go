@@ -16,16 +16,14 @@ func GetFingerprint(cert *x509.Certificate) string {
 	return hex.EncodeToString(hash[:])
 }
 
+// IsCertificateValidForSigning is the one rule for whether a certificate's key may sign documents:
+// no keyUsage extension (unrestricted, RFC 5280 4.2.1.3), digitalSignature or nonRepudiation, and not a CA.
 func IsCertificateValidForSigning(cert *x509.Certificate) bool {
-	if cert.KeyUsage&x509.KeyUsageDigitalSignature == 0 {
-		return false
-	}
-
 	if cert.IsCA {
 		return false
 	}
-
-	return true
+	return cert.KeyUsage == 0 ||
+		cert.KeyUsage&(x509.KeyUsageDigitalSignature|x509.KeyUsageContentCommitment) != 0
 }
 
 // ConvertX509Certificate converts an x509.Certificate to types.Certificate
@@ -56,8 +54,7 @@ func ConvertX509Certificate(cert *x509.Certificate, source string, filename stri
 	now := time.Now()
 	isValid := now.After(cert.NotBefore) && now.Before(cert.NotAfter)
 
-	// Check if certificate has digital signature capability
-	canSign := cert.KeyUsage&x509.KeyUsageDigitalSignature != 0
+	canSign := IsCertificateValidForSigning(cert)
 
 	return types.Certificate{
 		Name:         name,

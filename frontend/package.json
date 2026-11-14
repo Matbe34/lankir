@@ -4,19 +4,29 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build:css": "npx tailwindcss -i ./src/style.css -o ./dist/style.css --minify",
-    "watch:css": "npx tailwindcss -i ./src/style.css -o ./dist/style.css --watch",
-    "build": "./build.sh",
+    "dev": "vite",
+    "preview:mock": "vite --config vite.preview.config.js",
+    "build": "vite build",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage",
-    "test:ui": "vitest --ui"
+    "test:coverage": "vitest run --coverage"
+  },
+  "dependencies": {
+    "@fontsource-variable/inter": "5.3.0",
+    "@wailsio/runtime": "3.1.0",
+    "lucide": "1.72.0",
+    "pdfjs-dist": "6.5.438"
   },
   "devDependencies": {
-    "@vitest/ui": "^1.0.4",
-    "@vitest/coverage-v8": "^1.0.4",
-    "happy-dom": "^12.10.3",
-    "tailwindcss": "^3.4.0",
-    "vitest": "^1.0.4"
+    "@tailwindcss/vite": "^4.3.5",
+    "@vitest/coverage-v8": "^5.1.0",
+    "happy-dom": "^21.0.4",
+    "tailwindcss": "^4.3.5",
+    "vite": "^8.3.8",
+    "vite-plugin-static-copy": "4.1.1",
+    "vitest": "^5.1.0"
+  },
+  "engines": {
+    "node": ">=22.12"
   }
 }

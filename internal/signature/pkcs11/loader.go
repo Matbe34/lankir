@@ -128,9 +128,10 @@ func loadCertificatesFromModule(modulePath string) ([]types.Certificate, error) 
 			var labelBytes []byte
 
 			for _, attr := range attrs {
-				if attr.Type == pkcs11.CKA_VALUE {
+				switch attr.Type {
+				case pkcs11.CKA_VALUE:
 					certDER = attr.Value
-				} else if attr.Type == pkcs11.CKA_LABEL {
+				case pkcs11.CKA_LABEL:
 					labelBytes = attr.Value
 				}
 			}

@@ -1,0 +1,291 @@
+/*
+ * The start page: the app's name, a drop zone with Open, the recent files,
+ * and the way to every command. The block sits a little above the middle of
+ * a tall window (the free height splits 2:3 above and below it); on a short
+ * one it is top-aligned, so nothing is cut at 1024 x 700.
+ */
+@layer components {
+  .welcome {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: var(--sp-6) var(--sp-6) var(--sp-8);
+    overflow-y: auto;
+  }
+
+  .welcome::before,
+  .welcome::after {
+    content: "";
+    flex: 1 1 0;
+  }
+
+  .welcome::after {
+    flex-grow: 1.5;
+  }
+
+  .welcome-col {
+    display: flex;
+    flex: none;
+    flex-direction: column;
+    width: 100%;
+    max-width: 560px;
+  }
+
+  /* ---------- Name: a quiet focal point ---------- */
+  .welcome-brand {
+    display: flex;
+    align-items: center;
+    align-self: center;
+    gap: 10px;
+    margin-bottom: var(--sp-5);
+  }
+
+  .welcome-mark {
+    display: grid;
+    place-items: center;
+    width: var(--ctl-h);
+    height: var(--ctl-h);
+    border-radius: var(--r-lg);
+    background: var(--surface);
+    box-shadow: var(--elev-tab);
+    color: var(--icon-color);
+  }
+
+  .welcome-name {
+    margin: 0;
+    color: var(--text);
+    font-size: var(--fs-display);
+    font-weight: var(--fw-semibold);
+    line-height: var(--lh-tight);
+    letter-spacing: var(--ls-title);
+  }
+
+  /* ---------- Drop zone: one quiet row ---------- */
+  .drop-zone {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 64px;
+    border: var(--border-w) dashed var(--border-strong);
+    border-radius: var(--r-lg);
+    color: var(--text-muted);
+    transition: border-color var(--dur-fast) var(--ease), background-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+  }
+
+  /* Wails marks the drop target while a file is dragged over the window. */
+  .file-drop-target-active .drop-zone {
+    border-color: var(--accent);
+    background: var(--accent-subtle);
+    color: var(--accent-text);
+  }
+
+  .drop-row {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-3);
+    color: var(--text-muted);
+  }
+
+  /* Open's shortcut, quiet beside the button rather than inside it. */
+  .drop-row > .keys {
+    margin-left: calc(var(--sp-1) * -1);
+    font-size: var(--fs-micro);
+  }
+
+  /* ---------- Recent files ---------- */
+  /* Starts where the rows' content does: past the list's border and padding. */
+  .section-label {
+    margin: var(--sp-6) 0 var(--sp-2) calc(var(--border-w) + var(--sp-3));
+    color: var(--text);
+    font-size: var(--fs-body);
+    font-weight: var(--fw-semibold);
+  }
+
+  .recent-list {
+    overflow: hidden;
+    border: var(--border-w) solid var(--border);
+    border-radius: var(--r-lg);
+    background: var(--surface);
+  }
+
+  .recent-list:empty,
+  .recent-list:has(> .recent-empty) {
+    border-color: transparent;
+    background: transparent;
+  }
+
+  .recent-list:empty {
+    min-height: 52px;
+  }
+
+  .empty-state.recent-empty {
+    align-items: flex-start;
+    padding: 0 var(--sp-1);
+    text-align: left;
+  }
+
+  .recent-file-card {
+    position: relative;
+    border-top: var(--border-w) solid var(--border);
+  }
+
+  .recent-file-card:first-child {
+    border-top: 0;
+  }
+
+  .recent-open {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-3);
+    width: 100%;
+    min-height: 56px;
+    padding: 6px var(--sp-4) 6px var(--sp-3);
+    border: 0;
+    background: transparent;
+    color: var(--text);
+    text-align: left;
+    transition: background-color var(--dur-fast) var(--ease);
+  }
+
+  .recent-open:hover {
+    background: var(--fill);
+  }
+
+  .recent-open:active {
+    background: var(--fill-hover);
+  }
+
+  .recent-open:focus-visible {
+    border-radius: var(--r-lg);
+    outline-offset: calc(var(--focus-w) * -1);
+  }
+
+  /* The whole first page, upright, as on paper: it keeps its colours. The
+     slot is a portrait page; the page keeps its own proportions inside it. */
+  .file-thumbnail-container {
+    display: flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 64px;
+    color: var(--text-subtle);
+  }
+
+  .file-thumbnail {
+    display: block;
+    max-width: 100%;
+    max-height: 100%;
+    border-radius: var(--r-xs);
+    background: var(--paper);
+    box-shadow: var(--elev-tab);
+  }
+
+  .file-thumbnail-loading {
+    width: 100%;
+    height: 100%;
+    border-radius: var(--r-xs);
+    background: var(--fill);
+    animation: breathe 1200ms var(--ease) infinite;
+  }
+
+  .recent-file-info {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: var(--sp-0);
+    min-width: 0;
+  }
+
+  .recent-file-info .file-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .recent-file-info .file-info {
+    display: flex;
+    gap: var(--sp-1);
+    min-width: 0;
+    color: var(--text-muted);
+    font-size: var(--fs-small);
+    white-space: nowrap;
+  }
+
+  /* The shared middle-truncating .path, in the row's own muted type. */
+  .recent-file-info .path {
+    flex: 0 1 auto;
+    font-family: inherit;
+    font-size: var(--fs-small);
+  }
+
+  .recent-file-info .path-head,
+  .recent-file-info .path-tail {
+    color: inherit;
+  }
+
+  /* "~/" is shorter than the shared minimum, which would pad it. */
+  .recent-file-info .path-head {
+    min-width: 0;
+  }
+
+  .file-pages {
+    flex: none;
+  }
+
+  .recent-file-date {
+    flex: none;
+    color: var(--text-muted);
+    font-size: var(--fs-small);
+    white-space: nowrap;
+  }
+
+  /* Remove takes the date's place on hover or focus; nothing shifts. */
+  .recent-file-remove {
+    position: absolute;
+    top: 50%;
+    right: var(--sp-2);
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(-50%);
+  }
+
+  .recent-file-card:hover .recent-file-remove,
+  .recent-file-card:focus-within .recent-file-remove {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .recent-file-card:hover .recent-file-date,
+  .recent-file-card:focus-within .recent-file-date {
+    visibility: hidden;
+  }
+
+  /* ---------- All commands hint ---------- */
+  .hint-btn {
+    display: inline-flex;
+    align-items: center;
+    align-self: center;
+    gap: var(--sp-2);
+    height: var(--ctl-h-sm);
+    margin-top: var(--sp-4);
+    padding: 0 var(--sp-2);
+    border: 0;
+    border-radius: var(--r-md);
+    background: transparent;
+    color: var(--text-muted);
+    font-size: var(--fs-body);
+    transition: background-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+  }
+
+  .hint-btn:hover {
+    background: var(--fill-hover);
+    color: var(--text);
+  }
+
+  @keyframes breathe {
+    50% { opacity: .55; }
+  }
+}

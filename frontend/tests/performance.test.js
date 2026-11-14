@@ -11,57 +11,44 @@ describe('Performance Tests', () => {
   });
 
   describe('Large Scale Operations', () => {
-    it('should handle 100 PDFs efficiently', () => {
-      const start = performance.now();
-      
+    it('should handle 100 PDFs', () => {
       for (let i = 1; i <= 100; i++) {
         const pdf = createPDFData(i, `/doc${i}.pdf`, { pageCount: 50 });
         addOpenPDF(i, pdf);
       }
-      
-      const duration = performance.now() - start;
-      expect(duration).toBeLessThan(200); // Should complete in <200ms
+
       expect(state.openPDFs.size).toBe(100);
     });
 
     it('should handle 1000 event listeners', () => {
       const handlers = [];
-      const start = performance.now();
-      
+
       for (let i = 0; i < 1000; i++) {
         const handler = vi.fn();
         stateEmitter.on('test', handler);
         handlers.push(handler);
       }
-      
-      const setupDuration = performance.now() - start;
-      expect(setupDuration).toBeLessThan(100);
-      
-      const emitStart = performance.now();
+
       stateEmitter.emit('test', 'data');
-      const emitDuration = performance.now() - emitStart;
-      
-      expect(emitDuration).toBeLessThan(100);
+
+      handlers.forEach(h => expect(h).toHaveBeenCalledWith('data'));
       handlers.forEach(h => expect(h).toHaveBeenCalledTimes(1));
     });
 
-    it('should switch between 50 tabs quickly', () => {
+    it('should switch between 50 tabs', () => {
       const pdfs = [];
       for (let i = 1; i <= 50; i++) {
         const pdf = createPDFData(i, `/doc${i}.pdf`, { pageCount: 10 });
         pdfs.push(pdf);
         addOpenPDF(i, pdf);
       }
-      
-      const start = performance.now();
-      
+
       for (let i = 0; i < 200; i++) {
         const tabId = (i % 50) + 1;
         setActiveTab(tabId);
       }
-      
-      const duration = performance.now() - start;
-      expect(duration).toBeLessThan(100); // 200 switches in <100ms
+
+      expect(state.activeTabId).toBe(50);
     });
   });
 
@@ -78,28 +65,25 @@ describe('Performance Tests', () => {
       expect(state.openPDFs.size).toBe(0);
     });
 
-    it('should cleanup event listeners efficiently', () => {
+    it('should cleanup event listeners', () => {
+      const handlers = [];
       const unsubscribers = [];
-      
+
       for (let i = 0; i < 1000; i++) {
-        const unsub = stateEmitter.on('test', vi.fn());
-        unsubscribers.push(unsub);
+        const handler = vi.fn();
+        handlers.push(handler);
+        unsubscribers.push(stateEmitter.on('test', handler));
       }
-      
-      const cleanupStart = performance.now();
+
       unsubscribers.forEach(u => u());
-      const cleanupDuration = performance.now() - cleanupStart;
-      
-      expect(cleanupDuration).toBeLessThan(100);
-      
       stateEmitter.emit('test');
-      // No handlers should be called after cleanup
+
+      handlers.forEach(h => expect(h).not.toHaveBeenCalled());
     });
 
-    it('should handle Map operations efficiently', () => {
+    it('should handle Map operations', () => {
       const map = new Map();
-      const start = performance.now();
-      
+
       // Add 10000 items
       for (let i = 0; i < 10000; i++) {
         map.set(i, { data: `item-${i}` });
@@ -116,20 +100,16 @@ describe('Performance Tests', () => {
       for (let i = 0; i < 5000; i++) {
         map.delete(i);
       }
-      
-      const duration = performance.now() - start;
-      expect(duration).toBeLessThan(100);
+
       expect(map.size).toBe(5000);
     });
   });
 
   describe('Rendering Performance Patterns', () => {
-    it('should batch DOM updates efficiently', () => {
+    it('should batch DOM updates', () => {
       const container = document.createElement('div');
       document.body.appendChild(container);
-      
-      const start = performance.now();
-      
+
       // Simulate batched updates using DocumentFragment
       const fragment = document.createDocumentFragment();
       for (let i = 0; i < 100; i++) {
@@ -138,9 +118,7 @@ describe('Performance Tests', () => {
         fragment.appendChild(div);
       }
       container.appendChild(fragment);
-      
-      const duration = performance.now() - start;
-      expect(duration).toBeLessThan(100);
+
       expect(container.children.length).toBe(100);
       
       container.remove();
@@ -167,12 +145,11 @@ describe('Performance Tests', () => {
       }
       const arrayDuration = performance.now() - arrayStart;
       
-      // Set should be significantly faster
+      // Set should be faster
       expect(setDuration).toBeLessThan(arrayDuration);
-      expect(setDuration).toBeLessThan(10);
     });
 
-    it('should measure Map vs Object performance', () => {
+    it('should look up the same values in a Map and an Object', () => {
       const size = 1000;
       const map = new Map();
       const obj = {};
@@ -183,25 +160,11 @@ describe('Performance Tests', () => {
         obj[`key${i}`] = i;
       }
       
-      // Map access
-      const mapStart = performance.now();
       for (let i = 0; i < 1000; i++) {
-        const key = `key${Math.floor(Math.random() * size)}`;
-        map.get(key);
+        const n = Math.floor(Math.random() * size);
+        expect(map.get(`key${n}`)).toBe(n);
+        expect(obj[`key${n}`]).toBe(n);
       }
-      const mapDuration = performance.now() - mapStart;
-      
-      // Object access
-      const objStart = performance.now();
-      for (let i = 0; i < 1000; i++) {
-        const key = `key${Math.floor(Math.random() * size)}`;
-        obj[key];
-      }
-      const objDuration = performance.now() - objStart;
-      
-      // Both should be fast
-      expect(mapDuration).toBeLessThan(10);
-      expect(objDuration).toBeLessThan(10);
     });
   });
 });

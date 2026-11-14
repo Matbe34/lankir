@@ -132,8 +132,8 @@ func TestDefaultConfig(t *testing.T) {
 	if cfg.DefaultZoom != 100 {
 		t.Errorf("Default zoom should be 100, got %d", cfg.DefaultZoom)
 	}
-	if !cfg.ShowLeftSidebar {
-		t.Error("Default ShowLeftSidebar should be true")
+	if cfg.ShowLeftSidebar {
+		t.Error("Default ShowLeftSidebar should be false: the side panel opens only when asked")
 	}
 	if cfg.ShowRightSidebar {
 		t.Error("Default ShowRightSidebar should be false")
@@ -230,7 +230,9 @@ func TestReset(t *testing.T) {
 	customConfig := service.Get()
 	customConfig.Theme = "custom"
 	customConfig.DefaultZoom = 200
-	service.Update(customConfig)
+	if err := service.Update(customConfig); err != nil {
+		t.Fatal(err)
+	}
 
 	// Reset
 	if err := service.Reset(); err != nil {
@@ -249,7 +251,9 @@ func TestReset(t *testing.T) {
 	// Verify reset was persisted
 	data, _ := os.ReadFile(service.configPath)
 	var diskConfig Config
-	json.Unmarshal(data, &diskConfig)
+	if err := json.Unmarshal(data, &diskConfig); err != nil {
+		t.Fatal(err)
+	}
 	if diskConfig.Theme != "dark" {
 		t.Error("Reset not persisted to disk")
 	}
@@ -311,7 +315,9 @@ func TestConcurrentAccess(t *testing.T) {
 			for j := 0; j < numOperations; j++ {
 				cfg := service.Get()
 				cfg.DefaultZoom = 100 + id
-				service.Update(cfg)
+				if err := service.Update(cfg); err != nil {
+					t.Error(err)
+				}
 			}
 		}(i)
 	}
@@ -514,5 +520,150 @@ func TestSlicesCopiedInGet(t *testing.T) {
 
 	if hasLib1 {
 		t.Error("TokenLibraries slice not properly copied")
+	}
+}
+
+func TestSigningSettingsPersist(t *testing.T) {
+	dir := t.TempDir()
+	s, err := NewServiceWithDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c := s.Get()
+	if c.TSAURL != "" || c.SignatureLocationLookup {
+		t.Fatalf("defaults: want no TSA and no location lookup, got %q %v", c.TSAURL, c.SignatureLocationLookup)
+	}
+	c.TSAURL = "http://tsa.example"
+	c.SignatureLocationLookup = true
+	if err := s.Update(c); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.SetLastSigning("abc", "00000000-0000-0000-0000-000000000002"); err != nil {
+		t.Fatal(err)
+	}
+
+	data, err := os.ReadFile(filepath.Join(dir, "config.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, key := range []string{`"tsaUrl"`, `"signatureLocationLookup"`, `"lastCertificateFingerprint"`, `"lastSignatureProfileId"`} {
+		if !strings.Contains(string(data), key) {
+			t.Errorf("config.json lacks %s", key)
+		}
+	}
+
+	reloaded, err := NewServiceWithDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := *reloaded.Get(); got.TSAURL != c.TSAURL || !got.SignatureLocationLookup ||
+		got.LastCertificateFingerprint != "abc" || got.LastSignatureProfileID != "00000000-0000-0000-0000-000000000002" {
+		t.Fatalf("reloaded config lost signing settings: %+v", got)
+	}
+}
+
+func TestSetLastSigningKeepsSettingsSavedElsewhere(t *testing.T) {
+	dir := t.TempDir()
+	s, err := NewServiceWithDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Another window saves its settings after this service loaded.
+	other, err := NewServiceWithDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c := other.Get()
+	c.Theme = "light"
+	c.TSAURL = "http://tsa.example"
+	if err := other.Update(c); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := s.SetLastSigning("fp", "profile"); err != nil {
+		t.Fatal(err)
+	}
+	reloaded, err := NewServiceWithDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := reloaded.Get()
+	if got.Theme != "light" || got.TSAURL != "http://tsa.example" {
+		t.Errorf("settings saved elsewhere were overwritten: %+v", got)
+	}
+	if got.LastCertificateFingerprint != "fp" || got.LastSignatureProfileID != "profile" {
+		t.Errorf("last signing not saved: %+v", got)
+	}
+	if s.Get().Theme != "light" {
+		t.Error("the service should now hold the settings it saved")
+	}
+}
+
+// The last-used signing fields are owned by Go (SetLastSigning); a Settings save from
+// a window holding an older copy must not roll them back.
+func TestUpdateKeepsLastSigningFromDisk(t *testing.T) {
+	dir := t.TempDir()
+	window, err := NewServiceWithDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	stale := window.Get()
+
+	signer, err := NewServiceWithDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := signer.SetLastSigning("fp-new", "profile-new"); err != nil {
+		t.Fatal(err)
+	}
+
+	stale.Theme = "light"
+	if err := window.Update(stale); err != nil {
+		t.Fatal(err)
+	}
+	reloaded, err := NewServiceWithDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := reloaded.Get()
+	if got.Theme != "light" || got.LastCertificateFingerprint != "fp-new" || got.LastSignatureProfileID != "profile-new" {
+		t.Fatalf("got theme=%q fp=%q profile=%q", got.Theme, got.LastCertificateFingerprint, got.LastSignatureProfileID)
+	}
+}
+
+func TestCheckRevocationOnlineDefaultsOn(t *testing.T) {
+	dir := t.TempDir()
+	s, err := NewServiceWithDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !s.Get().CheckRevocationOnline {
+		t.Fatal("new config: want online revocation checks on")
+	}
+
+	// A config saved before the setting existed lacks the key.
+	old := filepath.Join(t.TempDir(), "config.json")
+	if err := os.WriteFile(old, []byte(`{"theme":"light","signatureLocationLookup":true}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	s, err = NewServiceWithDir(filepath.Dir(old))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !s.Get().CheckRevocationOnline {
+		t.Fatal("config without the key: want online revocation checks on")
+	}
+
+	c := s.Get()
+	c.CheckRevocationOnline = false
+	if err := s.Update(c); err != nil {
+		t.Fatal(err)
+	}
+	reloaded, err := NewServiceWithDir(filepath.Dir(old))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if reloaded.Get().CheckRevocationOnline {
+		t.Fatal("turned off: want it to stay off after reload")
 	}
 }

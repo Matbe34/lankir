@@ -4,6 +4,9 @@ vars:
   BINARY_NAME: lankir
   BUILD_DIR: build/bin
   FRONTEND_DIR: frontend
+  # Linux uses the Wails v3 GTK3/WebKit2GTK-4.1 backend; GTK4 needs GTK >= 4.10.
+  GO_TAGS: gtk3
+  WAILS3: wails3
 
 tasks:
   default:
@@ -12,17 +15,21 @@ tasks:
       - task --list
 
   dev:
-    desc: Run the application in development mode with hot reload
+    desc: Run the app against the Vite dev server (frontend hot reload; restart for Go changes)
+    deps: [frontend-deps]
     cmds:
-      - wails dev
+      - |
+        (cd {{.FRONTEND_DIR}} && exec ./node_modules/.bin/vite) &
+        VITE_PID=$!
+        trap 'kill $VITE_PID' EXIT
+        FRONTEND_DEVSERVER_URL=http://127.0.0.1:9245 go run -tags {{.GO_TAGS}} .
 
   build:
     desc: Build the application for production
+    deps: [frontend]
     cmds:
-      - echo "Building frontend..."
-      - cd {{.FRONTEND_DIR}} && ./build.sh
-      - echo "Building application..."
-      - wails build -clean
+      - mkdir -p {{.BUILD_DIR}}
+      - go build -tags {{.GO_TAGS}},production -trimpath -ldflags="-w -s" -o {{.BUILD_DIR}}/{{.BINARY_NAME}} .
       - echo "✓ Build complete! Binary at {{.BUILD_DIR}}/{{.BINARY_NAME}}"
 
   build-static:
@@ -38,7 +45,7 @@ tasks:
           echo "error: mingw-w64 not installed (apt install gcc-mingw-w64-x86-64)"
           exit 1
         fi
-      - cd {{.FRONTEND_DIR}} && ./build.sh
+      - task: frontend
       - mkdir -p {{.BUILD_DIR}}
       - |
         CGO_ENABLED=1 \
@@ -47,7 +54,7 @@ tasks:
         GOOS=windows GOARCH=amd64 \
         CGO_CFLAGS="-I${PWD}/go-fitz-include" \
         CGO_LDFLAGS="-L${PWD}/go-fitz-libs -lmupdf_windows_amd64 -lmupdfthird_windows_amd64" \
-        go build -tags "desktop,production" -ldflags "-H windowsgui" -o {{.BUILD_DIR}}/{{.BINARY_NAME}}.exe .
+        go build -tags production -ldflags "-H windowsgui" -o {{.BUILD_DIR}}/{{.BINARY_NAME}}.exe .
       - echo "✓ Built {{.BUILD_DIR}}/{{.BINARY_NAME}}.exe"
 
   appimage:
@@ -161,7 +168,7 @@ tasks:
         if [ -d build/appimage/AppDir ]; then
           echo "AppDir size: $(du -sh build/appimage/AppDir | cut -f1)"
           echo "GStreamer plugins: $(ls build/appimage/AppDir/usr/lib/gstreamer-1.0/ 2>/dev/null | wc -l)"
-          echo "WebKit processes: $(ls build/appimage/AppDir/usr/lib/x86_64-linux-gnu/webkit2gtk-4.0/ 2>/dev/null | grep -c Process || echo 0)"
+          echo "WebKit processes: $(ls build/appimage/AppDir/usr/lib/x86_64-linux-gnu/webkit2gtk-4.1/ 2>/dev/null | grep -c Process || echo 0)"
         fi
 
   clean:
@@ -173,7 +180,7 @@ tasks:
       - rm -rf build/bin/squashfs-root
       - rm -f build/bin/*.AppImage
       - rm -f lankir lankir-*
-      - rm -f {{.FRONTEND_DIR}}/dist/style.css
+      - rm -rf {{.FRONTEND_DIR}}/dist
       - echo "✓ Clean complete (cached tools preserved)"
 
   clean-cache:
@@ -193,45 +200,65 @@ tasks:
       - rm -rf build/
       - rm -f lankir lankir-*
       - rm -rf {{.FRONTEND_DIR}}/dist/
-      - rm -rf {{.FRONTEND_DIR}}/wailsjs/
       - rm -rf {{.FRONTEND_DIR}}/node_modules/.cache/
       - rm -f coverage.out coverage.html
       - rm -rf .wails-build-cache/
       - go clean -cache -testcache -modcache
       - echo "✓ Deep clean complete"
 
-  frontend:
-    desc: Build only the frontend
+  frontend-deps:
+    desc: Install frontend dependencies (Node version in frontend/.nvmrc)
+    dir: '{{.FRONTEND_DIR}}'
+    sources: [package.json, package-lock.json]
+    status:
+      - test -d node_modules
     cmds:
-      - echo "Building frontend..."
-      - cd {{.FRONTEND_DIR}} && ./build.sh
-      - echo "✓ Frontend built"
+      - npm ci
+
+  frontend:
+    desc: Build only the frontend (Vite → frontend/dist, embedded by go:embed)
+    deps: [frontend-deps]
+    dir: '{{.FRONTEND_DIR}}'
+    sources:
+      - index.html
+      - src/**/*
+      - bindings/**/*
+      - package-lock.json
+      - vite.config.js
+    generates:
+      - dist/index.html
+    cmds:
+      - npm run build
 
   test:
     desc: Run all tests
     cmds:
-      - echo "Running Go tests..."
-      - go test -v ./...
-      - echo "Running JavaScript tests..."
-      - cd {{.FRONTEND_DIR}} && npm test
+      - task: test-backend
+      - task: test-frontend
 
   test-backend:
     desc: Run Go tests only
+    deps: [frontend]
     cmds:
       - echo "Running Go tests..."
-      - go test -v ./...
+      - go test -tags {{.GO_TAGS}} -v ./...
 
   test-frontend:
     desc: Run JavaScript tests only
+    deps: [frontend-deps]
+    preconditions:
+      - sh: node -e "process.exit(Number(process.versions.node.split('.')[0] < 22))"
+        msg: "vitest needs Node >= 22 (frontend/.nvmrc pins 26): run 'nvm use' in frontend/"
     cmds:
       - echo "Running JavaScript tests..."
       - cd {{.FRONTEND_DIR}} && npm test
 
   test-coverage:
     desc: Run tests with coverage report
+    deps: [frontend]
     cmds:
       - echo "Running Go tests with coverage..."
-      - go test -v -coverprofile=coverage.out ./...
+      - go test -tags {{.GO_TAGS}} -v -coverprofile=coverage.out ./...
       - go tool cover -html=coverage.out -o coverage.html
       - echo "Go coverage report generated in coverage.html"
       - echo "Running JavaScript tests with coverage..."
@@ -239,15 +266,17 @@ tasks:
       - echo "JS coverage report generated in frontend/coverage/index.html"
 
   lint:
-    desc: Run linters (requires golangci-lint)
+    desc: Run linters (requires golangci-lint v2)
+    deps: [frontend]
     cmds:
       - echo "Running linters..."
-      - golangci-lint run ./...
+      - golangci-lint run --build-tags {{.GO_TAGS}} ./...
 
   vet-cross:
     desc: Run go vet for linux, windows and darwin to catch build-tag mistakes
+    deps: [frontend]
     cmds:
-      - echo "vet linux..."   && GOOS=linux   go vet ./...
+      - echo "vet linux..."   && GOOS=linux   go vet -tags {{.GO_TAGS}} ./...
       - echo "vet windows..." && GOOS=windows go vet ./...
       - echo "vet darwin..."  && GOOS=darwin  go vet ./...
 
@@ -266,10 +295,12 @@ tasks:
       - echo "✓ Go modules tidied"
 
   bindings:
-    desc: Generate Wails bindings
+    desc: Regenerate frontend/bindings from the bound Go services
+    preconditions:
+      - sh: command -v {{.WAILS3}}
+        msg: "wails3 not found. Install with: go install -tags gtk3 github.com/wailsapp/wails/v3/cmd/wails3@v3.1.0 (and put $(go env GOPATH)/bin on PATH)"
     cmds:
-      - echo "Generating Wails bindings..."
-      - wails generate module
+      - "{{.WAILS3}} generate bindings -f '-tags {{.GO_TAGS}}' -clean=true"
       - echo "✓ Bindings generated"
 
   install-deps:
@@ -277,7 +308,7 @@ tasks:
     cmds:
       - echo "Installing system dependencies..."
       - sudo apt update
-      - sudo apt install -y libgtk-3-dev libwebkit2gtk-4.0-dev libnss3-dev
+      - sudo apt install -y libgtk-3-dev libwebkit2gtk-4.1-dev libnss3-dev
       - echo "✓ System dependencies installed"
 
   run:

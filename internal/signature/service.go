@@ -1,12 +1,12 @@
 package signature
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 
 	"github.com/Matbe34/lankir/internal/config"
 	"github.com/Matbe34/lankir/internal/signature/pkcs11"
@@ -17,9 +17,11 @@ import (
 
 // SignatureService handles PDF signing, signature verification, and certificate management.
 type SignatureService struct {
-	ctx            context.Context
 	profileManager *ProfileManager
 	configService  *config.Service
+
+	mu       sync.RWMutex
+	verified map[verifiedKey]verifiedEntry
 }
 
 // NewSignatureService creates a new signature service instance with the given configuration service.
@@ -28,11 +30,6 @@ func NewSignatureService(cfgService *config.Service) *SignatureService {
 		profileManager: NewProfileManager(),
 		configService:  cfgService,
 	}
-}
-
-// Startup stores the app context. Called by Wails on app start.
-func (s *SignatureService) Startup(ctx context.Context) {
-	s.ctx = ctx
 }
 
 // ListSignatureProfiles returns all saved signature profiles.

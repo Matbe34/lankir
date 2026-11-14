@@ -10,6 +10,7 @@ import (
 	"image/color"
 	"image/draw"
 	"image/png"
+	"log/slog"
 	"net/http"
 	"strings"
 	"sync"
@@ -37,7 +38,8 @@ const (
 )
 
 // CreateSignatureAppearance builds a sign.Appearance from profile settings for PDF signing.
-func CreateSignatureAppearance(profile *SignatureProfile, cert *types.Certificate, signingTime time.Time) *sign.Appearance {
+// location is shown when the profile asks for it.
+func CreateSignatureAppearance(profile *SignatureProfile, cert *types.Certificate, location string, signingTime time.Time) *sign.Appearance {
 	appearance := &sign.Appearance{
 		Visible: profile.Visibility == VisibilityVisible,
 	}
@@ -79,11 +81,8 @@ func CreateSignatureAppearance(profile *SignatureProfile, cert *types.Certificat
 		textLines = append(textLines, fmt.Sprintf("Date: %s", timeStr))
 	}
 
-	if profile.Appearance.ShowLocation {
-		location, err := getLocationString()
-		if err == nil && location != "" {
-			textLines = append(textLines, fmt.Sprintf("Location: %s", location))
-		}
+	if profile.Appearance.ShowLocation && location != "" {
+		textLines = append(textLines, fmt.Sprintf("Location: %s", location))
 	}
 
 	if profile.Appearance.CustomText != "" {
@@ -188,7 +187,10 @@ func (g *SignatureImageGenerator) Generate() []byte {
 // encodeImage encodes the image to PNG bytes
 func (g *SignatureImageGenerator) encodeImage(img image.Image) []byte {
 	var buf bytes.Buffer
-	png.Encode(&buf, img)
+	if err := png.Encode(&buf, img); err != nil {
+		slog.Error("failed to encode signature image", "error", err)
+		return nil
+	}
 	return buf.Bytes()
 }
 
@@ -453,6 +455,9 @@ func splitIntoWords(text string) []string {
 	return words
 }
 
+// locationClient makes the opt-in ipinfo.io lookup; tests replace it.
+var locationClient = &http.Client{}
+
 var (
 	locationCache      string
 	locationCacheTime  time.Time
@@ -500,8 +505,7 @@ func fetchLocationFromAPI() (string, error) {
 		return "", err
 	}
 
-	client := &http.Client{}
-	resp, err := client.Do(req)
+	resp, err := locationClient.Do(req)
 	if err != nil {
 		return "", err
 	}

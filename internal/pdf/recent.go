@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"sync"
 	"time"
+
+	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
 const (
@@ -56,10 +58,13 @@ func NewRecentFilesService() *RecentFilesService {
 	}
 }
 
-// Startup loads persisted recent files. Called by Wails on app start.
-func (s *RecentFilesService) Startup(ctx context.Context) {
+// ServiceStartup loads persisted recent files. Called by Wails on app start.
+func (s *RecentFilesService) ServiceStartup(ctx context.Context, _ application.ServiceOptions) error {
 	s.ctx = ctx
-	s.load()
+	if err := s.load(); err != nil {
+		slog.Warn("failed to load recent files", "error", err)
+	}
+	return nil
 }
 
 // AddRecent adds or moves a file to the top of the recent files list.

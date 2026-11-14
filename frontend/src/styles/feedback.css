@@ -1,0 +1,229 @@
+/*
+ * Telling and asking: the alert dialog (messages, confirms, the password
+ * prompt) and the Ctrl K command palette.
+ */
+@layer components {
+  /* ---------- Alert dialog ---------- */
+  .message-modal {
+    max-width: 440px;
+  }
+
+  .message-main {
+    display: flex;
+    gap: var(--sp-3);
+    min-height: 0;
+    padding: var(--sp-5) var(--sp-5) var(--sp-4);
+    overflow-y: auto;
+  }
+
+  .message-icon {
+    display: grid;
+    flex: none;
+    place-items: center;
+    height: calc(var(--fs-title) * 1.25);
+    color: var(--icon-color);
+  }
+
+  .message-icon > .icon {
+    width: calc(var(--icon) + var(--sp-1));
+    height: calc(var(--icon) + var(--sp-1));
+  }
+
+  [data-tone="success"] .message-icon { color: var(--success); }
+  [data-tone="warning"] .message-icon { color: var(--warning); }
+  [data-tone="error"] .message-icon { color: var(--danger); }
+
+  .message-text {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .message-title {
+    margin: 0;
+    font-size: var(--fs-title);
+    font-weight: var(--fw-semibold);
+    line-height: var(--lh-tight);
+    overflow-wrap: anywhere;
+    text-wrap: balance;
+  }
+
+  .message-content {
+    margin: var(--sp-2) 0 0;
+    color: var(--text-muted);
+    line-height: var(--lh-body);
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    text-wrap: pretty;
+    user-select: text;
+  }
+
+  #messageDialogMore:empty {
+    display: none;
+  }
+
+  #messageDialogMore > * {
+    margin-top: var(--sp-3);
+  }
+
+  .dialog-field {
+    margin-top: var(--sp-4);
+  }
+
+  .message-footer {
+    display: flex;
+    flex: none;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--sp-2);
+    padding: var(--sp-1) var(--sp-5) var(--sp-5);
+  }
+
+  /* The first button of a dialog opened with the pointer: focused, but no ring
+     until a key is pressed (messageDialog.js). */
+  .message-footer > [data-quiet-focus]:focus-visible {
+    outline: none;
+  }
+
+  .message-footer > .footer-start {
+    margin-right: auto;
+  }
+
+  /* ---------- Command palette ---------- */
+  .palette-overlay {
+    align-items: flex-start;
+    padding-top: clamp(var(--sp-6), 10vh, calc(var(--sp-12) + var(--sp-6)));
+  }
+
+  .palette {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    max-width: 560px;
+    overflow: hidden;
+    border-radius: var(--r-lg);
+    background: var(--surface-overlay);
+    box-shadow: var(--elev-3);
+    color: var(--text);
+    animation: pop-in var(--dur) var(--ease);
+  }
+
+  .palette-field {
+    display: flex;
+    flex: none;
+    align-items: center;
+    gap: 10px;
+    height: var(--sp-12);
+    padding: 0 var(--sp-3) 0 var(--sp-4);
+    border-bottom: var(--border-w) solid var(--border);
+    color: var(--icon-color);
+  }
+
+  .palette-input {
+    flex: 1;
+    min-width: 0;
+    height: 100%;
+    border: 0;
+    background: transparent;
+    color: var(--text);
+    font-size: var(--fs-title);
+  }
+
+  .palette-input::placeholder {
+    color: var(--text-muted);
+  }
+
+  /* The open palette is the focus; its caret shows where typing goes. */
+  .palette-input:focus-visible {
+    outline: none;
+  }
+
+  .palette-list {
+    max-height: min(408px, calc(100vh - var(--sp-12) * 4));
+    padding: var(--sp-1);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .palette-group {
+    padding: var(--sp-2) var(--sp-2) var(--sp-1);
+    color: var(--text-muted);
+    font-size: var(--fs-small);
+    font-weight: var(--fw-semibold);
+  }
+
+  .palette-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    height: var(--ctl-h);
+    padding: 0 var(--sp-2);
+    border-radius: var(--r-md);
+    white-space: nowrap;
+  }
+
+  .palette-row > .icon {
+    color: var(--icon-color);
+  }
+
+  .palette-row[aria-selected="true"] {
+    background: var(--accent-subtle);
+    color: var(--accent-text);
+  }
+
+  .palette-row[aria-selected="true"] > .icon,
+  .palette-row[aria-selected="true"] kbd {
+    color: var(--accent-text);
+  }
+
+  .palette-label {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .palette-label > b {
+    font-weight: var(--fw-semibold);
+  }
+
+  .palette-meta {
+    max-width: 45%;
+    overflow: hidden;
+    color: var(--text-muted);
+    font-size: var(--fs-small);
+    text-overflow: ellipsis;
+  }
+
+  .palette-empty {
+    padding: var(--sp-6) var(--sp-4);
+    color: var(--text-muted);
+    text-align: center;
+  }
+
+  .palette-foot {
+    display: flex;
+    flex: none;
+    align-items: center;
+    gap: var(--sp-4);
+    height: 36px;
+    padding: 0 var(--sp-4);
+    border-top: var(--border-w) solid var(--border);
+    color: var(--text-muted);
+    font-size: var(--fs-small);
+  }
+
+  .palette-foot > span {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .palette-foot > .palette-context {
+    display: block;
+    min-width: 0;
+    margin-left: auto;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}

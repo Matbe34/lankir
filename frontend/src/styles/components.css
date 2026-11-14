@@ -1,0 +1,1452 @@
+/*
+ * Primitives. Components use these classes; Tailwind utilities are only for
+ * layout. Every value is a token from tokens.css.
+ */
+@layer components {
+  /* ---------- Buttons ---------- */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    height: var(--ctl-h);
+    padding: 0 var(--sp-3);
+    border: 0;
+    border-radius: var(--r-md);
+    background: var(--surface-raised);
+    box-shadow: inset 0 0 0 var(--border-w) var(--border-strong), 0 1px 1px var(--fill);
+    color: var(--text);
+    font-weight: var(--fw-medium);
+    white-space: nowrap;
+    transition: background-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+  }
+
+  .btn > .icon {
+    color: var(--icon-color);
+    margin-left: calc(var(--sp-1) * -0.5);
+  }
+
+  .btn:hover {
+    background: color-mix(in oklab, var(--surface-raised), var(--text) 5%);
+  }
+
+  .btn:active,
+  .btn[aria-pressed="true"],
+  .btn[aria-expanded="true"] {
+    background: color-mix(in oklab, var(--surface-raised), var(--text) 10%);
+    box-shadow: inset 0 0 0 var(--border-w) var(--border-strong);
+  }
+
+  .btn:disabled {
+    background: transparent;
+    box-shadow: inset 0 0 0 var(--border-w) var(--border);
+    color: var(--text-subtle);
+  }
+
+  .btn:disabled > .icon {
+    color: currentColor;
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    box-shadow: 0 1px 1px var(--fill);
+    color: var(--accent-fg);
+  }
+
+  .btn-primary > .icon {
+    color: currentColor;
+  }
+
+  .btn-primary:hover {
+    background: var(--accent-hover);
+  }
+
+  .btn-primary:active {
+    background: var(--accent-hover);
+    box-shadow: inset 0 1px 2px var(--fill-active);
+  }
+
+  .btn-primary:disabled {
+    background: color-mix(in srgb, var(--accent) 45%, transparent);
+    box-shadow: none;
+    color: var(--accent-fg);
+  }
+
+  .btn-ghost {
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .btn-ghost:hover {
+    background: var(--fill-hover);
+  }
+
+  .btn-ghost:active,
+  .btn-ghost[aria-pressed="true"],
+  .btn-ghost[aria-expanded="true"] {
+    background: var(--fill-active);
+    box-shadow: none;
+  }
+
+  .btn-ghost:disabled {
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .btn-danger {
+    color: var(--danger);
+  }
+
+  .btn-danger:hover {
+    background: var(--danger-subtle);
+  }
+
+  /* A ghost button in a column of text: its label lines up with the text. */
+  .btn-inline {
+    margin: var(--sp-1) 0 0 calc(var(--sp-2) * -1);
+    padding: 0 var(--sp-2);
+  }
+
+  .btn-sm,
+  .btn-small {
+    height: var(--ctl-h-sm);
+    padding: 0 var(--sp-2);
+    border-radius: var(--r-sm);
+    font-size: var(--fs-small);
+  }
+
+  .btn-block {
+    width: 100%;
+  }
+
+  /* Two buttons that read as one: Open + its recent-files caret. Hovering
+     either lights the whole control; the hovered half a step more. */
+  .split {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    border-radius: var(--r-md);
+    transition: background-color var(--dur-fast) var(--ease);
+  }
+
+  .split > .btn:first-child {
+    padding-right: var(--sp-1);
+    border-radius: var(--r-md) 0 0 var(--r-md);
+  }
+
+  .split > .btn:last-child {
+    position: relative;
+    width: 22px;
+    padding: 0;
+    border-radius: 0 var(--r-md) var(--r-md) 0;
+  }
+
+  .split:has(> .btn-ghost:hover),
+  .split:has(> .btn-ghost[aria-expanded="true"]) {
+    background: var(--fill);
+  }
+
+  /* A hairline between the halves while the control is lit. */
+  .split > .btn:last-child::before {
+    content: "";
+    position: absolute;
+    top: 7px;
+    bottom: 7px;
+    left: 0;
+    width: var(--border-w);
+    background: var(--border-strong);
+    opacity: 0;
+    transition: opacity var(--dur-fast) var(--ease);
+  }
+
+  .split:has(> .btn-ghost:hover) > .btn:last-child::before,
+  .split:has(> .btn-ghost[aria-expanded="true"]) > .btn:last-child::before {
+    opacity: 1;
+  }
+
+  /* ---------- Icon buttons ---------- */
+  .icon-btn {
+    display: inline-grid;
+    place-items: center;
+    flex: none;
+    width: var(--ctl-h);
+    height: var(--ctl-h);
+    padding: 0;
+    border: 0;
+    border-radius: var(--r-md);
+    background: transparent;
+    color: var(--icon-color);
+    transition: background-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+  }
+
+  .icon-btn:hover {
+    background: var(--fill-hover);
+    color: var(--text);
+  }
+
+  .icon-btn:active,
+  .icon-btn[aria-pressed="true"],
+  .icon-btn[aria-expanded="true"] {
+    background: var(--fill-active);
+    color: var(--text);
+  }
+
+  /* On: a view toggle (side panel, markup, find, sign), the chosen markup
+     tool. A selection state, so the same accent tint and accent icon
+     everywhere; a bordered button drops its border while on. */
+  .icon-btn.is-selected,
+  .tool-group .icon-btn[aria-pressed="true"],
+  .is-toggle[aria-pressed="true"],
+  .is-toggle[aria-pressed="true"]:hover {
+    background: var(--toggle-on);
+    box-shadow: none;
+    color: var(--accent-text);
+  }
+
+  .is-toggle[aria-pressed="true"] > .icon {
+    color: var(--accent-text);
+  }
+
+  .icon-btn:disabled {
+    background: transparent;
+    color: var(--text-subtle);
+  }
+
+  .icon-btn.sm {
+    width: var(--ctl-h-sm);
+    height: var(--ctl-h-sm);
+    border-radius: var(--r-sm);
+  }
+
+  /* ---------- Fields ---------- */
+  .input,
+  .setting-input {
+    display: block;
+    width: 100%;
+    min-width: 0;
+    height: var(--ctl-h);
+    padding: 0 10px;
+    border: var(--border-w) solid var(--border-strong);
+    border-radius: var(--r-md);
+    background: var(--field);
+    color: var(--text);
+    transition: border-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
+  }
+
+  textarea.input,
+  textarea.setting-input {
+    height: auto;
+    min-height: calc(var(--ctl-h) * 2);
+    padding: 6px 10px;
+    resize: vertical;
+  }
+
+  .input::placeholder,
+  .setting-input::placeholder {
+    color: var(--text-muted);
+    opacity: .8;
+  }
+
+  .input:hover,
+  .setting-input:hover {
+    border-color: color-mix(in oklab, var(--border-strong), var(--text) 18%);
+  }
+
+  .input:focus,
+  .setting-input:focus {
+    outline: none;
+  }
+
+  .input:focus-visible,
+  .setting-input:focus-visible,
+  .input:focus,
+  .setting-input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 var(--border-w) var(--accent);
+  }
+
+  .input:disabled,
+  .setting-input:disabled {
+    border-color: var(--border);
+    background-color: var(--surface-sunken);
+    color: var(--text-subtle);
+  }
+
+  select.input,
+  select.setting-input {
+    appearance: none;
+    padding-right: var(--sp-8);
+    background-image: var(--chevron);
+    background-repeat: no-repeat;
+    background-position: right 9px center;
+    background-size: 14px 14px;
+  }
+
+  select.input option,
+  select.setting-input option {
+    background: var(--surface);
+    color: var(--text);
+  }
+
+  .input[type="color"],
+  .setting-input-color {
+    width: var(--sp-12);
+    padding: 3px;
+  }
+
+  .field-label,
+  .setting-label {
+    display: block;
+    margin-bottom: 6px;
+    color: var(--text-muted);
+    font-size: var(--fs-small);
+    font-weight: var(--fw-semibold);
+  }
+
+  .field-hint,
+  .setting-hint {
+    margin-top: 6px;
+    color: var(--text-muted);
+    font-size: var(--fs-small);
+    line-height: var(--lh-body);
+  }
+
+  .field-error {
+    margin-top: 6px;
+    color: var(--danger);
+    font-size: var(--fs-small);
+    line-height: var(--lh-body);
+  }
+
+  .field-error:empty {
+    display: none;
+  }
+
+  .input[aria-invalid="true"] {
+    border-color: var(--danger);
+  }
+
+  /* A field with a button inside it, e.g. show or hide a PIN. */
+  .input-group {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-1);
+    height: var(--ctl-h);
+    padding: 0 var(--sp-0) 0 10px;
+    border: var(--border-w) solid var(--border-strong);
+    border-radius: var(--r-md);
+    background: var(--field);
+    transition: border-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
+  }
+
+  .input-group:hover {
+    border-color: color-mix(in oklab, var(--border-strong), var(--text) 18%);
+  }
+
+  .input-group:focus-within {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 var(--border-w) var(--accent);
+  }
+
+  .input-group:has(> [aria-invalid="true"]) {
+    border-color: var(--danger);
+  }
+
+  .input-group:has(> [aria-invalid="true"]):focus-within {
+    box-shadow: 0 0 0 var(--border-w) var(--danger);
+  }
+
+  .input-group:has(> input:disabled) {
+    border-color: var(--border);
+    background: var(--surface-sunken);
+  }
+
+  .input-group > input {
+    flex: 1;
+    min-width: 0;
+    height: 100%;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--text);
+    outline: none;
+  }
+
+  .input-group > input:disabled {
+    color: var(--text-subtle);
+  }
+
+  /* A button that opens a list, drawn as a select field. Holds one line of
+     text or an .option-text pair. */
+  .select-btn {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    min-width: 0;
+    min-height: var(--ctl-h);
+    padding: var(--sp-1) var(--sp-8) var(--sp-1) 10px;
+    border: var(--border-w) solid var(--border-strong);
+    border-radius: var(--r-md);
+    background: var(--field) var(--chevron) no-repeat right 9px center / 14px 14px;
+    color: var(--text);
+    text-align: left;
+    transition: border-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
+  }
+
+  .select-btn:hover {
+    border-color: color-mix(in oklab, var(--border-strong), var(--text) 18%);
+  }
+
+  .select-btn:focus-visible,
+  .select-btn[aria-expanded="true"] {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 var(--border-w) var(--accent);
+  }
+
+  .select-btn:disabled {
+    border-color: var(--border);
+    background-color: var(--surface-sunken);
+    color: var(--text-subtle);
+  }
+
+  .select-btn:disabled .option-meta {
+    color: inherit;
+  }
+
+  /* Two lines: a name, and muted details under it. Each ends in an ellipsis. */
+  .option-text {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-width: 0;
+    line-height: var(--lh-body);
+  }
+
+  .option-title,
+  .option-meta {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .option-title {
+    font-weight: var(--fw-medium);
+  }
+
+  .option-meta {
+    color: var(--text-muted);
+    font-size: var(--fs-small);
+  }
+
+  .option-meta.is-warning {
+    color: var(--warning);
+  }
+
+  /* ---------- Checkbox and switch ---------- */
+  .checkbox,
+  .setting-checkbox,
+  input[type="checkbox"].checkbox {
+    appearance: none;
+    position: relative;
+    flex: none;
+    width: 16px;
+    height: 16px;
+    margin: 0;
+    border: var(--border-w) solid var(--border-strong);
+    border-radius: var(--r-sm);
+    background: var(--field);
+    vertical-align: middle;
+    transition: background-color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
+  }
+
+  .checkbox:checked,
+  .setting-checkbox:checked {
+    border-color: var(--accent);
+    background: var(--accent);
+  }
+
+  .checkbox:checked::after,
+  .setting-checkbox:checked::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: var(--accent-fg);
+    mask: var(--check-mask) center / 12px 12px no-repeat;
+  }
+
+  .checkbox:disabled,
+  .setting-checkbox:disabled {
+    opacity: .5;
+  }
+
+  /* 36 x 20; the off track keeps 3:1 against its row in both themes. */
+  .switch {
+    appearance: none;
+    position: relative;
+    flex: none;
+    width: 36px;
+    height: 20px;
+    margin: 0;
+    border-radius: var(--r-full);
+    background: var(--switch-off);
+    transition: background-color var(--dur-fast) var(--ease);
+  }
+
+  .switch::after {
+    content: "";
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 16px;
+    height: 16px;
+    border-radius: var(--r-full);
+    background: var(--switch-knob);
+    box-shadow: var(--elev-tab);
+    transition: transform var(--dur-fast) var(--ease);
+  }
+
+  .switch:checked {
+    background: var(--accent);
+  }
+
+  .switch:checked::after {
+    transform: translateX(16px);
+  }
+
+  .check-row,
+  .setting-label-inline {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+    color: var(--text);
+  }
+
+  /* ---------- Segmented control and panel tabs ---------- */
+  .segmented {
+    display: inline-flex;
+    gap: var(--sp-0);
+    padding: var(--sp-0);
+    border-radius: var(--r-md);
+    background: var(--segment-track);
+  }
+
+  .segmented.full {
+    display: flex;
+  }
+
+  .segment {
+    flex: 1 1 auto;
+    min-width: 0;
+    height: 26px;
+    padding: 0 6px;
+    border: 0;
+    border-radius: var(--r-sm);
+    background: transparent;
+    color: var(--text-muted);
+    font-size: var(--fs-small);
+    font-weight: var(--fw-medium);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: background-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+  }
+
+  .segment:hover {
+    color: var(--text);
+  }
+
+  .segment[aria-selected="true"],
+  .segment[aria-pressed="true"],
+  .segment.active {
+    background: var(--segment-on);
+    box-shadow: var(--elev-segment);
+    color: var(--text);
+  }
+
+  /* Something in the segment needs a look (e.g. an untrusted signature in Info). */
+  .segment[data-attention]::after {
+    content: "";
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    margin-left: 5px;
+    border-radius: var(--r-full);
+    background: var(--warning);
+    vertical-align: 1px;
+  }
+
+  .segment[data-attention="danger"]::after {
+    background: var(--danger);
+  }
+
+  /* ---------- Text toggle ----------
+   * A small labelled on/off button (aria-pressed), e.g. find options. Off is
+   * outlined, so it reads as a control; on is a selection: the accent tint. */
+  .text-toggle {
+    flex: none;
+    height: var(--ctl-h-sm);
+    padding: 0 var(--sp-2);
+    border: 0;
+    border-radius: var(--r-sm);
+    background: transparent;
+    box-shadow: inset 0 0 0 var(--border-w) var(--border-strong);
+    color: var(--text-muted);
+    font-size: var(--fs-small);
+    font-weight: var(--fw-medium);
+    white-space: nowrap;
+    transition: background-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
+  }
+
+  .text-toggle:hover {
+    background: var(--fill-hover);
+    color: var(--text);
+  }
+
+  /* The same 1px box, in the accent: nothing moves when it turns on. */
+  .text-toggle[aria-pressed="true"] {
+    background: var(--toggle-on);
+    box-shadow: inset 0 0 0 var(--border-w) var(--accent);
+    color: var(--accent-text);
+  }
+
+  .text-toggle:focus-visible {
+    outline-offset: 1px;
+  }
+
+  /* ---------- Menus and popovers ---------- */
+  .menu {
+    position: absolute;
+    z-index: var(--z-menu);
+    min-width: 224px;
+    max-width: 360px;
+    padding: var(--sp-1);
+    border-radius: var(--r-lg);
+    background: var(--surface-overlay);
+    box-shadow: var(--elev-2);
+    color: var(--text);
+    user-select: none;
+    animation: pop-in var(--dur) var(--ease);
+  }
+
+  .menu-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    height: var(--ctl-h);
+    padding: 0 var(--sp-2);
+    border: 0;
+    border-radius: var(--r-md);
+    background: transparent;
+    color: var(--text);
+    text-align: left;
+    white-space: nowrap;
+  }
+
+  .menu-item > .icon {
+    color: var(--icon-color);
+  }
+
+  .menu-item:hover,
+  .menu-item:focus-visible {
+    outline: none;
+    background: var(--fill-hover);
+  }
+
+  .menu-item[aria-checked="true"] {
+    background: var(--accent-subtle);
+    color: var(--accent-text);
+  }
+
+  .menu-item[aria-checked="true"] > .icon {
+    color: var(--accent-text);
+  }
+
+  .menu-item:disabled {
+    background: transparent;
+    color: var(--text-subtle);
+  }
+
+  .menu-item:disabled > .icon {
+    color: currentColor;
+  }
+
+  .menu-label {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .menu-meta {
+    color: var(--text-muted);
+    font-size: var(--fs-small);
+  }
+
+  /* A menu item with .option-text: a name and a line of details. */
+  .menu-item-2l {
+    height: auto;
+    min-height: var(--ctl-h);
+    padding: var(--sp-1) var(--sp-2);
+  }
+
+  .menu-item-2l:disabled .option-meta {
+    color: var(--text-muted);
+  }
+
+  .menu-sep {
+    height: var(--border-w);
+    margin: var(--sp-1) var(--sp-2);
+    background: var(--border);
+  }
+
+  .menu-head {
+    padding: var(--sp-2) var(--sp-2) var(--sp-1);
+    color: var(--text-muted);
+    font-size: var(--fs-small);
+    font-weight: var(--fw-semibold);
+  }
+
+  .menu-empty {
+    padding: var(--sp-2);
+    color: var(--text-muted);
+    font-size: var(--fs-small);
+  }
+
+  /* ---------- Keycaps ---------- */
+  .keys {
+    display: inline-flex;
+    gap: 3px;
+    flex: none;
+  }
+
+  .keys kbd,
+  kbd.kbd {
+    display: inline-block;
+    min-width: 18px;
+    padding: 3px 5px;
+    border-radius: var(--r-sm);
+    background: var(--fill);
+    color: var(--text-muted);
+    text-align: center;
+    white-space: nowrap;
+  }
+
+  /* ---------- Tooltip ---------- */
+  .tooltip {
+    position: fixed;
+    z-index: var(--z-tooltip);
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-2);
+    max-width: 320px;
+    padding: 5px var(--sp-2);
+    border-radius: var(--r-md);
+    background: var(--tooltip);
+    box-shadow: var(--elev-2);
+    color: var(--tooltip-fg);
+    font-size: var(--fs-small);
+    line-height: var(--lh-tight);
+    pointer-events: none;
+    animation: fade-in var(--dur-fast) var(--ease);
+  }
+
+  .tooltip .keys kbd {
+    background: color-mix(in srgb, var(--tooltip-fg) 18%, transparent);
+    color: inherit;
+  }
+
+  /* ---------- Toast ---------- */
+  /* Bottom right, clear of the page pill (a control's height above the window edge). */
+  .toast-region {
+    position: fixed;
+    z-index: var(--z-toast);
+    right: var(--sp-4);
+    bottom: calc(var(--sp-4) + var(--ctl-h) + var(--sp-3));
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: var(--sp-2);
+    width: min(420px, calc(100vw - var(--sp-8)));
+    pointer-events: none;
+  }
+
+  .no-doc .toast-region {
+    bottom: var(--sp-4);
+  }
+
+  .toast {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-3);
+    max-width: 100%;
+    min-height: 40px;
+    padding: var(--sp-1) 6px var(--sp-1) var(--sp-3);
+    border-radius: var(--r-lg);
+    background: var(--surface);
+    box-shadow: var(--elev-2);
+    color: var(--text);
+    pointer-events: auto;
+    animation: rise-in var(--dur) var(--ease);
+  }
+
+  .toast > .icon {
+    color: var(--icon-color);
+  }
+
+  .toast.success > .icon {
+    color: var(--success);
+  }
+
+  .toast.warning > .icon {
+    color: var(--warning);
+  }
+
+  .toast.error > .icon {
+    color: var(--danger);
+  }
+
+  .toast-text {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .toast-action {
+    margin-right: calc(var(--sp-1) * -1);
+  }
+
+  .toast.leaving {
+    opacity: 0;
+    transition: opacity var(--dur) var(--ease);
+  }
+
+  /* ---------- Pill (small status label) ---------- */
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-1);
+    height: 20px;
+    padding: 0 6px;
+    border-radius: var(--r-sm);
+    background: var(--fill);
+    color: var(--text-muted);
+    font-size: var(--fs-micro);
+    font-weight: var(--fw-medium);
+    white-space: nowrap;
+  }
+
+  .pill.accent { background: var(--accent-subtle); color: var(--accent-text); }
+  .pill.success { background: var(--success-subtle); color: var(--success); }
+  .pill.warning { background: var(--warning-subtle); color: var(--warning); }
+  .pill.danger { background: var(--danger-subtle); color: var(--danger); }
+
+  /* ---------- Empty state ---------- */
+  .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--sp-2);
+    padding: var(--sp-6) var(--sp-4);
+    color: var(--text-muted);
+    font-size: var(--fs-small);
+    text-align: center;
+  }
+
+  .empty-state > .icon {
+    width: 24px;
+    height: 24px;
+    stroke-width: 1.5;
+    color: var(--text-subtle);
+  }
+
+  /* ---------- Spinner ---------- */
+  .spinner,
+  .loading-spinner,
+  .loading-spinner-small {
+    width: var(--icon);
+    height: var(--icon);
+    border: 2px solid var(--border-strong);
+    border-top-color: var(--accent);
+    border-radius: var(--r-full);
+    animation: spin 800ms linear infinite;
+  }
+
+  /* In a button while it works ("Signing…"). */
+  .btn > .spinner {
+    width: var(--icon-sm);
+    height: var(--icon-sm);
+    border-color: color-mix(in srgb, currentColor 30%, transparent);
+    border-top-color: currentColor;
+  }
+
+  /* Busy is not unavailable: the confirm keeps its colour while it works. */
+  .btn-primary[aria-busy="true"] {
+    background: var(--accent);
+  }
+
+  .empty-state-title {
+    color: var(--text);
+    font-size: var(--fs-body);
+    font-weight: var(--fw-semibold);
+  }
+
+  .empty-state > .btn {
+    margin-top: var(--sp-2);
+  }
+
+  /* ---------- Dialog ---------- */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: var(--z-dialog);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--sp-6);
+    background: var(--scrim);
+    animation: fade-in var(--dur) var(--ease);
+  }
+
+  .modal {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    max-width: 480px;
+    max-height: calc(100vh - var(--sp-12));
+    overflow: hidden;
+    border-radius: var(--r-lg);
+    background: var(--surface-overlay);
+    box-shadow: var(--elev-3);
+    color: var(--text);
+    animation: pop-in var(--dur) var(--ease);
+  }
+
+  .modal-header {
+    display: flex;
+    flex: none;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sp-3);
+    min-height: 52px;
+    padding: var(--sp-2) var(--sp-2) var(--sp-2) var(--sp-5);
+  }
+
+  .modal-header h2 {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+    margin: 0;
+    font-size: var(--fs-title);
+    font-weight: var(--fw-semibold);
+    line-height: var(--lh-tight);
+  }
+
+  .modal-body {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    padding: var(--sp-1) var(--sp-5) var(--sp-5);
+  }
+
+  .modal-footer {
+    display: flex;
+    flex: none;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--sp-2);
+    padding: var(--sp-3) var(--sp-4);
+    border-top: var(--border-w) solid var(--border);
+  }
+
+  .modal-close {
+    display: inline-grid;
+    place-items: center;
+    width: var(--ctl-h);
+    height: var(--ctl-h);
+    border: 0;
+    border-radius: var(--r-md);
+    background: transparent;
+    color: var(--icon-color);
+  }
+
+  .modal-close:hover {
+    background: var(--fill-hover);
+    color: var(--text);
+  }
+
+  .modal-close:disabled {
+    color: var(--text-subtle);
+    background: transparent;
+  }
+
+  /* ---------- Grouped lists ----------
+   * A quiet group header (title, help, actions) over a bordered box of rows.
+   * Rows draw their separator above themselves; the box clips the first one. */
+  .group-head {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: var(--sp-4);
+    margin: var(--sp-8) 0 var(--sp-2);
+  }
+
+  .group-head.first {
+    margin-top: 0;
+  }
+
+  .group-head-text {
+    min-width: 0;
+  }
+
+  .group-title {
+    margin: 0;
+    color: var(--text);
+    font-size: var(--fs-body);
+    font-weight: var(--fw-semibold);
+    line-height: var(--lh-tight);
+  }
+
+  .group-help {
+    margin: var(--sp-1) 0 0;
+    color: var(--text-muted);
+    font-size: var(--fs-small);
+    line-height: var(--lh-tight);
+  }
+
+  .group-actions {
+    display: flex;
+    flex: none;
+    gap: var(--sp-1);
+  }
+
+  .list-box {
+    overflow: hidden;
+    border: var(--border-w) solid var(--border);
+    border-radius: var(--r-lg);
+  }
+
+  .list-row {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-3);
+    min-height: 52px;
+    padding: var(--sp-2) var(--sp-3) var(--sp-2) var(--sp-4);
+    box-shadow: 0 calc(var(--border-w) * -1) 0 var(--border);
+  }
+
+  .list-row:focus-visible {
+    outline-offset: calc(var(--focus-w) * -1);
+  }
+
+  .list-row-icon {
+    display: inline-grid;
+    flex: none;
+    place-items: center;
+    color: var(--icon-color);
+  }
+
+  .list-row-text {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: var(--sp-0);
+    min-width: 0;
+  }
+
+  .list-row-title,
+  .list-row-sub {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .list-row-sub {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+    color: var(--text-muted);
+    font-size: var(--fs-small);
+  }
+
+  .list-row-actions {
+    display: flex;
+    flex: none;
+    gap: var(--sp-0);
+  }
+
+  /* A row action shown only while its row is hovered or holds focus. It keeps
+     its slot, so nothing shifts when it appears, and sits inboard of the
+     actions always shown, so those keep the row's edge. */
+  .list-row .on-row-hover {
+    order: -1;
+    opacity: 0;
+    transition: opacity var(--dur-fast) var(--ease), background-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+  }
+
+  .list-row:hover .on-row-hover,
+  .list-row:focus-within .on-row-hover {
+    opacity: 1;
+  }
+
+  /* A secondary action, quieter than the icon buttons beside it. */
+  .icon-btn.quiet {
+    color: var(--text-muted);
+  }
+
+  .list-box > .empty-state {
+    padding: var(--sp-5) var(--sp-4);
+  }
+
+  .empty-state-detail {
+    max-width: 44ch;
+    line-height: var(--lh-body);
+  }
+
+  /* A quiet remove or delete: neutral until hovered or focused. */
+  .icon-btn.danger:hover,
+  .icon-btn.danger:focus-visible {
+    background: var(--danger-subtle);
+    color: var(--danger);
+  }
+
+  /* ---------- File path ----------
+   * Truncates in the middle: the folders shrink first, the file or last folder
+   * stays readable. The full path goes in data-tip. */
+  .path {
+    display: flex;
+    flex: 1;
+    min-width: 0;
+    font-family: var(--font-mono);
+    font-size: var(--fs-small);
+    font-weight: var(--fw-regular);
+    white-space: nowrap;
+  }
+
+  .path-head {
+    flex: 0 1000 auto;
+    min-width: var(--sp-6);
+    overflow: hidden;
+    color: var(--text-muted);
+    text-overflow: ellipsis;
+  }
+
+  .path-tail {
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    color: var(--text);
+    text-overflow: ellipsis;
+  }
+
+  /* ---------- Field with a unit or a short label ---------- */
+  .unit-field {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+  }
+
+  .unit-field > .setting-input,
+  .unit-field > .input {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .unit-field-unit {
+    flex: none;
+    width: var(--sp-12);
+    color: var(--text-muted);
+    font-size: var(--fs-small);
+  }
+
+  .unit-field-label {
+    flex: none;
+    width: var(--sp-3);
+    color: var(--text-muted);
+    text-align: center;
+    font-size: var(--fs-small);
+  }
+
+  .setting-input[aria-invalid="true"],
+  .input[aria-invalid="true"] {
+    border-color: var(--danger);
+  }
+
+  .field-error {
+    margin: var(--sp-1) 0 0;
+    color: var(--danger);
+    font-size: var(--fs-small);
+  }
+
+  /* ---------- Scroll edge shadows ----------
+   * On a scrolling area with data-scroll-edges (watched by JS, which sets
+   * data-more-above / data-more-below). Sticky offsets count from the padding
+   * edge, so the area declares its padding: --edge-top, --edge-bottom and
+   * --edge-bleed (the sides). */
+  [data-scroll-edges]::before,
+  [data-scroll-edges]::after {
+    content: "";
+    position: sticky;
+    z-index: 1;
+    display: block;
+    height: var(--sp-2);
+    margin: 0 calc(var(--edge-bleed, 0px) * -1);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--dur-fast) var(--ease);
+  }
+
+  [data-scroll-edges]::before {
+    top: calc(var(--edge-top, 0px) * -1);
+    margin-bottom: calc(var(--sp-2) * -1);
+    background: linear-gradient(color-mix(in srgb, var(--scrim) 50%, transparent), transparent);
+  }
+
+  [data-scroll-edges]::after {
+    bottom: calc(var(--edge-bottom, 0px) * -1);
+    margin-top: calc(var(--sp-2) * -1);
+    background: linear-gradient(transparent, color-mix(in srgb, var(--scrim) 50%, transparent));
+  }
+
+  [data-scroll-edges][data-more-above]::before,
+  [data-scroll-edges][data-more-below]::after {
+    opacity: 1;
+  }
+
+  /* ---------- Destructive confirm: the danger twin of .btn-primary ---------- */
+  .btn-destructive {
+    background: var(--danger);
+    box-shadow: 0 1px 1px var(--fill);
+    color: var(--danger-fg);
+  }
+
+  .btn-destructive:hover,
+  .btn-destructive:active {
+    background: var(--danger-hover);
+  }
+
+  /* Keycaps inside a button ("Open file…  Ctrl O"). */
+  .btn > .keys {
+    margin-left: var(--sp-1);
+    margin-right: calc(var(--sp-1) * -1);
+  }
+
+  /* Outlined, so the keys stay legible on a raised button in both themes. */
+  .btn > .keys kbd {
+    background: transparent;
+    box-shadow: inset 0 0 0 var(--border-w) var(--border-strong);
+  }
+
+  .btn-primary > .keys kbd {
+    box-shadow: inset 0 0 0 var(--border-w) color-mix(in srgb, var(--accent-fg) 45%, transparent);
+    color: var(--accent-fg);
+  }
+
+  .icon.icon-lg {
+    width: 24px;
+    height: 24px;
+    stroke-width: 1.5;
+  }
+
+  /* ---------- Details box (a collapsed "Details" disclosure) ---------- */
+  .details-box > summary {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-1);
+    margin-left: calc(var(--sp-1) * -1);
+    padding: var(--sp-0) var(--sp-1);
+    border-radius: var(--r-sm);
+    color: var(--text-muted);
+    font-size: var(--fs-small);
+    font-weight: var(--fw-medium);
+    list-style: none;
+    user-select: none;
+  }
+
+  .details-box > summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .details-box > summary:hover {
+    color: var(--text);
+  }
+
+  .details-box > summary > .icon {
+    transition: transform var(--dur-fast) var(--ease);
+  }
+
+  .details-box[open] > summary > .icon {
+    transform: rotate(90deg);
+  }
+
+  .details-box-body {
+    max-height: 160px;
+    margin: var(--sp-2) 0 0;
+    padding: var(--sp-2) var(--sp-3);
+    overflow: auto;
+    border-radius: var(--r-md);
+    background: var(--surface-sunken);
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    font-size: var(--fs-small);
+    line-height: var(--lh-body);
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    user-select: text;
+  }
+
+  /* ---------- Disclosure button ----------
+   * A quiet text button that shows or hides a region below it (aria-expanded,
+   * aria-controls): "See more" / "See less". Its chevron turns when open. */
+  .disclosure-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-1);
+    height: var(--ctl-h-sm);
+    margin-left: calc(var(--sp-1) * -1);
+    padding: 0 var(--sp-1);
+    border: 0;
+    border-radius: var(--r-sm);
+    background: transparent;
+    color: var(--text-muted);
+    font-size: var(--fs-small);
+    font-weight: var(--fw-medium);
+    white-space: nowrap;
+    transition: background-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+  }
+
+  .disclosure-btn:hover {
+    background: var(--fill-hover);
+    color: var(--text);
+  }
+
+  .disclosure-btn > .icon {
+    transition: transform var(--dur-fast) var(--ease);
+  }
+
+  .disclosure-btn[aria-expanded="true"] > .icon {
+    transform: rotate(180deg);
+  }
+
+  /* ---------- Middle truncation ----------
+   * A name in two spans: the head shrinks and ends in an ellipsis, the tail
+   * (the distinguishing end) stays whole: "Invoice…0412.pdf". The head keeps
+   * room for a letter and the ellipsis, never a sliver of a glyph. */
+  .truncate-middle {
+    --truncate-keep: 1.7em;
+    display: flex;
+    min-width: 0;
+    overflow: hidden;
+    white-space: pre; /* keeps the space that ends the head */
+  }
+
+  .truncate-head {
+    flex: 0 1 auto;
+    min-width: var(--truncate-keep);
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .truncate-head:empty {
+    display: none;
+  }
+
+  .truncate-tail {
+    flex: none;
+    max-width: calc(100% - var(--truncate-keep));
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .truncate-head:empty + .truncate-tail {
+    max-width: 100%;
+  }
+
+  /* ---------- Facts: a small label above its value ---------- */
+  .facts {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-3);
+    margin: 0;
+  }
+
+  .fact {
+    min-width: 0;
+  }
+
+  .fact > dt {
+    color: var(--text-muted);
+    font-size: var(--fs-small);
+    line-height: var(--lh-tight);
+  }
+
+  .fact > dd {
+    margin: var(--sp-0) 0 0;
+    overflow-wrap: anywhere;
+    user-select: text;
+  }
+
+  /* Short facts side by side. */
+  .fact-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--sp-3);
+  }
+
+  /* ---------- Progress line: indeterminate, under the header ---------- */
+  .progress-line {
+    position: absolute;
+    z-index: var(--z-panel);
+    top: 0;
+    left: 0;
+    right: 0;
+    height: var(--sp-0);
+    overflow: hidden;
+    pointer-events: none;
+    /* Quick jobs finish before it shows. */
+    animation: fade-in var(--dur) var(--ease) var(--dur) backwards;
+  }
+
+  .progress-line::before {
+    content: "";
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 32%;
+    border-radius: var(--r-full);
+    background: var(--text-muted);
+    animation: progress-slide 1200ms var(--ease) infinite;
+  }
+
+  @keyframes progress-slide {
+    from { transform: translateX(-100%); }
+    to { transform: translateX(320%); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .progress-line::before {
+      width: 100%;
+      opacity: .5;
+      animation: none;
+    }
+  }
+
+  @keyframes fade-in {
+    from { opacity: 0; }
+  }
+
+  @keyframes pop-in {
+    from { opacity: 0; transform: translateY(calc(var(--slide) * -0.5)); }
+  }
+
+  @keyframes rise-in {
+    from { opacity: 0; transform: translateY(var(--slide)); }
+  }
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+}

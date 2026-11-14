@@ -1,161 +1,127 @@
 import { escapeHtml } from './utils.js';
+import { iconSvg } from './icons.js';
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+const EXPIRES_SOON_DAYS = 30;
+
+const SOURCES = {
+    pkcs11: { name: 'Smart card', icon: 'id-card' },
+    pkcs12: { name: 'File', icon: 'file-key' },
+    nss: { name: 'Browser store', icon: 'globe' }
+};
+
+// Day, short month name and year, e.g. "14 Mar 2028" or "Mar 14, 2028" by locale; never 3/14/2028.
+const DATE_FORMAT = new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
+
+/** escapeHtml, which is safe in attribute values too. */
+export const escapeAttr = escapeHtml;
 
 /** Returns human-readable certificate type name. */
 export function getCertTypeName(source) {
-    switch (source) {
-        case 'pkcs11': return 'Smart Card';
-        case 'pkcs12': return 'File';
-        case 'nss': return 'Browser';
-        default: return source;
-    }
+    return SOURCES[source]?.name ?? source;
 }
 
-/** Formats a date string for display. */
-export function formatDate(dateString) {
-    if (!dateString) return 'N/A';
-    try {
-        const date = new Date(dateString);
-        return date.toLocaleDateString();
-    } catch {
-        return dateString;
-    }
+/**
+ * Parses the backend's "2006-01-02 15:04:05" (UTC) and ISO strings. WebKit's
+ * Date() rejects the space-separated form, so it is read field by field.
+ */
+export function parseCertDate(value) {
+    if (!value) return null;
+    const m = /^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2})(?::(\d{2}))?)?/.exec(value);
+    const date = m
+        ? new Date(Date.UTC(+m[1], +m[2] - 1, +m[3], +(m[4] ?? 0), +(m[5] ?? 0), +(m[6] ?? 0)))
+        : new Date(value);
+    return Number.isNaN(date.getTime()) ? null : date;
+}
+
+/** Formats a certificate date for display with the month as a word. */
+export function formatDate(value) {
+    const date = parseCertDate(value);
+    return date ? DATE_FORMAT.format(date) : (value || 'Unknown');
 }
 
 /** Calculates days until certificate expiry. */
 export function getDaysUntilExpiry(validTo) {
-    if (!validTo) return null;
-    try {
-        const expiryDate = new Date(validTo);
-        const now = new Date();
-        const diffTime = expiryDate - now;
-        return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    } catch {
-        return null;
-    }
+    const date = parseCertDate(validTo);
+    return date ? Math.ceil((date - Date.now()) / DAY_MS) : null;
 }
 
-/** Renders a single certificate item as HTML. */
-export function renderCertificateItem(cert, options = {}) {
-    const {
-        selectable = true,
-        showExpiry = false,
-        includeCapabilities = false
-    } = options;
-
-    // Determine if certificate can be used for signing
-    const canUse = cert.isValid && cert.canSign;
-    const disabledClass = selectable && !canUse ? 'invalid' : '';
-    
-    // Build disabled reason
-    let disabledReason = '';
-    if (selectable && !canUse) {
-        if (!cert.isValid) {
-            disabledReason = 'Certificate expired or not yet valid';
-        } else if (!cert.canSign) {
-            disabledReason = 'Certificate does not have private key for signing';
-        }
+/**
+ * The status pill for a certificate: { tone, text, reason, note }. tone is ''
+ * for muted. note: the reason says more than the dates, so the details show it.
+ */
+export function getCertStatus(cert) {
+    const validTo = parseCertDate(cert.validTo);
+    const msLeft = validTo ? validTo - Date.now() : null;
+    const days = msLeft === null ? null : Math.floor(msLeft / DAY_MS);
+    if (msLeft !== null && msLeft < 0) {
+        return { tone: '', text: 'Expired', reason: `Expired on ${formatDate(cert.validTo)}` };
     }
-
-    // Determine status display
-    let statusClass = cert.isValid ? 'valid' : 'invalid';
-    let statusText = cert.isValid ? '✓ Valid' : '✗ Invalid';
-    
-    if (showExpiry && cert.isValid) {
-        const daysUntilExpiry = getDaysUntilExpiry(cert.validTo);
-        if (daysUntilExpiry !== null) {
-            if (daysUntilExpiry <= 30) {
-                statusClass = 'warning';
-                statusText = `⚠ Expires in ${daysUntilExpiry}d`;
-            } else {
-                statusText = `✓ Valid (${daysUntilExpiry}d left)`;
-            }
-        }
+    if (!cert.isValid) {
+        return { tone: '', text: 'Not valid yet', reason: `Valid from ${formatDate(cert.validFrom)}` };
     }
+    if (!cert.canSign) {
+        return { tone: '', text: "Can't sign", reason: "No private key on this computer, so it can't sign", note: true };
+    }
+    if (days !== null && days <= EXPIRES_SOON_DAYS) {
+        const text = days === 0 ? 'Expires today' : days === 1 ? 'Expires tomorrow' : `Expires in ${days} days`;
+        return { tone: 'warning', text, reason: `Expires on ${formatDate(cert.validTo)}` };
+    }
+    return { tone: 'success', text: 'Valid', reason: '' };
+}
 
-    // Build HTML
+/** A distinguished name with a break opportunity at each separator, never inside a value. */
+// Go prints attributes it has no short name for as their OID; these are common in
+// Spanish and EU personal certificates.
+const DN_NAMES = {
+    '2.5.4.4': 'SN', '2.5.4.42': 'GN', '2.5.4.12': 'T', '2.5.4.65': 'PSEUDONYM',
+    '2.5.4.97': 'ORGANIZATIONIDENTIFIER', '1.2.840.113549.1.9.1': 'EMAIL'
+};
+const nameDnPart = (part) => part.replace(/^([0-9.]+)=/, (all, oid) => DN_NAMES[oid] ? `${DN_NAMES[oid]}=` : all);
+
+export function renderDn(dn) {
+    return dn.split(/,\s*(?=[A-Za-z0-9.]+=)/)
+        .map((part, i, parts) => `<span class="dn-part">${escapeHtml(nameDnPart(part))}${i < parts.length - 1 ? ',' : ''}</span>`)
+        .join(' ');
+}
+
+/** Renders a single certificate as a compact row whose details open below it. */
+export function renderCertificateItem(cert) {
+    const source = SOURCES[cert.source] ?? { name: cert.source || 'Unknown', icon: 'file-key' };
+    const status = getCertStatus(cert);
+    const muted = status.tone === '' ? ' is-muted' : '';
+    const subject = cert.subject || '';
+    const meta = [cert.issuer, cert.validTo && `until ${formatDate(cert.validTo)}`].filter(Boolean).map(escapeHtml).join(' · ');
+
     return `
-        <div class="certificate-item ${disabledClass}" 
-             data-fingerprint="${escapeHtml(cert.fingerprint)}" 
-             ${disabledReason ? `title="${escapeHtml(disabledReason)}"` : ''}>
-            <div class="cert-header">
-                <div>
-                    <div class="cert-name">${escapeHtml(cert.name || 'Unknown Certificate')}</div>
-                    <span class="cert-type-badge ${cert.source}">${getCertTypeName(cert.source)}</span>
-                    ${!cert.canSign ? '<span class="cert-warning-badge" title="No private key - cannot sign">⚠ View Only</span>' : ''}
-                </div>
-                <span class="cert-status ${statusClass}">
-                    ${statusText}
+        <details class="certificate-item cert-row${muted}" data-fingerprint="${escapeAttr(cert.fingerprint)}">
+            <summary class="list-row">
+                <span class="list-row-icon">${iconSvg(source.icon)}</span>
+                <span class="list-row-text">
+                    <span class="list-row-title cert-name">${escapeHtml(cert.name || 'Unnamed certificate')}</span>
+                    <span class="list-row-sub"><span class="pill cert-source">${escapeHtml(source.name)}</span><span class="cert-meta">${meta}</span></span>
                 </span>
-            </div>
-            <div class="cert-details">
-                <div class="cert-detail-row">
-                    <span class="cert-detail-label">Subject:</span>
-                    <span>${escapeHtml(cert.subject || 'N/A')}</span>
-                </div>
-                <div class="cert-detail-row">
-                    <span class="cert-detail-label">Issuer:</span>
-                    <span>${escapeHtml(cert.issuer || 'Unknown')}</span>
-                </div>
-                <div class="cert-detail-row">
-                    <span class="cert-detail-label">Valid Until:</span>
-                    <span>${formatDate(cert.validTo)}</span>
-                </div>
-                ${includeCapabilities && cert.keyUsage && cert.keyUsage.length > 0 ? `
-                    <div class="cert-capabilities">
-                        ${cert.keyUsage.map(usage => `<span class="cert-capability">${escapeHtml(usage)}</span>`).join('')}
-                    </div>
-                ` : ''}
-            </div>
-        </div>
+                <span class="pill cert-status ${status.tone}"${status.reason ? ` title="${escapeAttr(status.reason)}"` : ''}>${escapeHtml(status.text)}</span>
+                ${iconSvg('chevron-down', 'icon-sm disclosure')}
+            </summary>
+            <dl class="cert-details">
+                ${status.note ? `<dt>Status</dt><dd>${escapeHtml(status.reason)}</dd>` : ''}
+                <dt>Subject</dt>
+                <dd class="cert-dn-cell">
+                    <code class="cert-dn">${subject ? renderDn(subject) : 'Unknown'}</code>
+                    ${subject ? `<button type="button" class="icon-btn sm" data-copy="${escapeAttr(subject)}" data-tip="Copy subject" aria-label="Copy subject">${iconSvg('copy', 'icon-sm')}</button>` : ''}
+                </dd>
+                <dt>Issuer</dt><dd>${escapeHtml(cert.issuer || 'Unknown')}</dd>
+                <dt>Valid</dt><dd>${escapeHtml(formatDate(cert.validFrom))} to ${escapeHtml(formatDate(cert.validTo))}</dd>
+            </dl>
+        </details>
     `;
 }
 
 /** Renders a list of certificates as HTML. */
-export function renderCertificateList(certificates, options = {}) {
+export function renderCertificateList(certificates) {
     if (!certificates || certificates.length === 0) {
-        return `
-            <div class="empty-state">
-                <p>No certificates found</p>
-            </div>
-        `;
+        return '<div class="empty-state"><p>No certificates found</p></div>';
     }
-
-    return `
-        <div class="certificate-list">
-            ${certificates.map(cert => renderCertificateItem(cert, options)).join('')}
-        </div>
-    `;
-}
-
-/** Attaches click handlers to certificate items for selection. */
-export function attachCertificateHandlers(container, certificates, onSelect) {
-    const certItems = container.querySelectorAll('.certificate-item:not(.invalid)');
-    
-    certItems.forEach(item => {
-        item.addEventListener('click', () => {
-            // Deselect all
-            certItems.forEach(i => i.classList.remove('selected'));
-            
-            // Select this one
-            item.classList.add('selected');
-            
-            // Find and call callback with selected certificate
-            const fingerprint = item.dataset.fingerprint;
-            const cert = certificates.find(c => c.fingerprint === fingerprint);
-            if (cert && onSelect) {
-                onSelect(cert);
-            }
-        });
-    });
-
-    // Auto-select first valid certificate
-    if (certItems.length > 0) {
-        const firstItem = certItems[0];
-        firstItem.classList.add('selected');
-        const fingerprint = firstItem.dataset.fingerprint;
-        const cert = certificates.find(c => c.fingerprint === fingerprint);
-        if (cert && onSelect) {
-            onSelect(cert);
-        }
-    }
+    return certificates.map((cert) => renderCertificateItem(cert)).join('');
 }

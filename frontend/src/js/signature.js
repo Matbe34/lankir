@@ -1,687 +1,783 @@
 import { state, getActivePDF } from './state.js';
-import { updateStatus, escapeHtml, formatDate, debugLog, sanitizeError } from './utils.js';
-import { createPDFTab, switchToTab } from './pdfManager.js';
-import { loadPageThumbnails, loadSignatureInfo } from './pdfOperations.js';
-import { showMessage, showConfirm } from './messageDialog.js';
-import { renderCertificateList as renderCertList, attachCertificateHandlers } from './certificateRenderer.js';
+import { updateStatus, escapeHtml, sanitizeError } from './utils.js';
+import { openRecentFile, saveTab, closeTab, refreshDirty } from './documents.js';
+import { showConfirm, showChoice } from './messageDialog.js';
+import { getSetting, setSetting, openSettings } from './settings.js';
+import { startPlacement } from './signaturePlacement.js';
+import { stampParts, stampDate } from './stampPreview.js';
+import { updatePageRoom } from './pageRoom.js';
+import { SignatureService, PDFService } from './backend.js';
+import { iconSvg } from './icons.js';
+import { escapeAttr, renderDn, formatDate, parseCertDate } from './certificateRenderer.js';
+import { copyText } from './certificates.js';
+import { bindMenu, closeOpenMenu } from './menus.js';
+import { showToast } from './toast.js';
 
-/** Initiates PDF signing workflow. */
+const WRONG_PIN = /incorrect PIN or password/i;
+
+// The open sign panel: its tab, the certificates and profiles it offers, the
+// chosen certificate and the live signature box of a visible profile. Set
+// while certificates load too, so a second Sign does nothing.
+let panel = null;
+// Bumped when the panel closes or reopens, so a slow load can tell it is stale.
+let panelSeq = 0;
+
+const panelEl = () => document.getElementById('signPanel');
+const byId = (id) => document.getElementById(id);
+
+const canSign = (cert) => cert.isValid && cert.canSign;
+
+/** The signed copy's name next to the original: <name>_signed.pdf. */
+function signedName(fileName) {
+    return fileName.replace(/\.pdf$/i, '') + '_signed.pdf';
+}
+
+/**
+ * A file name on one line that loses its middle when it doesn't fit: the end
+ * of the name and the extension stay ("Master Servi…eement_signed.pdf").
+ */
+function destName(name) {
+    const cut = Math.max(0, name.replace(/_signed\.pdf$/i, '').length - 6);
+    return `<span id="signDest" class="path dock-dest" data-tip="${escapeAttr(name)}">`
+        + `<span class="path-head">${escapeHtml(name.slice(0, cut))}</span>`
+        + `<span class="path-tail">${escapeHtml(name.slice(cut))}</span></span>`;
+}
+
+/** The calendar day of a Go time string ("2029-03-02 09:00:00 +0000 UTC"). */
+function parseDay(text) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(text || '');
+    return m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : null;
+}
+
+const formatDay = (date) => date.toLocaleDateString([], { day: 'numeric', month: 'short', year: 'numeric' });
+
+function certSource(cert) {
+    switch (cert.source) {
+        case 'pkcs11': return /\bDNIE\b/i.test(cert.issuer || '') ? 'DNIe' : 'Smart card';
+        case 'pkcs12':
+        case 'User File': return 'File';
+        case 'nss':
+        case 'NSS Database': return 'NSS database';
+        case 'Windows Certificate Store': return 'Windows store';
+        default: return cert.source || 'Certificate';
+    }
+}
+
+const DAY = 86400000;
+
+/**
+ * The line under a certificate's name: where it lives and until when, or why
+ * it can't sign. tone 'warning' when it expires within a month.
+ */
+function certMeta(cert) {
+    const source = certSource(cert);
+    const until = parseDay(cert.validTo);
+    if (!cert.canSign) return { text: "Can't sign: no private key" };
+    if (!cert.isValid) {
+        const from = parseDay(cert.validFrom);
+        if (from && from > new Date()) return { text: `Not valid until ${formatDay(from)}` };
+        return { text: until ? `Expired ${formatDay(until)}` : "Can't sign: not valid" };
+    }
+    // A locked .p12 is only read when signing supplies its password.
+    if (!until) return { text: cert.fingerprint?.startsWith('file:') ? 'Password-protected file' : source };
+    const days = Math.ceil((until - new Date()) / DAY);
+    if (days <= 30) return { text: `${source} · expires ${days === 1 ? 'tomorrow' : `in ${days} days`}`, tone: 'warning' };
+    return { text: `${source} · until ${formatDay(until)}` };
+}
+
+/**
+ * The holder's name in parts that never break inside ("DNI 12345678Z"): a line
+ * may end only after a " - " separator, each part ellipsizes on its own.
+ */
+function nameParts(name) {
+    return name.split(/ - /)
+        .map((part, i, parts) => `<span class="name-part">${escapeHtml(part)}${i < parts.length - 1 ? '<span class="name-sep"> -</span>' : ''}</span>`)
+        .join(' ');
+}
+
+/** Marks the name parts that end a line, so the " -" left dangling after them can be hidden. */
+function markNameBreaks(root) {
+    for (const part of root.querySelectorAll('.name-part')) {
+        const next = part.nextElementSibling;
+        part.classList.toggle('is-line-end', !!next && next.offsetTop > part.offsetTop);
+    }
+}
+
+const certName = (cert) => cert.name || 'Unnamed certificate';
+
+function certText(cert) {
+    const meta = certMeta(cert);
+    return `<span class="option-text"><span class="option-title">${nameParts(certName(cert))}</span>`
+        + `<span class="option-meta${meta.tone ? ` is-${meta.tone}` : ''}">${escapeHtml(meta.text)}</span></span>`;
+}
+
+/** Signs the active tab: opens the sign panel, saving unsaved edits first. */
 export async function signPDF() {
-    try {
-        updateStatus('Preparing to sign PDF...');
-
-        const activePDF = getActivePDF();
-        if (!activePDF) {
-            updateStatus('No PDF loaded');
-            return;
-        }
-
-        // Load and show profile selection first
-        await showProfileSelection(activePDF.filePath);
-
-    } catch (error) {
-        console.error('Error signing PDF:', error);
-        await showMessage(
-            `Failed to initiate signing:\n\n${sanitizeError(error)}`,
-            'Signing Error',
-            'error'
-        );
-        updateStatus('Ready');
+    // One panel at a time; it stays open until signed or cancelled.
+    if (panel || !panelEl().classList.contains('hidden')) return;
+    const tab = getActivePDF();
+    if (!tab?.pdfDocument) {
+        updateStatus('No PDF loaded');
+        showToast('Open a PDF to sign it');
+        return;
     }
-}
-
-/** Shows profile selection dialog for signing. */
-async function showProfileSelection(pdfPath) {
-    const dialog = document.getElementById('profileDialog');
-    const profileSelect = document.getElementById('profileSelectMain');
-    const profileDescription = document.getElementById('profileDescriptionMain');
-    const nextBtn = document.getElementById('profileDialogNext');
-    const cancelBtn = document.getElementById('profileDialogCancel');
-    const closeBtn = document.getElementById('profileDialogClose');
-
-    try {
-        // Show dialog
-        dialog.classList.remove('hidden');
-
-        // Load signature profiles
-        const profiles = await window.go.signature.SignatureService.ListSignatureProfiles();
-
-        // Populate profile select
-        profileSelect.innerHTML = profiles.map(profile => {
-            const defaultLabel = profile.isDefault ? ' (Default)' : '';
-            return `<option value="${profile.id}" ${profile.isDefault ? 'selected' : ''}>${profile.name}${defaultLabel}</option>`;
-        }).join('');
-
-        // Store in state for later use
-        state.availableProfiles = profiles;
-        state.pdfPath = pdfPath;
-
-        // Select default profile
-        const defaultProfile = profiles.find(p => p.isDefault) || profiles[0];
-        if (defaultProfile) {
-            state.selectedProfile = defaultProfile;
-            profileDescription.textContent = defaultProfile.description;
-        }
-
-        // Handle profile selection change
-        profileSelect.onchange = (e) => {
-            const profileId = e.target.value;
-            const selectedProfile = profiles.find(p => p.id === profileId);
-            if (selectedProfile) {
-                state.selectedProfile = selectedProfile;
-                profileDescription.textContent = selectedProfile.description;
-            }
-        };
-
-        // Handle next button
-        nextBtn.onclick = async () => {
-            dialog.classList.add('hidden');
-
-            if (state.selectedProfile.visibility === 'visible') {
-                await showSignaturePlacement(pdfPath, state.selectedProfile);
-            } else {
-                await showCertificateDialog(pdfPath);
-            }
-        };
-
-        // Handle cancel/close
-        const closeDialog = () => {
-            dialog.classList.add('hidden');
-            state.selectedProfile = null;
-            state.pdfPath = null;
-        };
-
-        cancelBtn.onclick = closeDialog;
-        closeBtn.onclick = closeDialog;
-
-    } catch (error) {
-        console.error('Error loading profiles:', error);
-        await showMessage(`Error loading signature profiles:\n\n${error}`, 'Error', 'error');
+    if (refreshDirty(tab) && !(await saveFirst(tab))) {
+        updateStatus('Signing cancelled');
+        return;
     }
-}
+    // The user may have moved on while it saved.
+    if (tab.closed || state.activeTabId !== tab.id) return;
 
-/**
- * Show signature placement overlay for visible signatures
- */
-async function showSignaturePlacement(pdfPath, profile) {
-    const overlay = document.getElementById('signaturePlacementOverlay');
-    const rectangle = document.getElementById('signatureRectangle');
-    const confirmBtn = document.getElementById('placementConfirm');
-    const cancelBtn = document.getElementById('placementCancel');
-    const pdfViewer = document.getElementById('pdfViewer');
+    const seq = ++panelSeq;
+    panel = { tab, loading: true };
+    // The viewer calls this when the tab is hidden or closed.
+    tab.cancelPlacement = closeSignPanel;
+    showPanel(panelShell(`<div class="empty-state" role="status"><span class="spinner"></span><p>Loading certificates…</p></div>`));
 
-    // Show overlay
-    overlay.classList.remove('hidden');
-
-    // State for signature placement
-    let isDrawing = false;
-    let isDragging = false;
-    let isResizing = false;
-    let startX = 0;
-    let startY = 0;
-    let rectData = null;
-
-    // Get PDF viewer bounds and current page
-    const viewerRect = pdfViewer.getBoundingClientRect();
-    const activePDF = getActivePDF();
-
-    // Mouse down - start drawing
-    const onMouseDown = (e) => {
-        if (e.target.closest('.placement-header') || e.target.closest('.btn')) {
-            return;
-        }
-
-        const rect = rectangle.getBoundingClientRect();
-        const isOnRect = !rectangle.classList.contains('hidden') &&
-            e.clientX >= rect.left && e.clientX <= rect.right &&
-            e.clientY >= rect.top && e.clientY <= rect.bottom;
-
-        // Check if clicking on resize handle
-        const isOnHandle = isOnRect &&
-            e.clientX >= rect.right - 20 && e.clientY >= rect.bottom - 20;
-
-        if (isOnHandle) {
-            isResizing = true;
-            startX = e.clientX;
-            startY = e.clientY;
-        } else if (isOnRect) {
-            isDragging = true;
-            startX = e.clientX - rect.left;
-            startY = e.clientY - rect.top;
-        } else {
-            isDrawing = true;
-            startX = e.clientX;
-            startY = e.clientY;
-            rectangle.style.left = startX + 'px';
-            rectangle.style.top = startY + 'px';
-            rectangle.style.width = '0px';
-            rectangle.style.height = '0px';
-            rectangle.classList.remove('hidden');
-        }
-    };
-
-    // Mouse move - update rectangle
-    const onMouseMove = (e) => {
-        if (isDrawing) {
-            const width = e.clientX - startX;
-            const height = e.clientY - startY;
-            rectangle.style.width = Math.abs(width) + 'px';
-            rectangle.style.height = Math.abs(height) + 'px';
-            rectangle.style.left = (width < 0 ? e.clientX : startX) + 'px';
-            rectangle.style.top = (height < 0 ? e.clientY : startY) + 'px';
-        } else if (isDragging) {
-            rectangle.style.left = (e.clientX - startX) + 'px';
-            rectangle.style.top = (e.clientY - startY) + 'px';
-        } else if (isResizing) {
-            const rect = rectangle.getBoundingClientRect();
-            const newWidth = Math.max(20, rect.width + (e.clientX - startX));
-            const newHeight = Math.max(10, rect.height + (e.clientY - startY));
-            rectangle.style.width = newWidth + 'px';
-            rectangle.style.height = newHeight + 'px';
-            startX = e.clientX;
-            startY = e.clientY;
-        }
-
-        // Enable confirm button if rectangle has size
-        if (!rectangle.classList.contains('hidden')) {
-            const rect = rectangle.getBoundingClientRect();
-            confirmBtn.disabled = rect.width < 10 || rect.height < 5;
-        }
-    };
-
-    // Mouse up - finish drawing
-    const onMouseUp = () => {
-        isDrawing = false;
-        isDragging = false;
-        isResizing = false;
-    };
-
-    // Cleanup function
-    const cleanup = () => {
-        document.removeEventListener('mousedown', onMouseDown);
-        document.removeEventListener('mousemove', onMouseMove);
-        document.removeEventListener('mouseup', onMouseUp);
-        overlay.classList.add('hidden');
-        rectangle.classList.add('hidden');
-    };
-
-    // Event listeners
-    document.addEventListener('mousedown', onMouseDown);
-    document.addEventListener('mousemove', onMouseMove);
-    document.addEventListener('mouseup', onMouseUp);
-
-    // Cancel button
-    cancelBtn.onclick = () => {
-        cleanup();
-        updateStatus('Signature placement cancelled');
-    };
-
-    // Confirm button
-    confirmBtn.onclick = async () => {
-        try {
-            const rect = rectangle.getBoundingClientRect();
-
-            // Convert screen coordinates to PDF coordinates
-            const pdfCoords = await convertScreenToPDFCoordinates(rect, viewerRect, activePDF);
-
-            // Validate coordinates before storing
-            if (!pdfCoords || typeof pdfCoords.page !== 'number' ||
-                typeof pdfCoords.x !== 'number' || typeof pdfCoords.y !== 'number' ||
-                typeof pdfCoords.width !== 'number' || typeof pdfCoords.height !== 'number' ||
-                isNaN(pdfCoords.page) || isNaN(pdfCoords.x) || isNaN(pdfCoords.y) ||
-                isNaN(pdfCoords.width) || isNaN(pdfCoords.height) ||
-                pdfCoords.page < 1 || pdfCoords.x < 0 || pdfCoords.y < 0 ||
-                pdfCoords.width <= 0 || pdfCoords.height <= 0) {
-                throw new Error('Invalid signature coordinates');
-            }
-
-            // Store position in state
-            state.signaturePosition = pdfCoords;
-
-            cleanup();
-
-            // Continue to certificate selection
-            await showCertificateDialog(pdfPath);
-        } catch (error) {
-            console.error('Error confirming placement:', error);
-            updateStatus('Error: ' + sanitizeError(error));
-            cleanup();
-        }
-    };
-}
-
-/**
- * Convert screen coordinates to PDF coordinates
- */
-async function convertScreenToPDFCoordinates(rect, viewerRect, activePDF) {
+    let certs, profiles;
     try {
-        // Get the current zoom level
-        const zoom = state.zoomLevel || 1.0;
-
-        // Determine which page - find the page that contains the signature rectangle
-        let targetPage = 1;
-        let targetPageImg = null;
-
-        // Check all visible pages to find which one contains the signature
-        const allPageImgs = document.querySelectorAll('.pdf-page');
-        for (const pageImg of allPageImgs) {
-            const imgRect = pageImg.getBoundingClientRect();
-            // Check if rectangle center is within this page
-            const rectCenterY = rect.top + rect.height / 2;
-            if (rectCenterY >= imgRect.top && rectCenterY <= imgRect.bottom) {
-                targetPageImg = pageImg;
-                // Get page number from data attribute
-                const pageAttr = pageImg.getAttribute('data-page');
-                if (pageAttr !== null) {
-                    targetPage = parseInt(pageAttr) + 1;
-                }
-                break;
-            }
-        }
-
-        // If no page found, use current page
-        if (!targetPageImg) {
-            targetPage = activePDF?.currentPage >= 0 ? activePDF.currentPage + 1 : 1;
-            targetPageImg = document.querySelector('.pdf-page');
-        }
-
-        if (!targetPageImg) {
-            return fallbackCoordinateConversion(rect, viewerRect, zoom, targetPage);
-        }
-
-        // Get actual page dimensions from backend
-        const dimensions = await window.go.pdf.PDFService.GetPageDimensions(targetPage - 1);
-        const pdfWidth = dimensions.width;
-        const pdfHeight = dimensions.height;
-
-        const imgRect = targetPageImg.getBoundingClientRect();
-
-        // Calculate scaling between rendered image and PDF points
-        const scaleX = pdfWidth / imgRect.width;
-        const scaleY = pdfHeight / imgRect.height;
-
-        // Calculate position relative to the PDF page image
-        const relativeX = rect.left - imgRect.left;
-        const relativeY = rect.top - imgRect.top;
-
-        // Convert to PDF coordinates (origin at bottom-left)
-        // The Y coordinate must be from the BOTTOM of the page
-        const x = relativeX * scaleX;
-        const y = pdfHeight - (relativeY * scaleY) - (rect.height * scaleY);
-        const width = rect.width * scaleX;
-        const height = rect.height * scaleY;
-
-        debugLog('Coordinate conversion:', {
-            screen: { x: rect.left, y: rect.top, w: rect.width, h: rect.height },
-            img: { x: imgRect.left, y: imgRect.top, w: imgRect.width, h: imgRect.height },
-            relative: { x: relativeX, y: relativeY },
-            scale: { x: scaleX, y: scaleY },
-            pdfDims: { w: pdfWidth, h: pdfHeight },
-            pdf: { x, y, width, height, page: targetPage }
-        });
-
-        return {
-            page: targetPage,
-            x: Math.max(0, Math.min(x, pdfWidth - width)),
-            y: Math.max(0, Math.min(y, pdfHeight - height)),
-            width: width,
-            height: height
-        };
+        [certs, profiles] = await Promise.all([SignatureService.ListCertificates(), SignatureService.ListSignatureProfiles()]);
     } catch (error) {
-        console.error('Error converting coordinates:', error);
-        // Fallback
-        const zoom = state.zoomLevel || 1.0;
-        const page = activePDF?.currentPage >= 0 ? activePDF.currentPage + 1 : 1;
-        return fallbackCoordinateConversion(rect, viewerRect, zoom, page);
+        if (seq === panelSeq) renderLoadError(sanitizeError(error));
+        return;
     }
+    if (seq !== panelSeq) return;
+    certs = certs || [];
+    Object.assign(panel, {
+        loading: false,
+        // The ones that can sign first; the rest are listed, disabled, with the reason.
+        certs: [...certs.filter(canSign), ...certs.filter((c) => !canSign(c))],
+        signable: certs.filter(canSign),
+        profiles: profiles || [],
+        placing: null,
+        busy: false
+    });
+    renderPanel();
 }
 
-/**
- * Fallback coordinate conversion when page image not available
- */
-function fallbackCoordinateConversion(rect, viewerRect, zoom, page) {
-    const pdfWidth = 595;
-    const pdfHeight = 842;
-
-    const relativeX = rect.left - viewerRect.left;
-    const relativeY = rect.top - viewerRect.top;
-
-    const x = (relativeX / zoom);
-    const y = pdfHeight - (relativeY / zoom) - (rect.height / zoom);
-    const width = rect.width / zoom;
-    const height = rect.height / zoom;
-
-    return {
-        page: page,
-        x: Math.max(0, x),
-        y: Math.max(0, y),
-        width: width,
-        height: height
-    };
+/** Signing works on the file on disk, so unsaved edits must be written first. */
+async function saveFirst(tab) {
+    const choice = await showChoice(
+        `"${tab.fileName}" has unsaved changes. Save them before signing?`,
+        'Unsaved changes',
+        [{ label: 'Cancel', value: 'cancel' }, { label: 'Save and Sign', value: 'save', primary: true }]
+    );
+    return choice === 'save' && (await saveTab(tab.id));
 }
 
-/**
- * Show certificate selection dialog
- */
-export async function showCertificateDialog(pdfPath) {
-    const dialog = document.getElementById('certDialog');
-    const listContainer = document.getElementById('certificateListContainer');
-    const signBtn = document.getElementById('certDialogSign');
+/** Closes the sign panel and removes its box from the page, unless it is signing. */
+export function closeSignPanel() {
+    if (panel?.busy) return;
+    if (panel) {
+        panel.placing?.stop();
+        if (panel.tab.cancelPlacement === closeSignPanel) delete panel.tab.cancelPlacement;
+    }
+    panel = null;
+    panelSeq++;
+    closeOpenMenu();
+    const el = panelEl();
+    el.classList.add('hidden');
+    el.innerHTML = '';
+    byId('signBtn')?.setAttribute('aria-pressed', 'false');
+    updatePageRoom();
+}
 
-    // Reset certificate state (keep profile from previous step)
-    state.selectedCertificate = null;
-    signBtn.disabled = true;
+function showPanel(html) {
+    const el = panelEl();
+    el.innerHTML = html;
+    el.classList.remove('hidden');
+    byId('signBtn')?.setAttribute('aria-pressed', 'true');
+    updatePageRoom();
+    byId('signCancelX').onclick = closeSignPanel;
+}
 
-    // Show loading state
-    listContainer.innerHTML = `
-        <div class="empty-state">
-            <div class="loading-spinner"></div>
-            <p>Loading certificates...</p>
-        </div>
-    `;
-
-    // Show dialog
-    dialog.classList.remove('hidden');
-
-    try {
-        // Load certificates from backend
-        const certificates = await window.go.signature.SignatureService.ListCertificates();
-
-        if (!certificates || certificates.length === 0) {
-            listContainer.innerHTML = `
-                <div class="empty-state">
-                    <p>No certificates found</p>
-                    <p style="font-size: 0.875rem; color: var(--text-secondary); margin-top: 0.5rem;">
-                        Please ensure you have a valid certificate installed in your system or connected via smart card.
-                    </p>
-                </div>
-            `;
-            return;
-        }
-
-        // Filter to show certificates, exclude root CAs (self-signed)
-        const signingCerts = certificates.filter(cert => {
-            // Exclude root CAs (self-signed certificates where issuer == subject)
-            if (cert.issuer === cert.subject) return false;
-
-            return true;
-        });
-
-        // Sort: signable certificates first, then by validity
-        signingCerts.sort((a, b) => {
-            // First priority: can sign + valid
-            const aCanUse = a.canSign && a.isValid;
-            const bCanUse = b.canSign && b.isValid;
-            if (aCanUse && !bCanUse) return -1;
-            if (!aCanUse && bCanUse) return 1;
-
-            // Second priority: can sign (even if expired)
-            if (a.canSign && !b.canSign) return -1;
-            if (!a.canSign && b.canSign) return 1;
-
-            // Third priority: valid (even if can't sign)
-            if (a.isValid && !b.isValid) return -1;
-            if (!a.isValid && b.isValid) return 1;
-
-            return 0;
-        });
-
-        if (signingCerts.length === 0) {
-            listContainer.innerHTML = `
-                <div class="empty-state">
-                    <p>No certificates found</p>
-                    <p style="font-size: 0.875rem; color: var(--text-secondary); margin-top: 0.5rem;">
-                        Found ${certificates.length} certificate(s), but they are all root CAs or system certificates.
-                    </p>
-                </div>
-            `;
-            return;
-        }
-
-        // Count usable certificates
-        const usableCerts = signingCerts.filter(c => c.canSign && c.isValid).length;
-
-        debugLog(`Found ${signingCerts.length} certificates, ${usableCerts} can be used for signing`);
-
-        // Render certificate list
-        renderCertificateList(signingCerts, pdfPath);
-
-    } catch (error) {
-        console.error('Error loading certificates:', error);
-        listContainer.innerHTML = `
-            <div class="empty-state">
-                <p>Error loading certificates</p>
-                <p style="font-size: 0.875rem; color: var(--text-secondary); margin-top: 0.5rem;">
-                    ${error}
-                </p>
+function panelShell(body, footer = '') {
+    const fileName = panel?.tab?.fileName ?? '';
+    return `
+        <div class="dock-head">
+            <div class="dock-heading">
+                <h2 id="signPanelTitle" class="dock-title">Sign document</h2>
+                <p class="dock-sub" title="${escapeHtml(fileName)}">${escapeHtml(fileName)}</p>
             </div>
-        `;
+            <button id="signCancelX" class="icon-btn" aria-label="Close" data-tip="Close" data-keys="Esc">${iconSvg('x')}</button>
+        </div>
+        <div class="dock-body">${body}</div>
+        ${footer ? `<div class="dock-foot">${footer}</div>` : ''}`;
+}
+
+function renderLoadError(message) {
+    showPanel(panelShell(`
+        <div class="empty-state">
+            ${iconSvg('circle-alert')}
+            <p class="empty-state-title">Couldn't load certificates</p>
+            <p>${escapeHtml(message)}</p>
+        </div>`));
+}
+
+function renderEmpty() {
+    showPanel(panelShell(`
+        <div class="empty-state">
+            ${iconSvg('key-round')}
+            <p class="empty-state-title">No signing certificate found</p>
+            <p>Lankir looks in .p12 and .pfx files, smart cards and the system NSS database. Point it to yours in Settings.</p>
+            <button id="signOpenCertSettings" class="btn btn-primary">Open certificate settings</button>
+        </div>`));
+    byId('signOpenCertSettings').onclick = () => {
+        closeSignPanel();
+        openSettings('certificates');
+    };
+}
+
+function renderPanel() {
+    const { tab, certs, signable, profiles } = panel;
+    if (signable.length === 0) {
+        renderEmpty();
+        return;
     }
-}
 
-/**
- * Render certificate list in dialog
- */
-export function renderCertificateList(certificates, pdfPath) {
-    const listContainer = document.getElementById('certificateListContainer');
-    const signBtn = document.getElementById('certDialogSign');
+    const lastCert = getSetting('lastCertificateFingerprint');
+    panel.certFp = (signable.find((c) => c.fingerprint === lastCert) || signable[0]).fingerprint;
+    const lastProfile = getSetting('lastSignatureProfileId');
+    const profile = profiles.find((p) => p.id === lastProfile) || profiles.find((p) => p.isDefault) || profiles[0];
+    const single = signable.length === 1;
 
-    const html = renderCertList(certificates, {
-        selectable: true,
-        showExpiry: false,
-        includeCapabilities: true
-    });
-    
-    listContainer.innerHTML = html;
+    const certField = single
+        ? `<span class="field-label">Certificate</span>
+           <div id="signCertSummary" class="cert-summary" data-tip="${escapeAttr(certName(signable[0]))}">${certText(signable[0])}</div>`
+        : `<span class="field-label" id="signCertLabel">Certificate</span>
+           <button type="button" id="signCertButton" class="select-btn" aria-haspopup="menu" aria-expanded="false" aria-controls="signCertMenu" aria-labelledby="signCertLabel signCertButton"></button>
+           <div id="signCertMenu" class="menu hidden" role="menu" aria-label="Certificate"></div>`;
 
-    attachCertificateHandlers(listContainer, certificates, (cert) => {
-        state.selectedCertificate = cert;
-        signBtn.disabled = false;
-    });
+    showPanel(panelShell(`
+        <div class="dock-field">${certField}</div>
+        <div class="dock-field">
+            <label class="field-label" for="signProfileSelect">Profile</label>
+            <select id="signProfileSelect" class="input" aria-describedby="signProfileHint"></select>
+            <p id="signProfileHint" class="field-hint"></p>
+        </div>
+        <div class="dock-field" id="signPinRow">
+            <label class="field-label" id="signPinLabel" for="signPinInput">PIN or password</label>
+            <div class="input-group">
+                <input type="password" id="signPinInput" autocomplete="off" spellcheck="false" aria-describedby="signPinError">
+                <button type="button" id="signPinToggle" class="icon-btn sm" aria-label="Show PIN" aria-pressed="false" data-tip="Show PIN">${iconSvg('eye')}</button>
+            </div>
+            <p id="signPinError" class="field-error" role="alert"></p>
+        </div>
+        <div class="dock-field">
+            <p class="field-hint">Saved next to the original as</p>
+            ${destName(signedName(tab.fileName))}
+            <button id="signSaveAs" class="btn btn-ghost btn-inline">${iconSvg('folder-open')}Save signed copy as…</button>
+        </div>
+        <p id="signError" class="field-error" role="alert"></p>`,
+    `
+        <button id="signCancel" class="btn">Cancel</button>
+        <button id="signSubmit" class="btn btn-primary">Sign</button>`));
 
-    // Store pdfPath for signing
-    signBtn.dataset.pdfPath = pdfPath;
-}
+    if (single) markNameBreaks(byId('signCertSummary'));
+    else {
+        const menu = byId('signCertMenu');
+        menu.append(...certs.map((cert) => {
+            const option = document.createElement('button');
+            option.type = 'button';
+            option.className = 'menu-item menu-item-2l';
+            option.setAttribute('role', 'menuitemradio');
+            // Set through the DOM: fingerprints are file paths and can hold any character.
+            option.dataset.fingerprint = cert.fingerprint;
+            option.disabled = !canSign(cert);
+            option.innerHTML = certText(cert);
+            return option;
+        }));
+        const button = byId('signCertButton');
+        bindMenu(button, menu, {
+            // The list is as wide as the field.
+            onOpen: () => {
+                menu.style.width = `${button.offsetWidth}px`;
+                markNameBreaks(menu);
+            },
+            focusItem: () => menu.querySelector('[aria-checked="true"]')
+        });
+        menu.addEventListener('click', (e) => {
+            const option = e.target.closest('[role="menuitemradio"]');
+            if (!option || option.disabled) return;
+            panel.certFp = option.dataset.fingerprint;
+            showCert();
+            updateFields();
+            const profile = selectedProfile();
+            if (panel.placing && profile) panel.placing.setStamp(stampOf(profile));
+            button.focus();
+        });
+        showCert();
+    }
 
-/**
- * Close certificate dialog
- */
-export function closeCertificateDialog() {
-    const dialog = document.getElementById('certDialog');
-    dialog.classList.add('hidden');
-    state.selectedCertificate = null;
-    // Keep selectedProfile and signaturePosition for the signing workflow
-}
+    // Values set through the DOM: profile ids come from the user's config.
+    const select = byId('signProfileSelect');
+    select.append(...profiles.map((p) => Object.assign(document.createElement('option'), { value: p.id, textContent: p.name })));
+    if (profile) select.value = profile.id;
+    select.onchange = () => {
+        syncPlacement();
+        showError('');
+    };
 
-async function showPINDialog(certName, isOptional) {
-    return new Promise((resolve, reject) => {
-        const dialog = document.getElementById('pinDialog');
-        const input = document.getElementById('pinDialogInput');
-        const message = document.getElementById('pinDialogMessage');
-        const okBtn = document.getElementById('pinDialogOk');
-        const cancelBtn = document.getElementById('pinDialogCancel');
-        const closeBtn = document.getElementById('pinDialogClose');
+    const pinInput = byId('signPinInput');
+    pinInput.addEventListener('input', () => showPinError(''));
+    byId('signPinToggle').onclick = () => {
+        const show = pinInput.type === 'password';
+        pinInput.type = show ? 'text' : 'password';
+        const toggle = byId('signPinToggle');
+        toggle.setAttribute('aria-pressed', String(show));
+        toggle.innerHTML = iconSvg(show ? 'eye-off' : 'eye');
+        toggle.dataset.tip = show ? 'Hide PIN' : 'Show PIN';
+        toggle.setAttribute('aria-label', toggle.dataset.tip);
+    };
 
-        if (isOptional) {
-            message.textContent = `Enter PIN/password for "${certName}" or leave empty if not required.`;
-        } else {
-            message.textContent = `Enter PIN/password for "${certName}".`;
+    byId('signCancel').onclick = closeSignPanel;
+    byId('signSubmit').onclick = () => submit(false);
+    byId('signSaveAs').onclick = () => submit(true);
+    panelEl().onkeydown = (e) => {
+        if (e.key === 'Enter' && e.target.tagName !== 'BUTTON') {
+            e.preventDefault();
+            submit(false);
         }
+    };
+    updateFields();
+    syncPlacement();
+    (selectedCert().requiresPin ? pinInput : byId('signCertButton') || select).focus({ preventScroll: true });
+}
 
-        input.value = '';
-        input.type = 'password';
+const selectedCert = () => panel.signable.find((c) => c.fingerprint === panel.certFp);
+const selectedProfile = () => panel.profiles.find((p) => p.id === byId('signProfileSelect').value);
 
-        dialog.classList.remove('hidden');
-        input.focus();
+/** Shows the chosen certificate in the picker and checks it in the list. */
+function showCert() {
+    const button = byId('signCertButton');
+    button.innerHTML = certText(selectedCert());
+    button.dataset.tip = certName(selectedCert());
+    markNameBreaks(button);
+    for (const option of byId('signCertMenu').children) {
+        option.setAttribute('aria-checked', String(option.dataset.fingerprint === panel.certFp));
+    }
+}
 
-        const handleOk = () => {
-            const pin = input.value;
-            input.value = '';
-            input.type = 'text'; // Reset type to clear internal buffers
-            input.type = 'password';
-            cleanup();
-            resolve(pin);
-        };
+function updateFields() {
+    const cert = selectedCert();
+    byId('signPinRow').hidden = !(cert.requiresPin || cert.pinOptional);
+    byId('signPinLabel').textContent = cert.requiresPin ? 'PIN or password' : 'PIN or password (optional)';
+    showPinError('');
+    showError('');
+}
 
-        const handleCancel = () => {
-            input.value = '';
-            input.type = 'text';
-            input.type = 'password';
-            cleanup();
-            reject(new Error('PIN entry cancelled'));
-        };
+/** Puts the box of a visible profile on the page, or takes it off for an invisible one. */
+function syncPlacement() {
+    const profile = selectedProfile();
+    const hint = byId('signProfileHint');
+    panel.placing?.stop();
+    panel.placing = null;
+    if (profile?.visibility !== 'visible') {
+        hint.textContent = 'Not drawn on the page; PDF readers list it in their signature panel.';
+        return;
+    }
+    panel.placing = startPlacement(panel.tab, profile, {
+        onChange: (page) => { hint.textContent = `Drag the box on page ${page} to move it, or its corner to resize.`; },
+        avoid: () => panelEl().getBoundingClientRect(),
+        stamp: stampOf(profile)
+    });
+    panel.placing.reveal();
+}
 
-        const handleKeyPress = (e) => {
-            if (e.key === 'Enter') {
-                handleOk();
-            } else if (e.key === 'Escape') {
-                handleCancel();
-            }
-        };
-
-        const cleanup = () => {
-            dialog.classList.add('hidden');
-            input.removeEventListener('keypress', handleKeyPress);
-            okBtn.removeEventListener('click', handleOk);
-            cancelBtn.removeEventListener('click', handleCancel);
-            closeBtn.removeEventListener('click', handleCancel);
-        };
-
-        input.addEventListener('keypress', handleKeyPress);
-        okBtn.addEventListener('click', handleOk);
-        cancelBtn.addEventListener('click', handleCancel);
-        closeBtn.addEventListener('click', handleCancel);
+/** What the profile's stamp draws when the chosen certificate signs now. */
+function stampOf(profile) {
+    const cert = selectedCert();
+    // With the lookup on, the location comes from the IP address at signing time.
+    const location = getSetting('signatureLocationLookup') ? 'From your IP address when signing' : profile.location;
+    return stampParts(profile.appearance, {
+        signerName: cert?.name || cert?.subject || '', date: stampDate(), location, iconDataUrl: profile.appearance?.logoPath || null
     });
 }
 
-/**
- * Perform the actual PDF signing operation
- */
-export async function performSigning() {
-    const signBtn = document.getElementById('certDialogSign');
-    const pdfPath = signBtn.dataset.pdfPath;
+function showError(message) {
+    byId('signError').textContent = message;
+}
 
-    if (!state.selectedCertificate) {
-        updateStatus('No certificate selected');
+function showPinError(message) {
+    byId('signPinError').textContent = message;
+    const input = byId('signPinInput');
+    if (message) input.setAttribute('aria-invalid', 'true');
+    else input.removeAttribute('aria-invalid');
+}
+
+function setBusy(busy) {
+    panel.busy = busy;
+    for (const id of ['signSubmit', 'signSaveAs', 'signProfileSelect', 'signCertButton', 'signPinInput', 'signPinToggle', 'signCancel', 'signCancelX']) {
+        const el = byId(id);
+        if (el) el.disabled = busy;
+    }
+    const submitBtn = byId('signSubmit');
+    submitBtn.setAttribute('aria-busy', String(busy));
+    submitBtn.innerHTML = busy ? '<span class="spinner" aria-hidden="true"></span>Signing…' : 'Sign';
+}
+
+async function submit(saveAs) {
+    if (!panel || panel.loading || panel.busy) return;
+    const current = panel;
+    const { tab } = current;
+    const cert = selectedCert();
+    const profile = selectedProfile();
+    const pinInput = byId('signPinInput');
+    const pin = pinInput.value;
+
+    if (cert.requiresPin && !pin) {
+        showPinError('Enter the PIN or password for this certificate.');
+        pinInput.focus();
         return;
     }
+    // The page stays usable while the panel is open, so it may have been edited since.
+    if (refreshDirty(tab) && (!(await saveFirst(tab)) || panel !== current)) return;
 
-    if (!state.selectedProfile) {
-        updateStatus('No signature profile selected');
-        return;
+    let outputPath = '';
+    if (saveAs) {
+        const target = await PDFService.ChooseSavePath(tab.docId, signedName(tab.fileName));
+        if (!target || panel !== current) return;
+        if (target.path === tab.filePath) {
+            showError('Choose a different file than the document being signed.');
+            return;
+        }
+        if (target.exists && !(await showConfirm('A file with that name already exists in the folder. Replacing it overwrites its contents.',
+            `Replace “${target.path.split(/[/\\]/).pop()}”?`, { confirmLabel: 'Replace', danger: true }))) return;
+        if (panel !== current) return;
+        outputPath = target.path;
     }
 
+    setBusy(true);
+    updateStatus('Signing…');
     try {
-        signBtn.disabled = true;
-        signBtn.innerHTML = '<span class="loading-spinner"></span> Signing...';
-        updateStatus('Signing PDF...');
-
-        let pin = '';
-        let signedPath;
-
-        if (state.selectedCertificate.pinOptional && !state.selectedCertificate.requiresPin) {
-            try {
-                if (state.signaturePosition && state.selectedProfile.visibility === 'visible') {
-                    signedPath = await window.go.signature.SignatureService.SignPDFWithProfileAndPosition(
-                        pdfPath,
-                        state.selectedCertificate.fingerprint,
-                        '',
-                        state.selectedProfile.id,
-                        state.signaturePosition
-                    );
-                } else {
-                    signedPath = await window.go.signature.SignatureService.SignPDFWithProfile(
-                        pdfPath,
-                        state.selectedCertificate.fingerprint,
-                        '',
-                        state.selectedProfile.id
-                    );
-                }
-            } catch (error) {
-                try {
-                    pin = await showPINDialog(state.selectedCertificate.name, true);
-                } catch (pinError) {
-                    signBtn.disabled = false;
-                    signBtn.innerHTML = 'Sign PDF';
-                    return;
-                }
-                signedPath = null;
-            }
-        } else if (state.selectedCertificate.requiresPin) {
-            try {
-                pin = await showPINDialog(
-                    state.selectedCertificate.name,
-                    state.selectedCertificate.pinOptional
-                );
-            } catch (error) {
-                signBtn.disabled = false;
-                signBtn.innerHTML = 'Sign PDF';
-                return;
-            }
-        }
-
-        if (!signedPath) {
-            if (state.signaturePosition && state.selectedProfile.visibility === 'visible') {
-                signedPath = await window.go.signature.SignatureService.SignPDFWithProfileAndPosition(
-                    pdfPath,
-                    state.selectedCertificate.fingerprint,
-                    pin,
-                    state.selectedProfile.id,
-                    state.signaturePosition
-                );
-            } else {
-                signedPath = await window.go.signature.SignatureService.SignPDFWithProfile(
-                    pdfPath,
-                    state.selectedCertificate.fingerprint,
-                    pin,
-                    state.selectedProfile.id
-                );
-            }
-        }
-
-        signBtn.disabled = false;
-        signBtn.innerHTML = 'Sign PDF';
-
-        // Close dialog
-        closeCertificateDialog();
-
-        // Clear state
-        state.signaturePosition = null;
-        state.pdfPath = null;
-
-        // Show success message
-        const profileType = state.selectedProfile.visibility === 'visible' ? 'visible' : 'invisible';
-        updateStatus(`PDF signed successfully with ${profileType} signature: ${signedPath}`);
-
-        // Optionally open the signed PDF
-        const openSigned = await showConfirm(
-            `PDF signed successfully with ${profileType} signature!\n\nSigned file: ${signedPath}\n\nWould you like to open the signed PDF?`,
-            'Success'
-        );
-        if (openSigned) {
-            await openSignedPDF(signedPath);
-        }
-
+        const signedPath = await SignatureService.SignPDF({
+            pdfPath: tab.filePath,
+            outputPath,
+            certFingerprint: cert.fingerprint,
+            pin,
+            profileId: profile.id,
+            position: profile.visibility === 'visible' ? current.placing.position() : null,
+            tsaUrl: getSetting('tsaUrl') || ''
+        });
+        if (panel !== current) return;
+        current.busy = false;
+        closeSignPanel();
+        updateStatus(`Signed: ${signedPath}`);
+        showToast(`Signed and saved as ${signedPath.split(/[/\\]/).pop()}`, { tone: 'success' });
+        // SignPDF saved the choice in Go; keep this window's copy in step.
+        setSetting('lastCertificateFingerprint', cert.fingerprint);
+        setSetting('lastSignatureProfileId', profile.id);
+        await openSignedPDF(signedPath);
     } catch (error) {
         console.error('Error signing PDF:', error);
-        await showMessage(`Error signing PDF:\n\n${error}`, 'Signature Error', 'error');
-        updateStatus('Error signing PDF');
-
-        // Re-enable button
-        signBtn.disabled = false;
-        signBtn.innerHTML = 'Sign PDF';
+        if (panel !== current) return;
+        setBusy(false);
+        updateStatus('Signing failed');
+        const message = error?.message ?? String(error);
+        if (WRONG_PIN.test(message) && !byId('signPinRow').hidden) {
+            pinInput.value = '';
+            showPinError('Wrong PIN or password. Try again.');
+            pinInput.focus();
+        } else {
+            showError(`Signing failed: ${sanitizeError(error)}`);
+        }
     }
 }
 
-/**
- * Open a signed PDF file
- */
-async function openSignedPDF(filePath) {
+
+/** Opens a signed PDF in a tab, replacing a tab that still shows an overwritten file. */
+export async function openSignedPDF(filePath) {
     try {
-        // Import the openRecentFile function which already has duplicate checking
-        const { openRecentFile } = await import('./pdfOperations.js');
+        const stale = [...state.openPDFs.values()].find((tab) => tab.filePath === filePath);
+        if (stale && !(await closeTab(stale.id))) return;
         await openRecentFile(filePath);
     } catch (error) {
         console.error('Error opening signed PDF:', error);
+    }
+}
+
+const revocationTurnedOff = (sig) => sig.revocationStatus === 'not_checked' && /turned off in settings/i.test(sig.revocationCheck || '');
+
+function explain(sig) {
+    if (!sig.isValid) {
+        return 'The document was changed after this signature was made, or the signature is damaged.';
+    }
+    if (sig.revocationStatus === 'revoked') {
+        return 'The document is unchanged since it was signed, but the signer\'s certificate was revoked, so the signature can\'t be trusted.';
+    }
+    if (sig.certificateValid && sig.revocationStatus === 'revoked_later') {
+        return 'The document is unchanged since it was signed, and a trusted timestamp shows it was signed before the signer\'s certificate was revoked.';
+    }
+    if (sig.certificateValid && sig.revocationStatus === 'good') {
+        return 'The document is unchanged since it was signed, and the signer\'s certificate is trusted.';
+    }
+    if (sig.certificateValid && revocationTurnedOff(sig)) {
+        return 'The document is unchanged since it was signed and the signer\'s certificate is trusted, but whether it was revoked wasn\'t checked: online checks are off in Settings.';
+    }
+    if (sig.certificateValid) {
+        return 'The document is unchanged since it was signed and the signer\'s certificate is trusted, but Lankir couldn\'t confirm the certificate is not revoked.';
+    }
+    return 'The document is unchanged since it was signed, but the signer\'s certificate is not trusted by this system, so the signer\'s identity is not confirmed.';
+}
+
+/** "9 Nov 2026, 12:32" in the user's locale; the raw text if it isn't a date. */
+function formatSigningTime(iso) {
+    const date = new Date(iso);
+    return Number.isNaN(date.getTime()) ? iso : date.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
+}
+
+function signatureStatus(sig) {
+    if (!sig.isValid) return { tone: 'invalid', icon: 'shield-x', text: 'Invalid signature' };
+    if (sig.revocationStatus === 'revoked') return { tone: 'invalid', icon: 'shield-x', text: 'Certificate revoked' };
+    if (sig.certificateValid && sig.revocationStatus === 'revoked_later') return { tone: 'untrusted', icon: 'triangle-alert', text: 'Valid, certificate revoked after signing' };
+    if (sig.certificateValid && sig.revocationStatus === 'good') return { tone: 'valid', icon: 'shield-check', text: 'Valid, certificate trusted' };
+    if (sig.certificateValid && revocationTurnedOff(sig)) return { tone: 'untrusted', icon: 'triangle-alert', text: 'Valid, revocation not checked' };
+    if (sig.certificateValid) return { tone: 'untrusted', icon: 'triangle-alert', text: 'Valid, revocation couldn\'t be checked' };
+    return { tone: 'untrusted', icon: 'triangle-alert', text: 'Valid, certificate not trusted' };
+}
+
+const fact = (label, value, extra = '') => value ? `<div class="fact${extra}"><dt>${label}</dt><dd>${value}</dd></div>` : '';
+
+/** A wide fact in mono text, wrapping only at its separators, copied whole from a button on its label row. */
+function copyFact(label, html, text, what) {
+    if (!text) return '';
+    return `<div class="fact fact-wide fact-copy"><dt>${label}`
+        + `<button type="button" class="icon-btn sm" data-copy="${escapeAttr(text)}" data-tip="Copy ${what}" aria-label="Copy ${what}">${iconSvg('copy', 'icon-sm')}</button></dt>`
+        + `<dd><code class="cert-dn">${html}</code></dd></div>`;
+}
+
+const TIME_SOURCES = {
+    timestamp: 'A trusted timestamp',
+    signer: 'The signer\'s computer, not verified'
+};
+
+function timestampText(sig) {
+    const time = sig.timestampTime ? `${formatSigningTime(sig.timestampTime)}, ` : '';
+    switch (sig.timestampStatus) {
+        case 'valid': return time ? `${time}trusted` : 'Trusted';
+        case 'untrusted': return time ? `${time}not trusted` : 'Not trusted';
+        case 'invalid': return 'Invalid';
+        default: return 'None';
+    }
+}
+
+/** "Expired" or "Not valid yet" beside the certificate's dates, when either is so. */
+function validityFlag(sig) {
+    const now = Date.now();
+    const until = parseCertDate(sig.certificateValidUntil);
+    const from = parseCertDate(sig.certificateValidFrom);
+    if (until && until < now) return ' <span class="pill warning">Expired</span>';
+    if (from && from > now) return ' <span class="pill warning">Not valid yet</span>';
+    return '';
+}
+
+/** The chain from the signer up, ending at the issuer the PDF names last. */
+function chainNodes(sig) {
+    const chain = sig.chain || [];
+    const nodes = chain.map((c, i) => ({ name: c.subject, role: i === 0 ? 'Signer' : c.subject === c.issuer ? 'Root' : 'Intermediate' }));
+    const last = chain[chain.length - 1];
+    if (last && last.issuer !== last.subject) nodes.push({ name: last.issuer, role: 'Not in the PDF' });
+    return nodes;
+}
+
+function renderChain(sig) {
+    const nodes = chainNodes(sig);
+    if (!nodes.length) return '';
+    const marks = nodes.map((node, i) => ({ icon: i === 0 ? 'id-card' : 'shield', tone: '', role: node.role }));
+    const end = marks[marks.length - 1];
+    Object.assign(end, sig.issuerTrusted || sig.certificateValid
+        ? { icon: 'shield-check', tone: 'success', role: `${end.role}, trusted` }
+        : { icon: 'shield-alert', tone: 'warning', role: `${end.role}, not trusted` });
+    if (sig.revocationStatus === 'revoked') {
+        Object.assign(marks[0], { icon: 'shield-x', tone: 'danger', role: `${marks[0].role}, revoked` });
+    }
+    return `<ol class="signature-chain">${nodes.map((node, i) => `<li class="signature-chain-node${marks[i].tone ? ` ${marks[i].tone}` : ''}">`
+        + `<span class="signature-chain-icon">${iconSvg(marks[i].icon, 'icon-sm')}</span>`
+        + `<span class="signature-chain-text"><span class="signature-chain-name">${escapeHtml(node.name)}</span>`
+        + `<span class="signature-chain-role">${escapeHtml(marks[i].role)}</span></span></li>`).join('')}</ol>`;
+}
+
+const TONE_ICONS = { success: 'circle-check', warning: 'triangle-alert', danger: 'circle-x' };
+
+/** Why revocation wasn't checked, without the "Not checked" the row's title already says. */
+function notCheckedReason(text) {
+    const reason = /^Not checked(?:: | \()(.+?)\)?$/.exec(text || '')?.[1];
+    if (reason) return reason[0].toUpperCase() + reason.slice(1);
+    return text === 'Not checked' ? '' : text;
+}
+
+function revocationCheck(sig) {
+    switch (sig.revocationStatus) {
+        case 'good': return ['success', 'Not revoked', [sig.revocationCheck]];
+        case 'revoked': return ['danger', 'Certificate revoked', [sig.certificateValidationMessage, sig.revocationCheck]];
+        // Only a trusted certificate's revocation date was checked.
+        case 'revoked_later': return sig.certificateValid
+            ? ['warning', 'Certificate revoked after signing', [sig.revocationCheck]]
+            : ['warning', 'Revocation not checked', []];
+        case 'unavailable': return ['warning', 'Couldn\'t check revocation', [sig.revocationCheck]];
+        default: return ['warning', 'Revocation not checked', [notCheckedReason(sig.revocationCheck)]];
+    }
+}
+
+function renderChecks(sig) {
+    const revoked = sig.revocationStatus === 'revoked';
+    const checks = [
+        sig.isValid
+            ? ['success', 'Document unchanged since signing', []]
+            : ['danger', 'Document changed or signature damaged', [sig.validationMessage]],
+        sig.issuerTrusted || sig.certificateValid
+            ? ['success', 'Issued by a trusted authority', []]
+            // A revoked certificate's message is about the revocation, shown below.
+            : ['warning', 'Certificate not trusted', revoked ? [] : [sig.certificateValidationMessage]],
+        revocationCheck(sig),
+        ...(sig.warnings || []).map((warning) => ['warning', warning, []])
+    ];
+    return `<ul class="signature-checks">${checks.map(([tone, title, details]) => `<li class="signature-check" data-tone="${tone}">`
+        + `<span class="signature-check-icon">${iconSvg(TONE_ICONS[tone], 'icon-sm')}</span>`
+        + `<span class="signature-check-text"><span class="signature-check-title">${escapeHtml(title)}</span>`
+        + details.filter(Boolean).map((detail) => `<span class="signature-check-detail">${escapeHtml(detail)}</span>`).join('')
+        + '</span></li>').join('')}</ul>`;
+}
+
+function moreGroup(id, title, body) {
+    return body ? `<section class="signature-more-group" aria-labelledby="${id}"><h4 id="${id}" class="signature-more-title">${title}</h4>${body}</section>` : '';
+}
+
+/** Everything else about a signature, behind See more. */
+function renderMore(sig, id) {
+    const signature = [
+        fact('Time source', TIME_SOURCES[sig.signingTimeSource] || 'Not recorded'),
+        fact('Timestamp', escapeHtml(timestampText(sig))),
+        fact('Contact', escapeHtml(sig.contactInfo || ''))
+    ].join('');
+    const validity = sig.certificateValidFrom || sig.certificateValidUntil
+        ? `<span class="fact-date">${escapeHtml(formatDate(sig.certificateValidFrom))} –</span> <span class="fact-date">${escapeHtml(formatDate(sig.certificateValidUntil))}</span>${validityFlag(sig)}`
+        : '';
+    const certificate = [
+        copyFact('Subject', sig.signerDN && renderDn(sig.signerDN), sig.signerDN, 'subject'),
+        copyFact('Serial', escapeHtml(sig.certificateSerial || '').replaceAll(':', ':<wbr>'), sig.certificateSerial, 'serial number'),
+        fact('Issuer', escapeHtml(sig.issuerName || '')),
+        fact('Key', escapeHtml(sig.keyAlgorithm || '')),
+        fact('Signature algorithm', escapeHtml(sig.signatureType || '')),
+        fact('Valid', validity, ' fact-wide')
+    ].join('');
+    return `<div class="signature-more" id="${id}" hidden>`
+        + moreGroup(`${id}-signature`, 'Signature', `<dl class="facts">${signature}</dl>`)
+        + moreGroup(`${id}-certificate`, 'Signer certificate', certificate && `<dl class="facts">${certificate}</dl>`)
+        + moreGroup(`${id}-chain`, 'Certificate chain', renderChain(sig))
+        + moreGroup(`${id}-checks`, 'Checks', renderChecks(sig))
+        + '</div>';
+}
+
+function setMoreOpen(button, open) {
+    button.setAttribute('aria-expanded', String(open));
+    button.querySelector('span').textContent = open ? 'See less' : 'See more';
+    document.getElementById(button.getAttribute('aria-controls')).hidden = !open;
+}
+
+/** HTML for the Signatures section of the side panel's Info segment. */
+export function renderSignatureList(signatures) {
+    if (!signatures?.length) return '<p class="info-empty">No signatures</p>';
+    return signatures.map((sig, i) => {
+        const status = signatureStatus(sig);
+        const facts = [
+            fact('Signed', sig.signingTime ? escapeHtml(formatSigningTime(sig.signingTime)) : ''),
+            fact('Reason', escapeHtml(sig.reason || '')),
+            fact('Location', escapeHtml(sig.location || ''))
+        ].join('');
+        const id = `signatureMore${i}`;
+        return `
+            <div class="signature-item ${status.tone}">
+                <div class="signature-signer">${escapeHtml(sig.signerName || 'Unknown signer')}</div>
+                <div class="signature-status ${status.tone}">${iconSvg(status.icon, 'icon-sm')}<span>${status.text}</span></div>
+                <p class="signature-explain">${explain(sig)}</p>
+                ${facts ? `<dl class="facts">${facts}</dl>` : ''}
+                <button type="button" class="disclosure-btn signature-more-btn" data-signature="${i}" aria-expanded="false" aria-controls="${id}"><span>See more</span>${iconSvg('chevron-down', 'icon-sm')}</button>
+                ${renderMore(sig, id)}
+            </div>`;
+    }).join('');
+}
+
+// The signatures opened with See more in the shown document; the set lives on
+// its tab, so it lasts while the document stays open.
+let openSignatures = new Set();
+
+function onSignatureInfoClick(event) {
+    const more = event.target.closest('.signature-more-btn');
+    if (more) {
+        const open = more.getAttribute('aria-expanded') !== 'true';
+        setMoreOpen(more, open);
+        if (open) openSignatures.add(more.dataset.signature);
+        else openSignatures.delete(more.dataset.signature);
+        return;
+    }
+    const copy = event.target.closest('[data-copy]');
+    if (copy) copyText(copy.dataset.copy, copy.closest('.fact')?.querySelector('code'));
+}
+
+function showSignatures(container, signatures, pdfPath) {
+    const tab = [...state.openPDFs.values()].find((t) => t.filePath === pdfPath);
+    openSignatures = tab ? (tab.openSignatures ??= new Set()) : new Set();
+    container.innerHTML = renderSignatureList(signatures);
+    container.querySelectorAll('.signature-more-btn').forEach((button) => {
+        if (openSignatures.has(button.dataset.signature)) setMoreOpen(button, true);
+    });
+    if (!container.dataset.bound) {
+        container.dataset.bound = '1';
+        container.addEventListener('click', onSignatureInfoClick);
+    }
+}
+
+let signatureRequest = 0;
+
+// Switching online revocation checks in Settings checks the open document again.
+let revocationOnline;
+document.addEventListener('settings-applied', () => {
+    const online = getSetting('checkRevocationOnline');
+    const changed = revocationOnline !== undefined && online !== revocationOnline;
+    revocationOnline = online;
+    const tab = getActivePDF();
+    if (changed && tab?.filePath) loadSignatureInfo(tab.filePath);
+});
+
+/** A dot on the side panel's Info segment while a signature needs attention. */
+function markInfoSegment(tone) {
+    const segment = document.querySelector('.tab-btn[data-tab="signatures"]');
+    if (!segment) return;
+    if (tone) {
+        segment.dataset.attention = tone;
+        segment.setAttribute('aria-description', tone === 'danger' ? 'A signature is invalid' : 'A signature needs attention');
+    } else {
+        delete segment.dataset.attention;
+        segment.removeAttribute('aria-description');
+    }
+}
+
+/** Empties the Signatures section, dropping any check still running, for a document not loaded yet. */
+export function clearSignatureInfo() {
+    signatureRequest++;
+    const container = document.getElementById('signatureInfo');
+    if (container) container.innerHTML = '';
+    markInfoSegment(null);
+}
+
+/** Shows the signatures of the PDF at pdfPath in the sidebar. */
+export async function loadSignatureInfo(pdfPath) {
+    const container = document.getElementById('signatureInfo');
+    if (!container) return;
+    const request = ++signatureRequest;
+    container.innerHTML = '<div class="empty-state"><div class="spinner"></div><p>Checking signatures…</p></div>';
+    markInfoSegment(null);
+    try {
+        const signatures = await SignatureService.VerifySignatures(pdfPath);
+        if (request !== signatureRequest) return;
+        showSignatures(container, signatures, pdfPath);
+        const tones = (signatures || []).map((sig) => signatureStatus(sig).tone);
+        markInfoSegment(tones.includes('invalid') ? 'danger' : tones.includes('untrusted') ? 'warning' : null);
+    } catch (error) {
+        console.error('Error loading signature info:', error);
+        if (request === signatureRequest) {
+            container.innerHTML = `<div class="empty-state"><p>Couldn't check signatures</p><p class="setting-hint">${escapeHtml(sanitizeError(error))}</p></div>`;
+        }
     }
 }

@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -37,7 +36,6 @@ var signPDFCmd = &cobra.Command{
 			ExitWithError("failed to initialize config service", err)
 		}
 		service := signature.NewSignatureService(cfgService)
-		service.Startup(context.Background())
 
 		var cert *types.Certificate
 
@@ -103,9 +101,10 @@ var signPDFCmd = &cobra.Command{
 
 		if cert.RequiresPin || (cert.PinOptional && signPin != "") {
 			if signPin == "" {
-				fmt.Print("Enter PIN: ")
-				var pin string
-				fmt.Scanln(&pin)
+				pin, err := readHidden(cmd, "Enter PIN: ")
+				if err != nil {
+					ExitWithError("failed to read PIN", err)
+				}
 				signPin = pin
 			}
 		}
@@ -131,15 +130,21 @@ var signPDFCmd = &cobra.Command{
 
 		GetLogger().Info("signing PDF", "input", inputPath)
 
-		generatedPath, err := service.SignPDFWithProfileAndPosition(inputPath, cert.Fingerprint, signPin, profileID, position)
-		if err != nil {
-			ExitWithError("failed to sign PDF", err)
+		tsaURL := signTSA
+		if !cmd.Flags().Changed("tsa") {
+			tsaURL = cfgService.Get().TSAURL
 		}
 
-		if generatedPath != outputPath {
-			if err := os.Rename(generatedPath, outputPath); err != nil {
-				ExitWithError(fmt.Sprintf("failed to move signed file from %s to %s", generatedPath, outputPath), err)
-			}
+		if _, err := service.SignPDF(signature.SignRequest{
+			PDFPath:         inputPath,
+			OutputPath:      outputPath,
+			CertFingerprint: cert.Fingerprint,
+			PIN:             signPin,
+			ProfileID:       profileID,
+			Position:        position,
+			TSAURL:          tsaURL,
+		}); err != nil {
+			ExitWithError("failed to sign PDF", err)
 		}
 
 		fmt.Printf("Successfully signed PDF: %s\n", outputPath)
@@ -163,7 +168,6 @@ var signVerifyCmd = &cobra.Command{
 			ExitWithError("failed to initialize config service", err)
 		}
 		service := signature.NewSignatureService(cfgService)
-		service.Startup(context.Background())
 
 		GetLogger().Info("verifying signatures", "file", SanitizePath(pdfPath))
 
@@ -192,13 +196,14 @@ var signVerifyCmd = &cobra.Command{
 				fmt.Printf("  Signer DN:      %s\n", sig.SignerDN)
 				fmt.Printf("  Signing Time:   %s\n", sig.SigningTime)
 				fmt.Printf("  Signature Type: %s\n", sig.SignatureType)
-				fmt.Printf("  Hash Algorithm: %s\n", sig.SigningHashAlgorithm)
+				fmt.Printf("  Key Algorithm:  %s\n", sig.KeyAlgorithm)
 				fmt.Printf("  Valid:          %v\n", sig.IsValid)
 				fmt.Printf("  Cert Valid:     %v\n", sig.CertificateValid)
 				fmt.Printf("  Validation:     %s\n", sig.ValidationMessage)
 				if sig.CertificateValidationMessage != "" {
 					fmt.Printf("  Cert Status:    %s\n", sig.CertificateValidationMessage)
 				}
+				fmt.Printf("  Revocation:     %s (%s)\n", sig.RevocationStatus, sig.RevocationCheck)
 				if sig.Reason != "" {
 					fmt.Printf("  Reason:         %s\n", sig.Reason)
 				}
@@ -224,7 +229,6 @@ var signProfileListCmd = &cobra.Command{
 			ExitWithError("failed to initialize config service", err)
 		}
 		service := signature.NewSignatureService(cfgService)
-		service.Startup(context.Background())
 
 		GetLogger().Info("listing signature profiles")
 
@@ -283,7 +287,6 @@ var signProfileInfoCmd = &cobra.Command{
 			ExitWithError("failed to initialize config service", err)
 		}
 		service := signature.NewSignatureService(cfgService)
-		service.Startup(context.Background())
 
 		GetLogger().Info("retrieving profile info", "id", profileID)
 
@@ -342,6 +345,7 @@ var (
 	signWidth           float64
 	signHeight          float64
 	signVisible         bool
+	signTSA             string
 )
 
 func init() {
@@ -363,6 +367,7 @@ func init() {
 	signPDFCmd.Flags().Float64Var(&signHeight, "height", 100, "signature height")
 
 	signPDFCmd.Flags().BoolVar(&signVisible, "visible", true, "create a visible signature")
+	signPDFCmd.Flags().StringVar(&signTSA, "tsa", "", "RFC 3161 timestamp server URL (default: the tsaUrl setting)")
 
 	signVerifyCmd.Flags().BoolVarP(&jsonOutput, "json", "j", false, "output in JSON format")
 	signProfileListCmd.Flags().BoolVarP(&jsonOutput, "json", "j", false, "output in JSON format")

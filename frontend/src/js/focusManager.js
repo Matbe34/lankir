@@ -1,131 +1,56 @@
-let previouslyFocusedElement = null;
+// Focus for dialogs: keep Tab inside the open one and give focus back to where
+// it was when it closes.
+const FOCUSABLE = [
+    'a[href]',
+    'button:not([disabled])',
+    'textarea:not([disabled])',
+    'input:not([disabled]):not([type="hidden"])',
+    'select:not([disabled])',
+    'summary',
+    '[tabindex]:not([tabindex="-1"])'
+].join(', ');
 
-/** Returns all focusable elements within a container. */
-function getFocusableElements(container) {
-    const focusableSelectors = [
-        'a[href]',
-        'button:not([disabled])',
-        'textarea:not([disabled])',
-        'input:not([disabled]):not([type="hidden"])',
-        'select:not([disabled])',
-        '[tabindex]:not([tabindex="-1"])'
-    ].join(', ');
-    
-    return Array.from(container.querySelectorAll(focusableSelectors));
+/** The elements Tab can reach inside container, in order. */
+export function getFocusableElements(container) {
+    return [...container.querySelectorAll(FOCUSABLE)].filter((el) => !el.closest('.hidden, [hidden], details:not([open]) > :not(summary)'));
 }
 
-/** Traps keyboard focus within a modal dialog. */
-export function trapFocus(modalElement) {
-    const focusableElements = getFocusableElements(modalElement);
-    
-    if (focusableElements.length === 0) return null;
-    
-    const firstElement = focusableElements[0];
-    const lastElement = focusableElements[focusableElements.length - 1];
-    
-    // Handle Tab key to trap focus
-    const handleTab = (e) => {
+/**
+ * Keeps Tab and Shift+Tab inside container, from wherever focus is, even
+ * outside it. Returns a function that stops it.
+ */
+export function trapFocus(container) {
+    const onKeyDown = (e) => {
         if (e.key !== 'Tab') return;
-        
-        if (e.shiftKey) {
-            // Shift+Tab: move to last element if at first
-            if (document.activeElement === firstElement) {
-                e.preventDefault();
-                lastElement.focus();
-            }
-        } else {
-            // Tab: move to first element if at last
-            if (document.activeElement === lastElement) {
-                e.preventDefault();
-                firstElement.focus();
-            }
+        const items = getFocusableElements(container);
+        if (items.length === 0) {
+            e.preventDefault();
+            return;
+        }
+        const first = items[0];
+        const last = items[items.length - 1];
+        const inside = container.contains(document.activeElement);
+        if (e.shiftKey && (!inside || document.activeElement === first)) {
+            e.preventDefault();
+            last.focus();
+        } else if (!e.shiftKey && (!inside || document.activeElement === last)) {
+            e.preventDefault();
+            first.focus();
         }
     };
-    
-    modalElement.addEventListener('keydown', handleTab);
-    
-    // Return cleanup function
+    document.addEventListener('keydown', onKeyDown, true);
+    return () => document.removeEventListener('keydown', onKeyDown, true);
+}
+
+/**
+ * Remembers what has focus now and returns a function that gives it back.
+ * An item of a menu that has since closed hands back to the menu's button.
+ */
+export function rememberFocus() {
+    let el = document.activeElement;
+    const menu = el?.closest?.('[role="menu"]');
+    if (menu?.id) el = document.querySelector(`[aria-controls="${menu.id}"]`) ?? el;
     return () => {
-        modalElement.removeEventListener('keydown', handleTab);
-    };
-}
-
-/** Releases focus trap by calling the cleanup function. */
-export function releaseFocus(cleanupFn) {
-    if (cleanupFn && typeof cleanupFn === 'function') {
-        cleanupFn();
-    }
-}
-
-/** Opens a modal with focus management and returns cleanup function. */
-export function openModal(modalId) {
-    const modal = document.getElementById(modalId);
-    if (!modal) return null;
-    
-    // Save current focus
-    previouslyFocusedElement = document.activeElement;
-    
-    // Show modal
-    modal.classList.remove('hidden');
-    
-    // Set up focus trap
-    const cleanup = trapFocus(modal);
-    
-    // Focus first focusable element
-    setTimeout(() => {
-        const focusableElements = getFocusableElements(modal);
-        if (focusableElements.length > 0) {
-            // Try to focus first input, otherwise first button
-            const firstInput = focusableElements.find(el => 
-                el.tagName === 'INPUT' || el.tagName === 'TEXTAREA'
-            );
-            (firstInput || focusableElements[0]).focus();
-        }
-    }, 100);
-    
-    return cleanup;
-}
-
-/** Closes a modal and restores previous focus. */
-export function closeModal(modalId, cleanupFn) {
-    const modal = document.getElementById(modalId);
-    if (!modal) return;
-    
-    // Hide modal
-    modal.classList.add('hidden');
-    
-    // Clean up focus trap
-    if (cleanupFn) {
-        cleanupFn();
-    }
-    
-    // Restore previous focus
-    if (previouslyFocusedElement && previouslyFocusedElement.focus) {
-        previouslyFocusedElement.focus();
-    }
-    
-    previouslyFocusedElement = null;
-}
-
-/** Sets up Escape key handler for closing a modal. */
-export function setupModalEscapeHandler(modalId, onClose) {
-    const modal = document.getElementById(modalId);
-    if (!modal) return null;
-    
-    const handleEscape = (e) => {
-        if (e.key === 'Escape' || e.key === 'Esc') {
-            if (!modal.classList.contains('hidden')) {
-                e.preventDefault();
-                e.stopPropagation();
-                onClose();
-            }
-        }
-    };
-    
-    document.addEventListener('keydown', handleEscape);
-    
-    // Return cleanup function
-    return () => {
-        document.removeEventListener('keydown', handleEscape);
+        if (el && el !== document.body && el.isConnected && typeof el.focus === 'function') el.focus({ preventScroll: true });
     };
 }

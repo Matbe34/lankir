@@ -1,128 +1,54 @@
-import { showMessage, showConfirm } from './messageDialog.js';
+// Errors in words people use: what failed in the title, why in plain words,
+// and the raw error text kept under "Details" for anyone who needs it.
+import { showDialog } from './messageDialog.js';
 
-/** Retries an async operation with exponential backoff. */
-export async function retryWithBackoff(fn, options = {}) {
-    const {
-        maxAttempts = 3,
-        delayMs = 1000,
-        backoffMultiplier = 2,
-        shouldRetry = () => true
-    } = options;
-    
-    let lastError;
-    let delay = delayMs;
-    
-    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-        try {
-            return await fn();
-        } catch (error) {
-            lastError = error;
-            
-            // Check if we should retry
-            if (attempt >= maxAttempts || !shouldRetry(error)) {
-                throw error;
-            }
-            
-            // Wait before retrying
-            console.log(`Attempt ${attempt} failed, retrying in ${delay}ms...`);
-            await new Promise(resolve => setTimeout(resolve, delay));
-            
-            // Increase delay for next attempt
-            delay *= backoffMultiplier;
-        }
-    }
-    
-    throw lastError;
+const REASONS = [
+    [/permission denied|EACCES|access is denied|operation not permitted/i, 'You don’t have permission to read this file.'],
+    [/no such file|ENOENT|cannot find the file|does not exist|MissingPDF/i, 'The file isn’t there any more. It may have been moved, renamed or deleted.'],
+    [/is a directory|not a regular file/i, 'That’s a folder or a special file, not a PDF.'],
+    [/too large/i, 'The file is too large to open.'],
+    [/InvalidPDF|Invalid PDF|not a PDF|bad XRef|startxref|malformed|corrupt/i, 'The file is damaged or isn’t a PDF.'],
+    [/read-only|EROFS/i, 'The file is read-only.'],
+    [/no space left|ENOSPC/i, 'There’s no space left on the disk.']
+];
+
+/** The error's own text: its message, or the error itself when it is a string. */
+export function errorText(error) {
+    if (typeof error === 'string') return error;
+    return error?.message || String(error ?? 'Unknown error');
 }
 
-/** Shows an error dialog with retry option, returns true if retried. */
-export async function showErrorWithRetry(message, retryFn, title = 'Error') {
-    const userWantsRetry = await showConfirm(
-        `${message}\n\nWould you like to try again?`,
-        title
-    );
-    
-    if (userWantsRetry && retryFn) {
-        try {
-            await retryFn();
-            return true;
-        } catch (error) {
-            // If retry also fails, show error without retry option
-            await showMessage(
-                `Operation failed again: ${error.message}`,
-                'Retry Failed',
-                'error'
-            );
-            return false;
-        }
-    }
-    
-    return userWantsRetry;
+/** A plain-words reason for a known error, or null. */
+export function plainReason(error) {
+    const text = `${error?.name ?? ''} ${errorText(error)}`;
+    return REASONS.find(([pattern]) => pattern.test(text))?.[1] ?? null;
 }
 
-/** Wraps an async function with automatic retry on failure. */
-export function withRetry(fn, options = {}) {
-    return async function(...args) {
-        return retryWithBackoff(() => fn.apply(this, args), options);
-    };
+const baseName = (path) => path.split(/[/\\]/).pop();
+
+/** The file a Go error names ("open /x/a.pdf: …", "stat /x/a.pdf: …"), or null. */
+function fileNamed(error) {
+    const match = /\b(?:open|stat|lstat|read)\s+(.+?\.pdf):\s/i.exec(errorText(error));
+    return match ? baseName(match[1]) : null;
 }
 
-/** Checks if an error is retryable (network, timeout, etc.). */
-export function isRetryableError(error) {
-    const retryablePatterns = [
-        /network/i,
-        /timeout/i,
-        /connection/i,
-        /ECONNREFUSED/i,
-        /ETIMEDOUT/i,
-        /temporary/i
-    ];
-    
-    const message = error.message || error.toString();
-    return retryablePatterns.some(pattern => pattern.test(message));
-}
-
-/** Creates a recovery action button in the UI. */
-export function showRecoveryAction(containerId, message, action) {
-    const container = document.getElementById(containerId);
-    if (!container) return;
-    
-    const recoveryDiv = document.createElement('div');
-    recoveryDiv.className = 'recovery-action';
-    recoveryDiv.style.cssText = `
-        margin-top: 1rem;
-        padding: 1rem;
-        background: var(--bg-secondary);
-        border: 1px solid var(--border-color);
-        border-radius: 0.5rem;
-        text-align: center;
-    `;
-    
-    const messageP = document.createElement('p');
-    messageP.textContent = message;
-    messageP.style.marginBottom = '0.75rem';
-    
-    const button = document.createElement('button');
-    button.className = 'btn btn-primary';
-    button.textContent = 'Retry';
-    button.onclick = async () => {
-        button.disabled = true;
-        button.textContent = 'Retrying...';
-        try {
-            await action();
-            recoveryDiv.remove();
-        } catch (error) {
-            button.disabled = false;
-            button.textContent = 'Retry';
-            await showMessage(
-                `Retry failed: ${error.message}`,
-                'Error',
-                'error'
-            );
-        }
-    };
-    
-    recoveryDiv.appendChild(messageP);
-    recoveryDiv.appendChild(button);
-    container.appendChild(recoveryDiv);
+/**
+ * Tells the user a PDF could not be opened. path (when known) names the file;
+ * onChooseAnother adds "Choose another file…", which calls it.
+ */
+export async function showOpenError(error, { path, onChooseAnother } = {}) {
+    const name = (path && baseName(path)) || fileNamed(error);
+    // Choosing another file is the way forward, so it is the confirm; OK only closes.
+    const actions = onChooseAnother
+        ? [{ label: 'OK', value: 'ok' }, { label: 'Choose another file…', value: 'choose', kind: 'primary' }]
+        : [{ label: 'OK', value: 'ok', kind: 'primary' }];
+    const choice = await showDialog({
+        tone: 'error',
+        title: name ? `Lankir couldn’t open “${name}”` : 'Lankir couldn’t open the file',
+        message: plainReason(error) ?? 'Something went wrong while reading the file.',
+        details: errorText(error),
+        actions,
+        dismissValue: 'ok'
+    });
+    if (choice === 'choose') onChooseAnother();
 }

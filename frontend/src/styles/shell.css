@@ -1,0 +1,885 @@
+/*
+ * The app shell: one header bar, the canvas with the page, and what floats on
+ * it (markup tools, page pill, find, side panel). Nothing pushes the page.
+ */
+@layer components {
+  .app {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+  }
+
+  /* The start page keeps the header's shape: the side panel toggle (off),
+     Open and the menu stay where they are; the document's tools go. */
+  .no-doc .doc-only,
+  .no-doc .markup-bar,
+  .no-doc .find-box,
+  .no-doc .side-panel {
+    display: none !important;
+  }
+
+  /* ---------- Header bar ---------- */
+  .app-header {
+    position: relative;
+    z-index: var(--z-header);
+    display: flex;
+    flex: none;
+    align-items: center;
+    gap: var(--sp-1);
+    height: var(--header-h);
+    padding: 0 var(--sp-2);
+    /* The hairline is drawn, not a border: a whole 44px for the controls
+       keeps them, and their text, on whole pixels. */
+    background: var(--chrome);
+    box-shadow: inset 0 calc(var(--border-w) * -1) var(--chrome-border);
+    user-select: none;
+  }
+
+  .header-end {
+    display: flex;
+    flex: none;
+    align-items: center;
+    gap: var(--sp-1);
+    margin-left: auto;
+    padding-left: var(--sp-2);
+  }
+
+  .header-end > #signBtn {
+    margin: 0 var(--sp-0);
+  }
+
+  /* Narrow window: Markup keeps its icon and gives the tabs its label's room. */
+  @media (max-width: 1099px) {
+    #markupBtn {
+      width: var(--ctl-h);
+      padding: 0;
+    }
+
+    #markupBtn > .icon {
+      margin: 0;
+    }
+
+    #markupBtn .btn-label {
+      display: none;
+    }
+  }
+
+  /* ---------- Document tabs ----------
+   * The strip takes the header's free width. Tabs are as wide as their names
+   * (up to --tab-max-w) while there is room; when the strip is full
+   * (.is-full) the others share what the active tab leaves equally and names
+   * lose their end. A tab that would be cut below --tab-min-w is listed in
+   * "N more tabs" instead (tabStrip.js). */
+  .doc-tabs {
+    display: flex;
+    flex: 0 1 auto; /* as wide as its tabs, so "N more tabs" follows the last one */
+    gap: var(--sp-0);
+    min-width: 0;
+    margin-left: var(--sp-1);
+    padding: var(--sp-1) var(--sp-0);
+    overflow: hidden;
+  }
+
+  .doc-tabs.is-full {
+    flex: 1 1 0;
+  }
+
+  .doc-tabs.is-full > .pdf-tab:not(.active) {
+    flex: 1 1 0;
+  }
+
+  .pdf-tab {
+    position: relative;
+    display: flex;
+    flex: 0 1 auto;
+    align-items: center;
+    gap: var(--sp-0);
+    min-width: 0;
+    max-width: var(--tab-max-w);
+    height: var(--ctl-h);
+    padding: 0 3px 0 var(--sp-3);
+    border-radius: var(--r-md);
+    color: var(--text-muted);
+    transition: background-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+  }
+
+  /* A hairline between two inactive tabs; gone next to the active or hovered one. */
+  .pdf-tab:not([hidden]) + .pdf-tab::before {
+    content: "";
+    position: absolute;
+    top: var(--sp-2);
+    bottom: var(--sp-2);
+    left: calc(var(--sp-0) / -2 - var(--border-w) / 2);
+    width: var(--border-w);
+    background: var(--border-strong);
+    pointer-events: none;
+  }
+
+  .pdf-tab.active::before,
+  .pdf-tab.active + .pdf-tab::before,
+  .pdf-tab:hover::before,
+  .pdf-tab:hover + .pdf-tab::before {
+    opacity: 0;
+  }
+
+  .pdf-tab:hover {
+    background: var(--fill-hover);
+    color: var(--text);
+  }
+
+  /* The active tab keeps its whole name (up to --tab-max-w); the others
+     give up width when the strip is full. */
+  .pdf-tab.active {
+    flex-shrink: 0;
+    background: var(--surface-raised);
+    box-shadow: var(--elev-tab);
+    color: var(--text);
+  }
+
+  .pdf-tab:focus-visible {
+    outline-offset: -1px;
+  }
+
+  .pdf-tab-name {
+    flex: 1;
+    min-width: 0;
+  }
+
+  /* "2 more tabs": every open document, for tabs that don't fit. A ghost
+     button: its label and chevron one colour, a fill on hover and open. */
+  .tab-overflow {
+    flex: none;
+    gap: var(--sp-0);
+    margin-left: var(--sp-1);
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .tab-overflow:hover,
+  .tab-overflow[aria-expanded="true"] {
+    color: var(--text);
+  }
+
+  .tab-overflow > .icon {
+    margin: 0;
+    color: currentColor;
+  }
+
+  .pdf-tab-close {
+    display: grid;
+    flex: none;
+    place-items: center;
+    width: var(--ctl-h-sm);
+    height: var(--ctl-h-sm);
+    padding: 0;
+    border: 0;
+    border-radius: var(--r-sm);
+    background: transparent;
+    color: var(--text-muted);
+    opacity: 0;
+    transition: opacity var(--dur-fast) var(--ease), background-color var(--dur-fast) var(--ease);
+  }
+
+  .pdf-tab-close > * {
+    grid-area: 1 / 1;
+  }
+
+  .pdf-tab:hover .pdf-tab-close,
+  .pdf-tab.active .pdf-tab-close,
+  .pdf-tab.dirty .pdf-tab-close,
+  .pdf-tab:focus-visible .pdf-tab-close {
+    opacity: 1;
+  }
+
+  .pdf-tab-close:hover {
+    background: var(--fill-hover);
+    color: var(--text);
+  }
+
+  /* Other tabs give their name the whole width: their close button appears
+     over its end on hover, and the name fades out under it. */
+  .pdf-tab:not(.active, .dirty) {
+    padding-right: var(--sp-3);
+  }
+
+  .pdf-tab:not(.active, .dirty) .pdf-tab-close {
+    position: absolute;
+    right: 3px;
+  }
+
+  .pdf-tab:not(.active, .dirty):is(:hover, :focus-visible) .pdf-tab-name {
+    mask-image: linear-gradient(to left, transparent var(--sp-5), black calc(var(--sp-5) + var(--sp-3)));
+  }
+
+  /* Unsaved changes: a dot that turns into the close × on hover. */
+  .pdf-tab-dirty {
+    display: none;
+    width: 7px;
+    height: 7px;
+    border-radius: var(--r-full);
+    background: currentColor;
+  }
+
+  .pdf-tab.dirty:not(:hover) .pdf-tab-dirty {
+    display: block;
+  }
+
+  .pdf-tab.dirty:not(:hover) .pdf-tab-close > .icon {
+    visibility: hidden;
+  }
+
+  /* ---------- Canvas ---------- */
+  .workspace {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+    background: var(--canvas);
+  }
+
+  .viewer-host {
+    position: absolute;
+    inset: 0;
+    /* pdf.js editors use large z-indexes; keep them below everything floating. */
+    isolation: isolate;
+  }
+
+  /* ---------- Floating bars ---------- */
+  .float {
+    position: absolute;
+    z-index: var(--z-float);
+    left: 50%;
+    display: flex;
+    align-items: center;
+    gap: var(--sp-0);
+    max-width: calc(100% - var(--sp-8));
+    padding: 3px;
+    border-radius: var(--r-lg);
+    background: var(--hud);
+    box-shadow: var(--elev-float);
+    -webkit-backdrop-filter: blur(var(--hud-blur));
+    backdrop-filter: blur(var(--hud-blur));
+    transform: translateX(-50%);
+    user-select: none;
+  }
+
+  .float-sep {
+    flex: none;
+    width: var(--border-w);
+    height: 18px;
+    margin: 0 var(--sp-1);
+    background: var(--border);
+  }
+
+  /* The markup tools float over the gutter and the page's top margin; the
+     page never moves when they come and go. */
+  .markup-bar {
+    top: var(--sp-3);
+    animation: drop-in var(--dur) var(--ease);
+  }
+
+  .tool-group {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-0);
+  }
+
+  .swatches {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 var(--sp-2) 0 6px;
+  }
+
+  .swatch {
+    width: var(--icon);
+    height: var(--icon);
+    padding: 0;
+    border: 0;
+    border-radius: var(--r-full);
+    background: var(--swatch);
+    box-shadow: inset 0 0 0 var(--border-w) var(--mark-on-page);
+    transition: transform var(--dur-fast) var(--ease);
+  }
+
+  .swatch:hover {
+    transform: scale(1.12);
+  }
+
+  .swatch[aria-checked="true"] {
+    outline: var(--focus-w) solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  .swatch:focus-visible {
+    outline-color: var(--focus-ring);
+  }
+
+  /* Page and zoom pill, floating over the bottom of the page area and
+     centred under the page, which panels may move aside (pageRoom.js). The
+     pages scroll on under it to the window's edge. */
+  .page-pill {
+    bottom: var(--sp-3);
+    left: calc(50% + var(--page-shift, 0px));
+  }
+
+  .pill-field {
+    height: var(--ctl-h-sm);
+    padding: 0;
+    border: 0;
+    border-radius: var(--r-sm);
+    background: var(--fill);
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+    text-align: center;
+    transition: background-color var(--dur-fast) var(--ease);
+  }
+
+  .pill-field:hover {
+    background: var(--fill-hover);
+  }
+
+  .pill-field:focus {
+    outline: none;
+    background: var(--field);
+    box-shadow: inset 0 0 0 var(--border-w) var(--accent), 0 0 0 var(--border-w) var(--accent);
+  }
+
+  .pill-field:disabled {
+    background: transparent;
+    color: var(--text-subtle);
+  }
+
+  .page-field {
+    width: 36px;
+    margin-left: var(--sp-0);
+  }
+
+  .pill-of {
+    padding: 0 var(--sp-1) 0 6px;
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  .zoom-control {
+    display: flex;
+    align-items: center;
+  }
+
+  .zoom-field {
+    width: 34px;
+    background: transparent;
+    text-align: right;
+  }
+
+  .zoom-unit {
+    padding-right: var(--sp-0);
+  }
+
+  .icon-btn.zoom-caret {
+    width: 18px;
+  }
+
+  #zoomMenu {
+    min-width: 152px;
+  }
+
+  /* ---------- Find ----------
+   * The query with its arrows and close on top, the options under it. It sits
+   * at the top right of the area the page has (--free-right: the sign panel). */
+  .find-box {
+    position: absolute;
+    z-index: var(--z-float);
+    top: var(--sp-3);
+    right: max(var(--sp-4), var(--free-right, 0px));
+    width: var(--find-w);
+    padding: var(--sp-2);
+    border: var(--border-w) solid var(--border);
+    border-radius: var(--r-lg);
+    background: var(--surface);
+    box-shadow: var(--elev-2);
+    user-select: none;
+    animation: drop-in var(--dur) var(--ease);
+  }
+
+  .find-row {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-0);
+  }
+
+  .find-field {
+    display: flex;
+    flex: 1;
+    align-items: center;
+    gap: var(--sp-2);
+    min-width: 0;
+    height: var(--ctl-h);
+    margin-right: var(--sp-1);
+    padding: 0 var(--sp-2);
+    border: var(--border-w) solid var(--border-strong);
+    border-radius: var(--r-md);
+    background: var(--field);
+    color: var(--icon-color);
+  }
+
+  .find-field:focus-within {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 var(--border-w) var(--accent);
+  }
+
+  .find-input {
+    flex: 1;
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--text);
+    outline: none;
+  }
+
+  .find-input::placeholder {
+    color: var(--text-muted);
+  }
+
+  .find-count {
+    color: var(--text-muted);
+    font-size: var(--fs-small);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  .find-options {
+    display: flex;
+    gap: var(--sp-1);
+    margin-top: var(--sp-2);
+  }
+
+  .grow {
+    flex: 1;
+  }
+
+  /* ---------- Side panel ---------- */
+  .side-panel {
+    position: absolute;
+    z-index: var(--z-panel);
+    top: var(--sp-3);
+    bottom: var(--sp-3);
+    left: var(--sp-3);
+    display: flex;
+    flex-direction: column;
+    width: var(--panel-w);
+    overflow: hidden;
+    border-radius: var(--r-lg);
+    background: var(--surface);
+    box-shadow: var(--elev-1);
+    user-select: none;
+    animation: slide-in var(--dur) var(--ease);
+    container: side-panel / inline-size;
+  }
+
+  /* The handle on the panel's inner edge: half on the panel, half off it.
+     An accent hairline marks it on hover, focus and while dragging. */
+  .panel-resizer {
+    position: absolute;
+    z-index: var(--z-panel);
+    top: var(--sp-3);
+    bottom: var(--sp-3);
+    left: calc(var(--sp-3) + var(--panel-w) - var(--resizer-w) / 2);
+    width: var(--resizer-w);
+    cursor: col-resize;
+    touch-action: none;
+    animation: slide-in var(--dur) var(--ease);
+  }
+
+  .panel-resizer::after {
+    content: "";
+    position: absolute;
+    top: var(--r-lg);
+    bottom: var(--r-lg);
+    left: calc(50% - var(--focus-w) / 2);
+    width: var(--focus-w);
+    border-radius: var(--r-full);
+    background: var(--accent);
+    opacity: 0;
+    transition: opacity var(--dur-fast) var(--ease);
+  }
+
+  /* A pointer passing over it on the way somewhere doesn't light it. */
+  .panel-resizer:hover::after {
+    opacity: 1;
+    transition-delay: var(--dur);
+  }
+
+  .panel-resizer:focus-visible {
+    outline: none;
+  }
+
+  .panel-resizer:focus-visible::after,
+  .panel-resizing .panel-resizer::after {
+    opacity: 1;
+    transition-delay: 0s;
+  }
+
+  .side-panel.hidden + .panel-resizer,
+  .no-doc .panel-resizer {
+    display: none;
+  }
+
+  /* While dragging: the resize cursor everywhere, and no text selection. */
+  .panel-resizing,
+  .panel-resizing * {
+    cursor: col-resize !important;
+    user-select: none !important;
+  }
+
+  .side-panel-head {
+    flex: none;
+    padding: var(--sp-2);
+  }
+
+  .tab-content {
+    display: none;
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+  }
+
+  .tab-content.active {
+    display: block;
+  }
+
+  /* Page thumbnails */
+  .page-grid {
+    display: grid;
+    /* As many columns as panelResize.js finds room for: one at the panel's
+       narrowest, two by default, three or four when wide. */
+    grid-template-columns: repeat(var(--thumb-cols, 2), minmax(0, 1fr));
+    align-content: start;
+    gap: var(--sp-4) var(--sp-3);
+    padding: var(--sp-1) var(--sp-3) var(--sp-4);
+  }
+
+  .page-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    color: var(--text-muted);
+    font-size: var(--fs-small);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .page-thumbnail {
+    width: 100%;
+    background: var(--paper);
+    box-shadow: var(--elev-1);
+    transition: box-shadow var(--dur-fast) var(--ease);
+  }
+
+  .page-thumbnail:empty {
+    aspect-ratio: 1 / 1.414;
+  }
+
+  .page-thumbnail canvas {
+    display: block;
+    max-width: 100%;
+    height: auto;
+  }
+
+  .page-item:hover .page-thumbnail {
+    box-shadow: var(--elev-2);
+  }
+
+  .page-item.active .page-thumbnail {
+    outline: var(--focus-w) solid var(--accent);
+    outline-offset: 3px;
+  }
+
+  .page-item.active .page-number {
+    color: var(--accent-text);
+    font-weight: var(--fw-semibold);
+  }
+
+  /* Outline */
+  .outline-view {
+    padding: 0 var(--sp-2) var(--sp-3);
+  }
+
+  .outline-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .outline-list .outline-list {
+    padding-left: var(--sp-4);
+  }
+
+  .outline-row {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-0);
+    height: 28px;
+    border-radius: var(--r-md);
+  }
+
+  .outline-row:hover {
+    background: var(--fill-hover);
+  }
+
+  .outline-toggle {
+    display: grid;
+    flex: none;
+    place-items: center;
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    border: 0;
+    border-radius: var(--r-sm);
+    background: transparent;
+    color: var(--icon-color);
+  }
+
+  .outline-toggle:disabled {
+    visibility: hidden;
+  }
+
+  .outline-toggle .icon {
+    transition: transform var(--dur-fast) var(--ease);
+  }
+
+  .outline-toggle[aria-expanded="true"] .icon {
+    transform: rotate(90deg);
+  }
+
+  .outline-link {
+    flex: 1;
+    min-width: 0;
+    height: 100%;
+    padding: 0 var(--sp-1);
+    border: 0;
+    border-radius: var(--r-md);
+    background: transparent;
+    color: var(--text);
+    text-align: left;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* Info: the document's facts, then one card per signature, from the top. */
+  .info-section {
+    padding: var(--sp-2) var(--sp-4) var(--sp-4);
+  }
+
+  .info-section + .info-section {
+    padding-top: var(--sp-4);
+    border-top: var(--border-w) solid var(--border);
+  }
+
+  .info-title {
+    margin-bottom: var(--sp-3);
+    color: var(--text);
+    font-size: var(--fs-small);
+    font-weight: var(--fw-semibold);
+  }
+
+  .info-empty {
+    color: var(--text-muted);
+  }
+
+  .signature-info {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-2);
+  }
+
+  .signature-item {
+    padding: var(--sp-3);
+    border: var(--border-w) solid var(--border);
+    border-radius: var(--r-md);
+  }
+
+  .signature-signer {
+    font-weight: var(--fw-semibold);
+    overflow-wrap: anywhere;
+  }
+
+  .signature-status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: var(--sp-1);
+    font-size: var(--fs-small);
+    font-weight: var(--fw-medium);
+  }
+
+  .signature-status.valid { color: var(--success); }
+  .signature-status.untrusted { color: var(--warning); }
+  .signature-status.invalid { color: var(--danger); }
+
+  .signature-explain {
+    margin-top: var(--sp-2);
+    color: var(--text-muted);
+    line-height: var(--lh-body);
+    user-select: text;
+  }
+
+  /* A signature's facts side by side as soon as two fit. */
+  .signature-item > .facts {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(var(--fact-col-min), 100%), 1fr));
+    margin-top: var(--sp-3);
+    padding-top: var(--sp-3);
+    border-top: var(--border-w) solid var(--border);
+  }
+
+  /* A wide panel: the document's facts on one line, the name given the most room. */
+  @container side-panel (min-width: 400px) {
+    .info-section > .facts {
+      display: grid;
+      grid-template-columns: minmax(0, 2fr) repeat(2, minmax(0, 1fr));
+    }
+
+    .info-section > .facts > .fact-row {
+      display: contents;
+    }
+  }
+
+  /* The narrowest panel: less inset, so a line holds a few more words. */
+  @container side-panel (max-width: 239px) {
+    .info-section {
+      padding-inline: var(--sp-3);
+    }
+  }
+
+  .signature-item > .disclosure-btn {
+    margin-top: var(--sp-2);
+  }
+
+  /* See more: the signature, its certificate, its chain and the checks, each
+     under a small title; facts side by side as soon as two fit. */
+  .signature-more-group {
+    margin-top: var(--sp-3);
+    padding-top: var(--sp-3);
+    border-top: var(--border-w) solid var(--border);
+  }
+
+  .signature-more-title {
+    margin-bottom: var(--sp-2);
+    color: var(--text);
+    font-size: var(--fs-small);
+    line-height: var(--lh-tight);
+  }
+
+  .signature-more .facts {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(var(--fact-col-min), 100%), 1fr));
+  }
+
+  .signature-more .fact-wide {
+    grid-column: 1 / -1;
+  }
+
+  /* A copyable fact: the button sits at the end of its label row, so the
+     mono value below gets the full width. */
+  .signature-more .fact-copy > dt {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sp-2);
+    height: calc(var(--fs-small) * var(--lh-tight));
+  }
+
+  .signature-more .fact-copy > dt > .icon-btn {
+    margin-right: calc(var(--sp-1) * -1);
+  }
+
+  .signature-more .fact-date {
+    white-space: nowrap;
+  }
+
+  .signature-more .pill {
+    vertical-align: text-bottom;
+  }
+
+  /* The chain: one row per certificate, joined by a line, the trust at the end. */
+  .signature-chain,
+  .signature-checks {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-2);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .signature-chain-node,
+  .signature-check {
+    position: relative;
+    display: flex;
+    align-items: flex-start;
+    gap: var(--sp-2);
+    min-width: 0;
+  }
+
+  .signature-chain-icon,
+  .signature-check-icon {
+    display: inline-grid;
+    place-items: center;
+    flex: none;
+    height: calc(var(--fs-body) * var(--lh-tight));
+    color: var(--icon-color);
+  }
+
+  .signature-chain-node:not(:last-child)::after {
+    content: "";
+    position: absolute;
+    top: calc(var(--fs-body) * var(--lh-tight) + var(--sp-1));
+    bottom: calc(var(--sp-1) - var(--sp-2));
+    left: calc(var(--icon-sm) / 2 - var(--border-w) / 2);
+    border-left: var(--border-w) solid var(--border-strong);
+  }
+
+  .signature-chain-node.success .signature-chain-icon,
+  .signature-check[data-tone="success"] .signature-check-icon { color: var(--success); }
+  .signature-chain-node.warning .signature-chain-icon,
+  .signature-check[data-tone="warning"] .signature-check-icon { color: var(--warning); }
+  .signature-chain-node.danger .signature-chain-icon,
+  .signature-check[data-tone="danger"] .signature-check-icon { color: var(--danger); }
+
+  .signature-chain-text,
+  .signature-check-text {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-0);
+    min-width: 0;
+    line-height: var(--lh-tight);
+    overflow-wrap: anywhere;
+    user-select: text;
+  }
+
+  .signature-chain-role,
+  .signature-check-detail {
+    color: var(--text-muted);
+    font-size: var(--fs-small);
+  }
+
+  /* Narrow window: the panel lies over the page, so it lifts off it. */
+  @media (max-width: 1279px) {
+    .side-panel {
+      box-shadow: var(--elev-2);
+    }
+  }
+
+  @keyframes drop-in {
+    from { opacity: 0; translate: 0 calc(var(--slide) * -1); }
+  }
+
+  @keyframes slide-in {
+    from { opacity: 0; translate: calc(var(--slide) * -1) 0; }
+  }
+}

@@ -1,0 +1,124 @@
+/* Element defaults on top of Tailwind's preflight. */
+/* pdf.js styles its pages, layers and editor UI for browser defaults; Tailwind's
+   preflight (border-box, font: inherit on buttons, ...) broke its layout and the
+   annotation toolbar. Roll the base layer back inside the viewer; pdf.js' own CSS
+   and viewer.css are unlayered and still apply on top. */
+@layer base {
+  .pdf-view *, .pdf-view *::before, .pdf-view *::after {
+    all: revert-layer;
+  }
+}
+
+@layer base {
+  html,
+  body {
+    height: 100%;
+  }
+
+  body {
+    overflow: hidden;
+    background: var(--canvas);
+    color: var(--text);
+    font: var(--fw-regular) var(--fs-body) / var(--lh-body) var(--font-ui);
+    letter-spacing: var(--ls-body);
+    font-optical-sizing: auto;
+    -webkit-font-smoothing: antialiased;
+    /* With hinting (auto, optimizeLegibility) Chromium on Linux snaps every
+       glyph's advance to whole pixels: at 12px Inter's 3.4px space becomes 3px
+       while letters round up, so words run together ("2pages").
+       geometricPrecision keeps the font's own fractional advances, with
+       kerning and ligatures. */
+    text-rendering: geometricPrecision;
+  }
+
+  ::selection {
+    background: var(--selection);
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+    color: inherit;
+    letter-spacing: inherit;
+    text-rendering: inherit;
+  }
+
+  button {
+    cursor: default;
+  }
+
+  :focus-visible {
+    outline: var(--focus-w) solid var(--focus-ring);
+    outline-offset: 2px;
+  }
+
+  h1, h2, h3, h4 {
+    font-weight: var(--fw-semibold);
+    letter-spacing: var(--ls-title);
+  }
+
+  code {
+    font-family: var(--font-mono);
+    font-size: var(--fs-small);
+  }
+
+  kbd {
+    font: var(--fw-medium) var(--fs-micro) / 1 var(--font-ui);
+    letter-spacing: var(--ls-micro);
+  }
+
+  [hidden],
+  .hidden {
+    display: none !important;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  ::-webkit-scrollbar-track,
+  ::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    border: 3px solid transparent;
+    border-radius: var(--r-full);
+    background: var(--scroll-thumb) padding-box;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--scroll-thumb-hover) padding-box;
+  }
+
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .icon {
+    width: var(--icon);
+    height: var(--icon);
+    flex: none;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: var(--icon-stroke);
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .icon-sm {
+    width: var(--icon-sm);
+    height: var(--icon-sm);
+  }
+}

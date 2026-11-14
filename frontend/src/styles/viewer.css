@@ -1,0 +1,191 @@
+/*
+ * pdf.js viewer overrides. Unlayered, like pdf_viewer.css, so they can beat
+ * its rules by specificity.
+ */
+
+/* pdf.js requires an absolutely positioned scroll container. It reaches the
+   window's bottom edge, under the floating page pill. Its scroll padding
+   keeps what is scrolled into view (find hits) clear of the panels
+   pageRoom.js measures and of the pill. */
+.pdf-view {
+  --pill-room: calc(var(--sp-3) * 2 + var(--pill-h) + var(--page-gutter));
+  position: absolute;
+  inset: 0;
+  overflow: auto;
+  outline: none;
+  scroll-padding: var(--room-top, 0px) var(--room-right, 0px) var(--pill-room) var(--room-left, 0px);
+  /* Form fields and text boxes on the page keep the PDF's own spacing. */
+  letter-spacing: normal;
+}
+
+/* The first page starts --page-gutter below the view, past the page's 1px
+   margin and 9px border in pdf.js; going to a page keeps the same gutter
+   (viewer.js). Pages are --page-gap apart (two 9px borders and the 1px top
+   margin collapsed with the bottom one). The last page scrolls clear of the
+   page pill. */
+.pdf-view .pdfViewer {
+  --pdfViewer-padding-bottom: var(--pill-room);
+  --page-margin: 1px auto calc(var(--page-gap) - 19px);
+  padding-top: calc(var(--page-gutter) - 10px);
+}
+
+/* A side panel or the sign panel would cover the page: the page moves into
+   the width they leave free (pageRoom.js fits it there for the time being). */
+.pdf-view.page-room .pdfViewer {
+  width: max-content;
+  min-width: calc(100% - var(--room-left) - var(--room-right));
+  padding-right: var(--room-right);
+  padding-left: var(--room-left);
+}
+
+/* The page keeps pdf.js' transparent border (its fit maths count it), so the
+   shadow goes on the drawn area inside it. */
+.pdf-view .pdfViewer .page .canvasWrapper {
+  box-shadow: var(--elev-page);
+}
+
+/* Find matches, the same in both themes (the page keeps its colours): every
+   match pale yellow, the current one strong orange with an edge. The text
+   layer multiplies onto the page, so the marks tint the paper like a
+   highlighter and the text drawn under them keeps its full contrast. */
+.pdf-view .textLayer {
+  mix-blend-mode: multiply;
+}
+
+.pdf-view .textLayer .highlight {
+  --highlight-bg-color: var(--match);
+  --highlight-selected-bg-color: var(--match-current);
+  border-radius: var(--r-xs);
+}
+
+.pdf-view .textLayer .highlight.selected {
+  box-shadow: 0 0 0 var(--border-w) var(--match-current-edge);
+}
+
+.pdf-view .textLayer ::selection {
+  background: var(--selection);
+}
+
+/* Select mode treats highlighted text as text: click, double-click and drag select it.
+   Highlights are edited with the Highlight tool, where pdf.js makes them clickable.
+   - Saved markup annotations get pointer-events and user-select:none from pdf.js, which
+     blocked selection from starting on them (and double-click switched to editing).
+   - In non-editing mode pdf.js treats any two pointerdowns within 500 ms on the text layer
+     as a double-click and, if a highlight editor is under the pointer (found by toggling
+     .getElements), cancels the event and edits that highlight; keep highlights out of it. */
+.annotationLayer :is(.highlightAnnotation, .underlineAnnotation, .squigglyAnnotation, .strikeoutAnnotation) {
+  pointer-events: none;
+}
+
+.annotationEditorLayer.nonEditing.getElements > .highlightEditor {
+  pointer-events: none !important;
+}
+
+/* Placing a visible signature: pages stay put, no text selection, links or form fields. */
+.pdf-view.placing-signature .page {
+  cursor: crosshair;
+}
+
+.pdf-view.placing-signature :is(.textLayer, .annotationLayer, .annotationEditorLayer) {
+  pointer-events: none;
+}
+
+/* The sign panel would cover the signature box: room on the right lets the
+   pages scroll clear of it (pages that fit the window can't scroll sideways). */
+.pdf-view.sign-room .pdfViewer {
+  --dock-room: calc(var(--dock-w) + var(--sp-3) * 2);
+  width: max-content;
+  min-width: calc(100% - var(--dock-room));
+  padding-right: var(--dock-room);
+}
+
+.pdf-view.sign-room.page-room .pdfViewer {
+  min-width: calc(100% - var(--room-left) - max(var(--dock-room), var(--room-right)));
+  padding-right: max(var(--dock-room), var(--room-right));
+}
+
+.signature-box {
+  position: absolute;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1.5px dashed var(--accent);
+  border-radius: var(--r-xs);
+  background: color-mix(in srgb, var(--accent) 9%, transparent);
+  cursor: move;
+}
+
+.signature-box-label {
+  position: absolute;
+  top: -1px;
+  left: -1px;
+  padding: var(--sp-1) 6px;
+  border-radius: var(--r-xs) var(--r-xs) 0 0;
+  background: var(--accent);
+  color: var(--accent-fg);
+  font: var(--fw-medium) var(--fs-micro) / 1 var(--font-ui);
+  transform: translateY(-100%);
+  pointer-events: none;
+}
+
+/* The stamp the profile will draw, faint, at its real size in the box
+   (signaturePlacement.js sets --stamp-pad and --stamp-font). */
+.signature-stamp {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--stamp-pad);
+  padding: var(--stamp-pad);
+  overflow: hidden;
+  color: var(--ink);
+  font-size: var(--stamp-font);
+  line-height: 1.2;
+  opacity: .72; /* a preview, but still AA on the tinted box */
+  pointer-events: none;
+}
+
+.signature-stamp.icon-top {
+  flex-direction: column;
+  align-items: center;
+}
+
+.signature-stamp.icon-top .preview-text {
+  align-self: stretch;
+}
+
+.signature-stamp .preview-custom {
+  margin-top: 0;
+}
+
+.signature-stamp .preview-icon {
+  flex: none;
+  width: 20%;
+  height: auto;
+}
+
+.signature-stamp.icon-top .preview-icon {
+  width: auto;
+  height: 20%;
+}
+
+/* A 14px corner, with a wider reach for the pointer. */
+.signature-box-handle {
+  position: absolute;
+  right: -7px;
+  bottom: -7px;
+  width: 14px;
+  height: 14px;
+  border: 1.5px solid var(--accent);
+  border-radius: var(--r-xs);
+  background: var(--paper);
+  box-shadow: 0 0 0 var(--border-w) var(--paper);
+  cursor: nwse-resize;
+}
+
+.signature-box-handle::before {
+  content: "";
+  position: absolute;
+  inset: calc(var(--sp-2) * -1);
+}

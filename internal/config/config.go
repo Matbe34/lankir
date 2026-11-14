@@ -32,6 +32,15 @@ type Config struct {
 	CertificateStores []string `json:"certificateStores"`
 	TokenLibraries    []string `json:"tokenLibraries"`
 
+	// Signing settings
+	TSAURL                  string `json:"tsaUrl"`
+	SignatureLocationLookup bool   `json:"signatureLocationLookup"`
+	// CheckRevocationOnline asks the OCSP/CRL servers a signer's certificate
+	// names whether it was revoked, when verifying signatures.
+	CheckRevocationOnline      bool   `json:"checkRevocationOnline"`
+	LastCertificateFingerprint string `json:"lastCertificateFingerprint"`
+	LastSignatureProfileID     string `json:"lastSignatureProfileId"`
+
 	// Advanced settings
 	DebugMode     bool `json:"debugMode"`
 	HardwareAccel bool `json:"hardwareAccel"`
@@ -103,18 +112,19 @@ func NewServiceWithDir(configDir string) (*Service, error) {
 // getDefaultConfig returns default configuration
 func getDefaultConfig() *Config {
 	return &Config{
-		Theme:             "dark",
-		AccentColor:       "#007acc",
-		DefaultZoom:       100,
-		ShowLeftSidebar:   true,
-		ShowRightSidebar:  false,
-		DefaultViewMode:   "scroll",
-		RecentFilesLength: 5,
-		AutosaveInterval:  0,
-		CertificateStores: []string{},
-		TokenLibraries:    []string{},
-		DebugMode:         false,
-		HardwareAccel:     true,
+		Theme:                 "dark",
+		AccentColor:           "#007acc",
+		DefaultZoom:           100,
+		ShowLeftSidebar:       false,
+		ShowRightSidebar:      false,
+		DefaultViewMode:       "scroll",
+		RecentFilesLength:     5,
+		AutosaveInterval:      0,
+		CertificateStores:     []string{},
+		TokenLibraries:        []string{},
+		CheckRevocationOnline: true,
+		DebugMode:             false,
+		HardwareAccel:         true,
 	}
 }
 
@@ -123,18 +133,45 @@ func (s *Service) Load() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	config, err := s.read()
+	if err != nil {
+		return err
+	}
+	s.config = config
+	return nil
+}
+
+func (s *Service) read() (*Config, error) {
 	data, err := os.ReadFile(s.configPath)
 	if err != nil {
-		return fmt.Errorf("failed to read config file: %w", err)
+		return nil, fmt.Errorf("failed to read config file: %w", err)
 	}
 
 	config := getDefaultConfig()
 	if err := json.Unmarshal(data, config); err != nil {
-		return fmt.Errorf("failed to parse config: %w", err)
+		return nil, fmt.Errorf("failed to parse config: %w", err)
 	}
+	return config, nil
+}
 
+// SetLastSigning saves the certificate and profile of the last signature.
+// It changes only those two fields of config.json as it is on disk, so
+// settings another window saved since Load are kept.
+func (s *Service) SetLastSigning(certFingerprint, profileID string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	config, err := s.read()
+	if err != nil {
+		if !errors.Is(err, os.ErrNotExist) {
+			return err
+		}
+		config = s.config
+	}
+	config.LastCertificateFingerprint = certFingerprint
+	config.LastSignatureProfileID = profileID
 	s.config = config
-	return nil
+	return s.saveUnlocked()
 }
 
 // Save writes the current configuration to disk atomically.
@@ -182,6 +219,11 @@ func (s *Service) Update(config *Config) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	// Last-used signing fields are written only by SetLastSigning; keep what is on disk.
+	if onDisk, err := s.read(); err == nil {
+		config.LastCertificateFingerprint = onDisk.LastCertificateFingerprint
+		config.LastSignatureProfileID = onDisk.LastSignatureProfileID
+	}
 	s.config = config
 	return s.saveUnlocked()
 }

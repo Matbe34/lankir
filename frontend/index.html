@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' wails:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' wails:; font-src 'self';">
+    <title>Lankir</title>
+    <link rel="stylesheet" href="/src/style.css">
+</head>
+
+<!-- data-file-drop-target: Wails v3 only delivers OS file drops that land on a marked element. -->
+<body data-file-drop-target>
+    <div id="app" class="app no-doc" role="application" aria-label="Lankir">
+        <header class="app-header" role="banner">
+            <button id="sidePanelBtn" class="icon-btn is-toggle" aria-pressed="false" aria-controls="sidePanel" aria-label="Side panel" data-tip="Side panel" disabled>
+                <i data-icon="panel-left"></i>
+            </button>
+            <div class="split">
+                <button id="openBtn" class="btn btn-ghost" data-tip="Open a PDF" data-shortcut="openFile">Open</button>
+                <button id="recentBtn" class="btn btn-ghost" aria-haspopup="menu" aria-expanded="false" aria-controls="recentMenu" aria-label="Recent files" data-tip="Recent files">
+                    <i data-icon="chevron-down" class="icon-sm"></i>
+                </button>
+            </div>
+            <div id="recentMenu" class="menu hidden" role="menu" aria-label="Recent files"></div>
+
+            <div id="pdfTabsContainer" class="doc-tabs" role="tablist" aria-label="Open documents"></div>
+            <button id="tabOverflowBtn" class="btn btn-ghost btn-sm tab-overflow hidden" aria-haspopup="menu" aria-expanded="false" aria-controls="tabOverflowMenu" data-tip="All open documents">
+                <span id="tabOverflowCount"></span><i data-icon="chevron-down" class="icon-sm"></i>
+            </button>
+            <div id="tabOverflowMenu" class="menu menu-end hidden" role="menu" aria-label="Open documents"></div>
+
+            <div class="header-end">
+                <button id="markupBtn" class="btn btn-ghost is-toggle doc-only" aria-pressed="false" aria-controls="viewerToolbar" aria-label="Markup" data-tip="Markup tools">
+                    <i data-icon="pencil"></i><span class="btn-label">Markup</span>
+                </button>
+                <button id="findBtn" class="icon-btn is-toggle doc-only" aria-pressed="false" aria-controls="findBar" aria-label="Find" data-tip="Find" data-keys="Ctrl F">
+                    <i data-icon="search"></i>
+                </button>
+                <button id="signBtn" class="btn is-toggle doc-only" aria-pressed="false" aria-controls="signPanel" disabled data-tip="Sign document" data-shortcut="sign">
+                    <i data-icon="signature"></i>Sign
+                </button>
+                <button id="mainMenuBtn" class="icon-btn" aria-haspopup="menu" aria-expanded="false" aria-controls="mainMenu" aria-label="Main menu" data-tip="Menu">
+                    <i data-icon="menu"></i>
+                </button>
+                <div id="mainMenu" class="menu menu-end hidden" role="menu" aria-label="Main menu">
+                    <button id="paletteMenuItem" class="menu-item" role="menuitem" data-action="command-palette">
+                        <i data-icon="search"></i><span class="menu-label">All commands…</span><span class="keys" data-shortcut="commandPalette"></span>
+                    </button>
+                    <div class="menu-sep" role="separator"></div>
+                    <button id="saveBtn" class="menu-item" role="menuitem" data-needs-doc>
+                        <i data-icon="save"></i><span class="menu-label">Save</span><span class="keys" data-keys="Ctrl S"></span>
+                    </button>
+                    <button id="saveAsBtn" class="menu-item" role="menuitem" data-needs-doc>
+                        <i data-icon="save-as"></i><span class="menu-label">Save as…</span><span class="keys" data-keys="Ctrl Shift S"></span>
+                    </button>
+                    <button id="closeTabBtn" class="menu-item" role="menuitem" data-needs-doc>
+                        <i data-icon="x"></i><span class="menu-label">Close tab</span><span class="keys" data-keys="Ctrl W"></span>
+                    </button>
+                    <div class="menu-sep" role="separator"></div>
+                    <button id="newWindowBtn" class="menu-item" role="menuitem">
+                        <i data-icon="app-window"></i><span class="menu-label">New window</span><span class="keys" data-shortcut="newWindow"></span>
+                    </button>
+                    <div class="menu-sep" role="separator"></div>
+                    <button id="settingsBtn" class="menu-item" role="menuitem">
+                        <i data-icon="settings"></i><span class="menu-label">Settings</span>
+                    </button>
+                    <button id="shortcutsBtn" class="menu-item" role="menuitem">
+                        <i data-icon="keyboard"></i><span class="menu-label">Keyboard shortcuts</span>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <main id="workspace" class="workspace">
+            <div id="pdfViewer" class="viewer-host">
+                <section id="welcomeScreen" class="welcome" aria-label="Start">
+                    <div class="welcome-col">
+                        <div class="welcome-brand">
+                            <span class="welcome-mark" aria-hidden="true"><i data-icon="signature"></i></span>
+                            <h1 class="welcome-name">Lankir</h1>
+                        </div>
+                        <div class="drop-zone">
+                            <div class="drop-row">
+                                <span>Drop a PDF here, or</span>
+                                <button id="welcomeOpenBtn" class="btn btn-primary">Open file…</button>
+                                <span class="keys" data-shortcut="openFile"></span>
+                            </div>
+                        </div>
+                        <div class="recent-section" id="recentFilesWelcome">
+                            <h2 class="section-label" id="recentFilesLabel">Recent</h2>
+                            <div id="recentFilesGrid" class="recent-list" role="list" aria-labelledby="recentFilesLabel"></div>
+                        </div>
+                        <button id="welcomePaletteBtn" class="hint-btn" data-action="command-palette">
+                            <span class="keys" data-shortcut="commandPalette"></span>All commands
+                        </button>
+                    </div>
+                </section>
+            </div>
+
+            <aside id="sidePanel" class="side-panel hidden" aria-label="Side panel">
+                <div class="side-panel-head">
+                    <div class="segmented full" role="tablist" aria-label="Side panel view">
+                        <button class="segment tab-btn active" role="tab" aria-selected="true" aria-controls="pagesTab" data-tab="pages">Pages</button>
+                        <button class="segment tab-btn" role="tab" aria-selected="false" aria-controls="indexTab" data-tab="index">Outline</button>
+                        <button class="segment tab-btn" role="tab" aria-selected="false" aria-controls="signaturesTab" data-tab="signatures">Info</button>
+                    </div>
+                </div>
+                <div class="tab-content active" id="pagesTab" role="tabpanel">
+                    <div id="pageList" class="page-list">
+                        <div class="empty-state"><p>No PDF loaded</p></div>
+                    </div>
+                </div>
+                <div class="tab-content" id="indexTab" role="tabpanel">
+                    <div id="outlineView" class="outline-view">
+                        <div class="empty-state"><p>No outline</p></div>
+                    </div>
+                </div>
+                <div class="tab-content" id="signaturesTab" role="tabpanel">
+                    <section class="info-section" aria-labelledby="infoDocumentTitle">
+                        <h3 id="infoDocumentTitle" class="info-title">Document</h3>
+                        <dl class="facts">
+                            <div class="fact"><dt>File</dt><dd id="fileName">-</dd></div>
+                            <div class="fact-row">
+                                <div class="fact"><dt>Pages</dt><dd id="pageCount">-</dd></div>
+                                <div class="fact"><dt>Size</dt><dd id="fileSize"></dd></div>
+                            </div>
+                        </dl>
+                    </section>
+                    <section class="info-section" aria-labelledby="infoSignaturesTitle">
+                        <h3 id="infoSignaturesTitle" class="info-title">Signatures</h3>
+                        <div id="signatureInfo" class="signature-info">
+                            <p class="info-empty">No signatures</p>
+                        </div>
+                    </section>
+                </div>
+            </aside>
+            <div id="panelResizer" class="panel-resizer" role="separator" aria-orientation="vertical" aria-label="Resize side panel" aria-controls="sidePanel" tabindex="0"></div>
+
+            <div id="viewerToolbar" class="float markup-bar hidden" role="toolbar" aria-label="Markup tools">
+                <div class="tool-group">
+                    <button class="icon-btn" data-tool="none" aria-label="Select" data-tip="Select text and fill forms"><i data-icon="pointer"></i></button>
+                    <button class="icon-btn" data-tool="highlight" aria-label="Highlight" data-tip="Highlight"><i data-icon="highlighter"></i></button>
+                    <div id="highlightColor" class="swatches" role="radiogroup" aria-label="Highlight colour"></div>
+                    <button class="icon-btn" data-tool="freetext" aria-label="Text" data-tip="Add text"><i data-icon="type"></i></button>
+                    <button class="icon-btn" data-tool="ink" aria-label="Draw" data-tip="Draw"><i data-icon="brush"></i></button>
+                    <button class="icon-btn" data-tool="stamp" aria-label="Image" data-tip="Add an image"><i data-icon="image"></i></button>
+                    <input type="file" id="imagePicker" accept="image/apng,image/avif,image/bmp,image/gif,image/jpeg,image/png,image/svg+xml,image/webp" hidden>
+                </div>
+                <span class="float-sep" aria-hidden="true"></span>
+                <button id="undoBtn" class="icon-btn" aria-label="Undo" data-tip="Undo" data-keys="Ctrl Z"><i data-icon="undo"></i></button>
+                <button id="redoBtn" class="icon-btn" aria-label="Redo" data-tip="Redo" data-keys="Ctrl Shift Z"><i data-icon="redo"></i></button>
+                <button id="deleteAnnotationBtn" class="icon-btn" aria-label="Delete selected" data-tip="Delete selected" data-keys="Del"><i data-icon="trash"></i></button>
+            </div>
+
+            <div id="findBar" class="find-box hidden" role="search">
+                <div class="find-row">
+                    <div class="find-field">
+                        <i data-icon="search"></i>
+                        <input id="findInput" type="text" class="find-input" placeholder="Find in document" aria-label="Find in document" spellcheck="false">
+                        <span id="findCount" class="find-count" aria-live="polite"></span>
+                    </div>
+                    <button id="findPrev" class="icon-btn sm" aria-label="Previous match" data-tip="Previous match" data-keys="Shift Enter"><i data-icon="chevron-up"></i></button>
+                    <button id="findNext" class="icon-btn sm" aria-label="Next match" data-tip="Next match" data-keys="Enter"><i data-icon="chevron-down"></i></button>
+                    <button id="findClose" class="icon-btn sm" aria-label="Close find" data-tip="Close" data-keys="Esc"><i data-icon="x"></i></button>
+                </div>
+                <div class="find-options" role="group" aria-label="Find options">
+                    <button type="button" id="findMatchCase" class="text-toggle" aria-pressed="false">Match case</button>
+                    <button type="button" id="findWholeWord" class="text-toggle" aria-pressed="false">Whole words</button>
+                    <button type="button" id="findHighlightAll" class="text-toggle" aria-pressed="true">Highlight all</button>
+                </div>
+            </div>
+
+            <!-- Sign panel, docked in the canvas's right margin (filled by signature.js) -->
+            <aside id="signPanel" class="sign-dock hidden" role="dialog" aria-labelledby="signPanelTitle"></aside>
+
+            <div id="pagePill" class="float page-pill doc-only" role="toolbar" aria-label="Page and zoom">
+                <button id="prevPageBtn" class="icon-btn sm" aria-label="Previous page" data-tip="Previous page" data-keys="←"><i data-icon="chevron-left"></i></button>
+                <input type="text" id="pageInput" class="pill-field page-field" inputmode="numeric" aria-label="Go to page" disabled>
+                <span id="pageTotal" class="pill-of">/ -</span>
+                <button id="nextPageBtn" class="icon-btn sm" aria-label="Next page" data-tip="Next page" data-keys="→"><i data-icon="chevron-right"></i></button>
+                <span class="float-sep" aria-hidden="true"></span>
+                <button id="zoomOutBtn" class="icon-btn sm" aria-label="Zoom out" data-tip="Zoom out" data-shortcut="zoomOut"><i data-icon="minus"></i></button>
+                <div class="zoom-control">
+                    <input type="text" id="zoomInput" class="pill-field zoom-field" value="100" inputmode="numeric" aria-label="Zoom percent">
+                    <span class="zoom-unit" aria-hidden="true">%</span>
+                    <button id="zoomMenuBtn" class="icon-btn sm zoom-caret" aria-haspopup="menu" aria-expanded="false" aria-controls="zoomMenu" aria-label="Zoom presets" data-tip="Fit width, fit page and zoom levels"><i data-icon="chevron-down" class="icon-sm"></i></button>
+                </div>
+                <button id="zoomInBtn" class="icon-btn sm" aria-label="Zoom in" data-tip="Zoom in" data-shortcut="zoomIn"><i data-icon="plus"></i></button>
+            </div>
+            <div id="zoomMenu" class="menu menu-up hidden" role="menu" aria-label="Zoom">
+                <button class="menu-item" role="menuitemradio" data-zoom="page-width"><span class="menu-label">Fit width</span></button>
+                <button class="menu-item" role="menuitemradio" data-zoom="page-fit"><span class="menu-label">Fit page</span></button>
+                <div class="menu-sep" role="separator"></div>
+                <button class="menu-item" role="menuitemradio" data-zoom="0.5"><span class="menu-label">50%</span></button>
+                <button class="menu-item" role="menuitemradio" data-zoom="0.75"><span class="menu-label">75%</span></button>
+                <button class="menu-item" role="menuitemradio" data-zoom="1"><span class="menu-label">100%</span></button>
+                <button class="menu-item" role="menuitemradio" data-zoom="1.25"><span class="menu-label">125%</span></button>
+                <button class="menu-item" role="menuitemradio" data-zoom="1.5"><span class="menu-label">150%</span></button>
+                <button class="menu-item" role="menuitemradio" data-zoom="2"><span class="menu-label">200%</span></button>
+                <button class="menu-item" role="menuitemradio" data-zoom="3"><span class="menu-label">300%</span></button>
+                <button class="menu-item" role="menuitemradio" data-zoom="4"><span class="menu-label">400%</span></button>
+            </div>
+        </main>
+
+        <span id="statusText" class="sr-only" role="status" aria-live="polite" aria-atomic="true">Ready</span>
+        <div id="toastRegion" class="toast-region" aria-live="polite"></div>
+    </div>
+
+    <!-- Message Dialog -->
+    <div id="messageDialog" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="messageDialogTitle" aria-describedby="messageDialogContent">
+        <div class="modal message-modal">
+            <div class="message-main">
+                <span id="messageDialogIcon" class="message-icon" hidden></span>
+                <div class="message-text">
+                    <h2 id="messageDialogTitle" class="message-title"></h2>
+                    <p id="messageDialogContent" class="message-content"></p>
+                    <div id="messageDialogMore"></div>
+                </div>
+            </div>
+            <div class="message-footer" id="messageDialogFooter"></div>
+        </div>
+    </div>
+
+    <!-- Command palette (filled by commandPalette.js) -->
+    <div id="commandPalette" class="modal-overlay palette-overlay hidden">
+        <div class="palette" role="dialog" aria-modal="true" aria-label="Command palette">
+            <div class="palette-field">
+                <i data-icon="search"></i>
+                <input id="paletteInput" type="text" class="palette-input" placeholder="Type a command or a file name" aria-label="Command" role="combobox" aria-expanded="true" aria-controls="paletteList" aria-autocomplete="list" autocomplete="off" spellcheck="false">
+                <span class="keys" data-keys="Esc"></span>
+            </div>
+            <div id="paletteList" class="palette-list" role="listbox" aria-label="Commands"></div>
+            <div class="palette-foot">
+                <span><span class="keys" data-keys="↑ ↓"></span>Move</span>
+                <span><span class="keys" data-keys="Enter"></span>Run</span>
+                <span id="paletteContext" class="palette-context"></span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings -->
+    <div id="settingsModal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="settingsModalTitle">
+        <div class="modal prefs">
+            <nav class="prefs-nav" aria-labelledby="settingsModalTitle">
+                <h2 id="settingsModalTitle" class="prefs-title">Settings</h2>
+                <button class="settings-tab active" data-section="appearance" aria-current="page"><i data-icon="palette"></i>Appearance</button>
+                <button class="settings-tab" data-section="viewer"><i data-icon="file-text"></i>Viewer</button>
+                <button class="settings-tab" data-section="files"><i data-icon="folder"></i>Files</button>
+                <button class="settings-tab" data-section="signatures"><i data-icon="signature"></i>Signing</button>
+                <button class="settings-tab" data-section="certificates"><i data-icon="shield-check"></i>Certificates</button>
+                <button class="settings-tab" data-section="shortcuts"><i data-icon="keyboard"></i>Shortcuts</button>
+                <button class="settings-tab" data-section="advanced"><i data-icon="sliders"></i>Advanced</button>
+            </nav>
+
+            <div class="prefs-main" id="settingsMain">
+                <div class="prefs-head">
+                    <h3 id="settingsPageTitle" class="prefs-page-title">Appearance</h3>
+                    <button class="icon-btn" id="settingsModalClose" aria-label="Close" data-tip="Close" data-keys="Esc"><i data-icon="x"></i></button>
+                </div>
+                <div class="prefs-body" data-scroll-edges>
+                    <!-- Appearance -->
+                    <section class="settings-section active" id="appearanceSection" aria-labelledby="settingsPageTitle">
+                        <div class="list-box">
+                            <div class="pref-row">
+                                <div class="pref-text">
+                                    <label class="pref-label" for="settingTheme">Theme</label>
+                                    <p class="pref-help">Light, dark, or the same as the system</p>
+                                </div>
+                                <div class="pref-control">
+                                    <select id="settingTheme" class="setting-input">
+                                        <option value="light">Light</option>
+                                        <option value="dark">Dark</option>
+                                        <option value="auto">Same as the system</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="pref-row">
+                                <div class="pref-text">
+                                    <label class="pref-label" for="settingAccentColor">Accent colour</label>
+                                    <p class="pref-help">Selection, focus and the confirm button of a dialog</p>
+                                </div>
+                                <div class="pref-control">
+                                    <input type="color" id="settingAccentColor" class="setting-input setting-input-color" value="#3b82f6">
+                                </div>
+                            </div>
+                            <div class="pref-row">
+                                <div class="pref-text">
+                                    <label class="pref-label" for="settingSecondaryAccent">Window tint</label>
+                                    <p class="pref-help">A hint of colour in the window around the document</p>
+                                </div>
+                                <div class="pref-control">
+                                    <select id="settingSecondaryAccent" class="setting-input">
+                                        <option value="neutral">None</option>
+                                        <option value="slate">Slate</option>
+                                        <option value="purple">Purple</option>
+                                        <option value="green">Green</option>
+                                        <option value="orange">Orange</option>
+                                        <option value="red">Red</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Viewer -->
+                    <section class="settings-section" id="viewerSection" aria-labelledby="settingsPageTitle">
+                        <div class="list-box">
+                            <div class="pref-row">
+                                <div class="pref-text">
+                                    <label class="pref-label" for="settingDefaultZoom">Default zoom</label>
+                                    <p class="pref-help">When a document opens, from 10 to 400%</p>
+                                </div>
+                                <div class="pref-control">
+                                    <div class="unit-field">
+                                        <input type="number" id="settingDefaultZoom" class="setting-input" min="10" max="400" value="100" step="10">
+                                        <span class="unit-field-unit">%</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="group-head">
+                            <div class="group-head-text">
+                                <h4 class="group-title">Side panel</h4>
+                                <p class="group-help">What a newly opened document shows on the left</p>
+                            </div>
+                        </div>
+                        <div class="list-box">
+                            <div class="pref-row">
+                                <div class="pref-text">
+                                    <label class="pref-label" for="settingShowLeftSidebar">Open on pages</label>
+                                    <p class="pref-help">Show page thumbnails</p>
+                                </div>
+                                <input type="checkbox" id="settingShowLeftSidebar" class="switch" role="switch">
+                            </div>
+                            <div class="pref-row">
+                                <div class="pref-text">
+                                    <label class="pref-label" for="settingShowRightSidebar">Open on signatures</label>
+                                    <p class="pref-help">Show the document's signatures</p>
+                                </div>
+                                <input type="checkbox" id="settingShowRightSidebar" class="switch" role="switch">
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Files -->
+                    <section class="settings-section" id="filesSection" aria-labelledby="settingsPageTitle">
+                        <div class="list-box">
+                            <div class="pref-row">
+                                <div class="pref-text">
+                                    <label class="pref-label" for="settingRecentFilesLength">Recent files</label>
+                                    <p class="pref-help">How many to list on the start screen, up to 50</p>
+                                </div>
+                                <div class="pref-control">
+                                    <div class="unit-field">
+                                        <input type="number" id="settingRecentFilesLength" class="setting-input" min="0" max="50" value="10">
+                                        <span class="unit-field-unit">files</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="pref-row">
+                                <div class="pref-text">
+                                    <label class="pref-label" for="settingAutosaveInterval">Auto-save</label>
+                                    <p class="pref-help">Save changes every so often; 0 turns it off</p>
+                                </div>
+                                <div class="pref-control">
+                                    <div class="unit-field">
+                                        <input type="number" id="settingAutosaveInterval" class="setting-input" min="0" max="600" value="0">
+                                        <span class="unit-field-unit">seconds</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Signing -->
+                    <section class="settings-section" id="signaturesSection" aria-labelledby="settingsPageTitle">
+                        <div class="list-box">
+                            <div class="pref-row">
+                                <div class="pref-text">
+                                    <label class="pref-label" for="settingTsaUrl">Timestamp server</label>
+                                    <p class="pref-help">Adds a trusted time to each signature (PAdES B‑T). Leave empty to sign without one.</p>
+                                </div>
+                                <div class="pref-control wide">
+                                    <input type="url" id="settingTsaUrl" class="setting-input" placeholder="http://timestamp.digicert.com" spellcheck="false">
+                                </div>
+                            </div>
+                            <div class="pref-row">
+                                <div class="pref-text">
+                                    <label class="pref-label" for="settingSignatureLocationLookup">Look up my location</label>
+                                    <p class="pref-help">Sends your IP address to ipinfo.io when a profile shows the location. Off: the profile's own location is used.</p>
+                                </div>
+                                <input type="checkbox" id="settingSignatureLocationLookup" class="switch" role="switch">
+                            </div>
+                            <div class="pref-row">
+                                <div class="pref-text">
+                                    <label class="pref-label" for="settingCheckRevocationOnline">Check revocation online</label>
+                                    <p class="pref-help">Asks the certificate authority, through the OCSP or CRL servers named in the certificate, whether a signer's certificate was revoked. Needs a network connection.</p>
+                                </div>
+                                <input type="checkbox" id="settingCheckRevocationOnline" class="switch" role="switch">
+                            </div>
+                        </div>
+
+                        <div class="group-head">
+                            <div class="group-head-text">
+                                <h4 class="group-title">Signature profiles</h4>
+                                <p class="group-help">How a signature looks and where it goes</p>
+                            </div>
+                            <div class="group-actions">
+                                <button id="addProfileBtn" class="btn"><i data-icon="plus"></i>New profile</button>
+                            </div>
+                        </div>
+                        <div id="signatureProfilesList" class="list-box" aria-live="polite">
+                            <div class="empty-state">
+                                <div class="loading-spinner"></div>
+                                <p>Loading profiles…</p>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Certificates -->
+                    <section class="settings-section" id="certificatesSection" aria-labelledby="settingsPageTitle">
+                        <div class="group-head first">
+                            <div class="group-head-text">
+                                <h4 class="group-title">Found on this computer</h4>
+                                <p class="group-help">Smart cards, tokens, certificate files and the browser store</p>
+                            </div>
+                            <div class="group-actions">
+                                <button id="refreshCertsBtn" class="btn btn-ghost"><i data-icon="refresh"></i>Refresh</button>
+                            </div>
+                        </div>
+                        <div id="certificatesList" class="list-box" aria-live="polite">
+                            <div class="empty-state">
+                                <div class="loading-spinner-small hidden" id="certsLoadingSpinner"></div>
+                                <p id="certsLoadingText">Press Refresh to look for certificates</p>
+                            </div>
+                        </div>
+
+                        <div class="group-head">
+                            <div class="group-head-text">
+                                <h4 class="group-title">Certificate folders</h4>
+                                <p class="group-help">Folders searched for certificate files</p>
+                            </div>
+                            <div class="group-actions">
+                                <button id="restoreDefaultStoresBtn" class="btn btn-ghost"><i data-icon="rotate-ccw"></i>Restore default folders</button>
+                                <button id="addCertStoreBtn" class="btn"><i data-icon="plus"></i>Add folder…</button>
+                            </div>
+                        </div>
+                        <div id="storesList" class="list-box">
+                            <div class="empty-state"><p>Loading…</p></div>
+                        </div>
+
+                        <div class="group-head">
+                            <div class="group-head-text">
+                                <h4 class="group-title">Smart card and token libraries</h4>
+                                <p class="group-help">PKCS#11 modules that talk to card readers and tokens</p>
+                            </div>
+                            <div class="group-actions">
+                                <button id="restoreDefaultLibsBtn" class="btn btn-ghost"><i data-icon="rotate-ccw"></i>Restore default libraries</button>
+                                <button id="addTokenLibBtn" class="btn"><i data-icon="plus"></i>Add library…</button>
+                            </div>
+                        </div>
+                        <div id="librariesList" class="list-box">
+                            <div class="empty-state"><p>Loading…</p></div>
+                        </div>
+                    </section>
+
+                    <!-- Shortcuts -->
+                    <section class="settings-section" id="shortcutsSection" aria-labelledby="settingsPageTitle">
+                        <p class="section-intro">Click a shortcut to change it. Esc is kept for closing dialogs and menus.</p>
+                        <div class="list-box">
+                            <div class="pref-row">
+                                <label class="pref-label" for="settingShortcutOpenFile">Open file</label>
+                                <button type="button" id="settingShortcutOpenFile" class="shortcut-btn" value="Control+o"></button>
+                            </div>
+                            <div class="pref-row">
+                                <label class="pref-label" for="settingShortcutSign">Sign document</label>
+                                <button type="button" id="settingShortcutSign" class="shortcut-btn" value="Alt+s"></button>
+                            </div>
+                            <div class="pref-row">
+                                <label class="pref-label" for="settingShortcutZoomIn">Zoom in</label>
+                                <button type="button" id="settingShortcutZoomIn" class="shortcut-btn" value="Control+Plus"></button>
+                            </div>
+                            <div class="pref-row">
+                                <label class="pref-label" for="settingShortcutZoomOut">Zoom out</label>
+                                <button type="button" id="settingShortcutZoomOut" class="shortcut-btn" value="Control+Minus"></button>
+                            </div>
+                            <div class="pref-row">
+                                <label class="pref-label" for="settingShortcutNextTab">Next tab</label>
+                                <button type="button" id="settingShortcutNextTab" class="shortcut-btn" value="Control+Tab"></button>
+                            </div>
+                            <div class="pref-row">
+                                <label class="pref-label" for="settingShortcutNewWindow">New window</label>
+                                <button type="button" id="settingShortcutNewWindow" class="shortcut-btn" value="Control+Shift+n"></button>
+                            </div>
+                            <div class="pref-row">
+                                <label class="pref-label" for="settingShortcutCommandPalette">All commands</label>
+                                <button type="button" id="settingShortcutCommandPalette" class="shortcut-btn" value="Control+k"></button>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Advanced -->
+                    <section class="settings-section" id="advancedSection" aria-labelledby="settingsPageTitle">
+                        <div class="list-box">
+                            <div class="pref-row">
+                                <div class="pref-text">
+                                    <label class="pref-label" for="settingHardwareAccel">Hardware acceleration</label>
+                                    <p class="pref-help">Use the graphics card to draw pages. Recommended.</p>
+                                </div>
+                                <input type="checkbox" id="settingHardwareAccel" class="switch" role="switch" checked>
+                            </div>
+                            <div class="pref-row">
+                                <div class="pref-text">
+                                    <label class="pref-label" for="settingDebugMode">Debug logging</label>
+                                    <p class="pref-help">Write extra details to the log, for reporting problems</p>
+                                </div>
+                                <input type="checkbox" id="settingDebugMode" class="switch" role="switch">
+                            </div>
+                        </div>
+                    </section>
+                </div>
+                <div class="prefs-foot">
+                    <p class="prefs-foot-note">Changes apply when you save.</p>
+                    <button id="settingsCancel" class="btn">Cancel</button>
+                    <button id="settingsSave" class="btn btn-primary">Save</button>
+                </div>
+            </div>
+
+            <!-- Signature profile editor: a page of Settings, opened from Signing -->
+            <div class="prefs-main hidden" id="profileEditorModal" role="region" aria-labelledby="profileEditorTitle">
+                <div class="prefs-head with-back">
+                    <button class="icon-btn" id="profileEditorClose" aria-label="Back to signing" data-tip="Back" data-keys="Esc"><i data-icon="arrow-left"></i></button>
+                    <h3 id="profileEditorTitle" class="prefs-page-title">New signature profile</h3>
+                </div>
+                <div class="prefs-body" data-scroll-edges>
+                    <div class="list-box">
+                        <div class="pref-row">
+                            <div class="pref-text">
+                                <label class="pref-label" for="profileName">Name</label>
+                                <p class="pref-help">Shown when you choose a profile to sign</p>
+                            </div>
+                            <div class="pref-control wide">
+                                <input type="text" id="profileName" class="setting-input" placeholder="e.g. Visible, bottom right" required aria-describedby="profileNameError">
+                                <p id="profileNameError" class="field-error hidden">Enter a name for the profile</p>
+                            </div>
+                        </div>
+                        <div class="pref-row">
+                            <div class="pref-text">
+                                <label class="pref-label" for="profileDescription">Description</label>
+                                <p class="pref-help">Optional</p>
+                            </div>
+                            <div class="pref-control wide">
+                                <input type="text" id="profileDescription" class="setting-input">
+                            </div>
+                        </div>
+                        <div class="pref-row">
+                            <div class="pref-text">
+                                <label class="pref-label" for="profileVisibility">Type</label>
+                                <p class="pref-help">Visible signatures are also drawn on the page</p>
+                            </div>
+                            <div class="pref-control">
+                                <select id="profileVisibility" class="setting-input">
+                                    <option value="invisible">Invisible</option>
+                                    <option value="visible">Visible</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="pref-row">
+                            <div class="pref-text">
+                                <label class="pref-label" for="profileLocation">Location</label>
+                                <p class="pref-help">Recorded in the signature</p>
+                            </div>
+                            <div class="pref-control wide">
+                                <input type="text" id="profileLocation" class="setting-input" placeholder="e.g. Barcelona, Spain">
+                            </div>
+                        </div>
+                        <div class="pref-row">
+                            <div class="pref-text">
+                                <label class="pref-label" for="profileIsDefault">Default profile</label>
+                                <p class="pref-help">Picked first when you sign</p>
+                            </div>
+                            <input type="checkbox" id="profileIsDefault" class="switch" role="switch">
+                        </div>
+                    </div>
+
+                    <div id="visibleProfileSettings" class="hidden">
+                        <div class="group-head">
+                            <div class="group-head-text">
+                                <h4 class="group-title">Appearance</h4>
+                                <p class="group-help">What the box on the page shows</p>
+                            </div>
+                        </div>
+                        <div class="list-box">
+                            <div class="pref-row stacked" id="profilePreviewContainer">
+                                <div class="signature-preview" id="signaturePreview" aria-label="Preview"></div>
+                            </div>
+                            <div class="pref-row">
+                                <label class="pref-label" for="profileShowSignerName">Signer's name</label>
+                                <input type="checkbox" id="profileShowSignerName" class="switch" role="switch" checked>
+                            </div>
+                            <div class="pref-row">
+                                <div class="pref-text">
+                                    <label class="pref-label" for="profileShowSigningTime">Date and time</label>
+                                    <p class="pref-help">In your local time</p>
+                                </div>
+                                <input type="checkbox" id="profileShowSigningTime" class="switch" role="switch" checked>
+                            </div>
+                            <div class="pref-row">
+                                <label class="pref-label" for="profileShowLocation">Location</label>
+                                <input type="checkbox" id="profileShowLocation" class="switch" role="switch">
+                            </div>
+                            <div class="pref-row">
+                                <div class="pref-text">
+                                    <label class="pref-label" for="profileCustomText">Extra text</label>
+                                    <p class="pref-help">Optional, below the other lines</p>
+                                </div>
+                                <div class="pref-control wide">
+                                    <textarea id="profileCustomText" class="setting-input" rows="2"></textarea>
+                                </div>
+                            </div>
+                            <div class="pref-row">
+                                <div class="pref-text">
+                                    <label class="pref-label" for="profileShowIcon">Image</label>
+                                    <p class="pref-help">A logo or seal next to the text</p>
+                                </div>
+                                <input type="checkbox" id="profileShowIcon" class="switch" role="switch">
+                            </div>
+                            <div id="profileIconSettings" class="hidden">
+                                <div class="pref-row">
+                                    <div class="pref-text">
+                                        <label class="pref-label" for="profileIconFile">Image file</label>
+                                        <p class="pref-help">PNG, JPG or SVG, up to 2 MB</p>
+                                    </div>
+                                    <div class="pref-control wide">
+                                        <input type="file" id="profileIconFile" accept="image/*" class="file-input">
+                                    </div>
+                                </div>
+                                <div class="pref-row">
+                                    <label class="pref-label" for="profileIconPosition">Image position</label>
+                                    <div class="pref-control">
+                                        <select id="profileIconPosition" class="setting-input">
+                                            <option value="left">Left of the text</option>
+                                            <option value="top">Above the text</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="group-head">
+                            <div class="group-head-text">
+                                <h4 class="group-title">Position</h4>
+                                <p class="group-help">You can still move and resize the box when you sign</p>
+                            </div>
+                        </div>
+                        <div class="list-box">
+                            <div class="pref-row">
+                                <div class="pref-text">
+                                    <label class="pref-label" for="profileDefinePosition">Set a default position</label>
+                                    <p class="pref-help">Off: the box starts at the bottom right</p>
+                                </div>
+                                <input type="checkbox" id="profileDefinePosition" class="switch" role="switch">
+                            </div>
+                            <div id="profilePositionSettings" class="hidden">
+                                <div class="pref-row">
+                                    <label class="pref-label" for="profilePage">Page</label>
+                                    <div class="pref-control">
+                                        <select id="profilePage" class="setting-input">
+                                            <option value="0">Last page</option>
+                                            <option value="1">First page</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="pref-row">
+                                    <div class="pref-text">
+                                        <span class="pref-label">Position and size</span>
+                                        <p class="pref-help">In points, from the bottom left of the page</p>
+                                    </div>
+                                    <div class="pref-control wide coord-grid">
+                                        <label class="unit-field"><span class="unit-field-label">X</span><input type="number" id="profileX" class="setting-input" value="360" min="0"></label>
+                                        <label class="unit-field"><span class="unit-field-label">Y</span><input type="number" id="profileY" class="setting-input" value="50" min="0"></label>
+                                        <label class="unit-field"><span class="unit-field-label">W</span><input type="number" id="profileWidth" class="setting-input" value="200" min="50" aria-label="Width"></label>
+                                        <label class="unit-field"><span class="unit-field-label">H</span><input type="number" id="profileHeight" class="setting-input" value="80" min="30" aria-label="Height"></label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="prefs-foot">
+                    <button id="profileEditorCancel" class="btn">Cancel</button>
+                    <button id="profileEditorSave" class="btn btn-primary">Save profile</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="/src/js/app.js"></script>
+
+    <!-- Shortcut capture -->
+    <div id="shortcutCaptureModal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="shortcutCaptureTitle">
+        <div class="modal capture-modal" tabindex="-1">
+            <div class="modal-header">
+                <h2 id="shortcutCaptureTitle">Change shortcut</h2>
+                <button class="modal-close" id="shortcutCaptureClose" aria-label="Close"><i data-icon="x"></i></button>
+            </div>
+            <div class="modal-body">
+                <p id="shortcutCaptureAction" class="capture-prompt">Press the new shortcut…</p>
+                <div id="shortcutCaptureDisplay" class="capture-keys" aria-live="polite"></div>
+                <p id="shortcutCaptureStatus" class="capture-status">Current shortcut</p>
+            </div>
+            <div class="modal-footer">
+                <button id="shortcutCaptureCancel" class="btn">Cancel</button>
+                <button id="shortcutCaptureOk" class="btn btn-primary" disabled>Save</button>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>

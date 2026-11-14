@@ -15,11 +15,11 @@ export function updateStatus(message) {
     }
 }
 
-/** Escapes HTML special characters to prevent XSS. */
+const HTML_ESCAPES = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', '\'': '&#39;' };
+
+/** Escapes text for HTML, in content or a quoted attribute alike. */
 export function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
+    return String(text ?? '').replace(/[&<>"']/g, (ch) => HTML_ESCAPES[ch]);
 }
 
 /** Removes internal file paths from error messages. */
@@ -62,28 +62,17 @@ export function updateZoomDisplay(zoomLevel) {
     if (zoomInput) zoomInput.value = percentage;
 }
 
-/** Updates the page indicator in the status bar. */
+/** Updates the go-to-page input and page total in the status bar. */
 export function updatePageIndicator(currentPage, totalPages) {
-    const pageIndicator = document.getElementById('pageIndicator');
-    if (pageIndicator) {
-        if (currentPage && totalPages) {
-            pageIndicator.textContent = `Page ${currentPage} of ${totalPages}`;
-        } else {
-            pageIndicator.textContent = '-';
-        }
+    const input = document.getElementById('pageInput');
+    const total = document.getElementById('pageTotal');
+    const known = Boolean(currentPage && totalPages);
+    if (input) {
+        input.value = known ? String(currentPage) : '';
+        input.disabled = !known;
+        input.max = known ? String(totalPages) : '';
     }
-}
-
-/** Updates the scroll progress percentage indicator. */
-export function updateScrollProgress(percentage) {
-    const scrollProgress = document.getElementById('scrollProgress');
-    if (scrollProgress) {
-        if (percentage !== null && percentage !== undefined) {
-            scrollProgress.textContent = `${Math.round(percentage)}% `;
-        } else {
-            scrollProgress.textContent = '-';
-        }
-    }
+    if (total) total.textContent = `/ ${known ? totalPages : '-'}`;
 }
 
 /** Creates a debounced version of a function. */
@@ -97,4 +86,12 @@ export function debounce(func, wait) {
         clearTimeout(timeout);
         timeout = setTimeout(later, wait);
     };
+}
+
+/** "512 bytes", "24.8 KB", "1.2 MB", "118 MB"; empty when the size is unknown. */
+export function formatFileSize(bytes) {
+    if (!bytes) return '';
+    if (bytes < 1024) return `${bytes} bytes`;
+    const [value, unit] = bytes < 1024 * 1024 ? [bytes / 1024, 'KB'] : [bytes / (1024 * 1024), 'MB'];
+    return `${value < 100 ? value.toFixed(1) : Math.round(value)} ${unit}`;
 }

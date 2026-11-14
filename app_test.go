@@ -1,280 +1,194 @@
 package main
 
 import (
-	"context"
+	"os"
+	"path/filepath"
+	"reflect"
+	"strings"
 	"testing"
 
-	"github.com/wailsapp/wails/v2/pkg/runtime"
+	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
-// TestNewApp tests App creation
-func TestNewApp(t *testing.T) {
-	app := NewApp()
+type emitted struct {
+	name string
+	data []any
+}
 
-	if app == nil {
-		t.Fatal("NewApp returned nil")
+func newTestApp(initial []string) (*App, *[]emitted) {
+	var events []emitted
+	app := NewApp(initial)
+	app.emit = func(name string, data ...any) bool {
+		events = append(events, emitted{name, data})
+		return false
 	}
-	if app.ctx != nil {
-		t.Error("ctx should be nil before startup")
+	return app, &events
+}
+
+func TestTakeStartupFiles_ReturnsInitialFilesOnce(t *testing.T) {
+	app, events := newTestApp([]string{"a.pdf", "b.pdf"})
+
+	if got := app.TakeStartupFiles(); !reflect.DeepEqual(got, []string{"a.pdf", "b.pdf"}) {
+		t.Errorf("first take: got %v", got)
+	}
+	if got := app.TakeStartupFiles(); len(got) != 0 {
+		t.Errorf("second take should be empty, got %v", got)
+	}
+	if len(*events) != 0 {
+		t.Errorf("startup files must not be emitted, got %v", *events)
 	}
 }
 
-// TestApp_Startup tests startup initialization
-func TestApp_Startup(t *testing.T) {
-	app := NewApp()
-	ctx := context.Background()
+func TestInterceptClose(t *testing.T) {
+	app, events := newTestApp(nil)
 
-	app.startup(ctx)
-
-	if app.ctx == nil {
-		t.Error("ctx not set after startup")
+	if app.interceptClose() {
+		t.Error("nothing unsaved: close must go ahead")
 	}
-	if app.ctx != ctx {
-		t.Error("ctx not set to provided context")
+	app.SetUnsavedChanges(1, true)
+	if !app.interceptClose() {
+		t.Error("unsaved changes: close must be held")
 	}
-}
-
-// TestApp_Startup_MultipleCalls tests multiple startup calls
-func TestApp_Startup_MultipleCalls(t *testing.T) {
-	app := NewApp()
-	ctx1 := context.WithValue(context.Background(), "key1", "value1")
-	ctx2 := context.WithValue(context.Background(), "key2", "value2")
-
-	app.startup(ctx1)
-
-	// Verify first context
-	if app.ctx.Value("key1") != "value1" {
-		t.Error("First context not set correctly")
+	want := []emitted{{"close-requested", nil}}
+	if !reflect.DeepEqual(*events, want) {
+		t.Errorf("got %v want %v", *events, want)
 	}
-
-	// Second startup should update context
-	app.startup(ctx2)
-
-	// Verify second context replaced first
-	if app.ctx.Value("key2") != "value2" {
-		t.Error("Second context not set correctly")
-	}
-	if app.ctx.Value("key1") != nil {
-		t.Error("First context value should not be accessible")
+	app.closeConfirmed.Store(true)
+	if app.interceptClose() {
+		t.Error("confirmed close must go ahead")
 	}
 }
 
-// TestApp_OpenDirectoryDialog tests directory dialog (will fail without Wails runtime)
-func TestApp_OpenDirectoryDialog(t *testing.T) {
-	_ = NewApp()
+func TestSetUnsavedChanges_IgnoresStaleCalls(t *testing.T) {
+	app, _ := newTestApp(nil)
 
-	// Without proper Wails runtime context, this will fail
-	// But we can test the method signature and basic error handling
-
-	// This would require Wails runtime context to actually work
-	t.Skip("OpenDirectoryDialog requires Wails runtime context (tested in E2E)")
-}
-
-// TestApp_OpenFileDialog tests file dialog (will fail without Wails runtime)
-func TestApp_OpenFileDialog(t *testing.T) {
-	_ = NewApp()
-
-	// Without proper Wails runtime context, this will fail
-	// But we can test the method signature
-
-	// This would require Wails runtime context to actually work
-	t.Skip("OpenFileDialog requires Wails runtime context (tested in E2E)")
-}
-
-// TestApp_ShowMessageDialog tests message dialog (will fail without Wails runtime)
-func TestApp_ShowMessageDialog(t *testing.T) {
-	_ = NewApp()
-
-	// Without proper Wails runtime context, this will fail
-	// But we can test the method signature
-
-	// This would require Wails runtime context to actually work
-	t.Skip("ShowMessageDialog requires Wails runtime context (tested in E2E)")
-}
-
-// TestApp_Methods_BeforeStartup tests that methods can be called before startup
-func TestApp_Methods_BeforeStartup(t *testing.T) {
-	app := NewApp()
-
-	// These methods should not panic even without startup
-	// They will fail gracefully (Wails runtime will handle nil context)
-
-	// We verify the app has these methods by calling them (they'll fail gracefully)
-	// Just verify app is not nil and has the expected structure
-	if app == nil {
-		t.Fatal("app is nil")
+	// Each binding call runs on its own goroutine, so they can land out of order.
+	app.SetUnsavedChanges(2, false)
+	app.SetUnsavedChanges(1, true)
+	if app.unsaved.Load() {
+		t.Error("an older report overrode a newer one")
+	}
+	app.SetUnsavedChanges(3, true)
+	if !app.unsaved.Load() {
+		t.Error("a newer report was ignored")
 	}
 }
 
-// TestApp_ContextPreservation tests that context is preserved
-func TestApp_ContextPreservation(t *testing.T) {
-	app := NewApp()
-	ctx := context.WithValue(context.Background(), "test", "value")
+func TestOpenFiles_QueuedUntilFrontendTakesThem(t *testing.T) {
+	app, events := newTestApp([]string{"start.pdf"})
 
-	app.startup(ctx)
-
-	// Verify context is preserved
-	if app.ctx != ctx {
-		t.Error("Context not preserved")
+	app.openFiles([]string{"/early.pdf"})
+	if len(*events) != 0 {
+		t.Fatalf("emitted before frontend was ready: %v", *events)
 	}
 
-	// Verify we can retrieve the value
-	if app.ctx.Value("test") != "value" {
-		t.Error("Context value not preserved")
-	}
-}
-
-// TestApp_Isolation tests that multiple App instances are isolated
-func TestApp_Isolation(t *testing.T) {
-	app1 := NewApp()
-	app2 := NewApp()
-
-	ctx1 := context.WithValue(context.Background(), "id", "app1")
-	ctx2 := context.WithValue(context.Background(), "id", "app2")
-
-	app1.startup(ctx1)
-	app2.startup(ctx2)
-
-	if app1.ctx == app2.ctx {
-		t.Error("App instances should have separate contexts")
+	if got := app.TakeStartupFiles(); !reflect.DeepEqual(got, []string{"start.pdf", "/early.pdf"}) {
+		t.Errorf("take: got %v", got)
 	}
 
-	if app1.ctx.Value("id") != "app1" {
-		t.Error("app1 context incorrect")
-	}
-	if app2.ctx.Value("id") != "app2" {
-		t.Error("app2 context incorrect")
+	app.openFiles([]string{"/late.pdf"})
+	want := []emitted{{"open-files", []any{[]string{"/late.pdf"}}}}
+	if !reflect.DeepEqual(*events, want) {
+		t.Errorf("got %v want %v", *events, want)
 	}
 }
 
-// TestApp_StructureValidation tests that App structure is correct
-func TestApp_StructureValidation(t *testing.T) {
-	app := NewApp()
+func TestOnFilesDropped(t *testing.T) {
+	app, events := newTestApp(nil)
+	app.TakeStartupFiles()
 
-	// Verify App has the expected structure
-	// This ensures we maintain API compatibility
-
-	if app.ctx != nil {
-		t.Error("New app should have nil context")
+	app.onFilesDropped(nil)
+	if len(*events) != 0 {
+		t.Fatalf("empty drop must not emit, got %v", *events)
 	}
 
-	// Verify methods are accessible
-	_ = app.OpenDirectoryDialog
-	_ = app.OpenFileDialog
-	_ = app.ShowMessageDialog
-	_ = app.startup
+	app.onFilesDropped([]string{"/x/a.txt"})
+	app.onFilesDropped([]string{"/x/a.PDF", "/x/b.png", "/x/c.pdf"})
+	want := []emitted{
+		{"open-files", []any{[]string{}}},
+		{"open-files", []any{[]string{"/x/a.PDF", "/x/c.pdf"}}},
+	}
+	if !reflect.DeepEqual(*events, want) {
+		t.Errorf("got %v want %v", *events, want)
+	}
 }
 
-// TestApp_NilContext tests behavior with nil context
-func TestApp_NilContext(t *testing.T) {
-	app := NewApp()
+func TestOnSecondInstance(t *testing.T) {
+	app, events := newTestApp(nil)
+	app.TakeStartupFiles()
+	cwd := t.TempDir()
 
-	// startup with nil context should not panic
-	defer func() {
-		if r := recover(); r != nil {
-			t.Errorf("startup panicked with nil context: %v", r)
+	app.onSecondInstance(application.SecondInstanceData{Args: []string{"/usr/bin/lankir"}, WorkingDir: cwd})
+	if len(*events) != 0 {
+		t.Fatalf("bare relaunch must not emit, got %v", *events)
+	}
+
+	app.onSecondInstance(application.SecondInstanceData{
+		Args:       []string{"/opt/lankir.pdf", "rel.pdf", "/abs/x.pdf", "notes.txt"},
+		WorkingDir: cwd,
+	})
+	want := []emitted{{"open-files", []any{[]string{filepath.Join(cwd, "rel.pdf"), "/abs/x.pdf"}}}}
+	if !reflect.DeepEqual(*events, want) {
+		t.Errorf("got %v want %v", *events, want)
+	}
+}
+
+func TestFilterPDFPaths(t *testing.T) {
+	got := filterPDFPaths([]string{"a.pdf", "b.txt", "C.PDF", "/x/y/z.png", "doc.pdf"})
+	want := []string{"a.pdf", "C.PDF", "doc.pdf"}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("got %v want %v", got, want)
+	}
+}
+
+func TestResolveSecondInstancePaths(t *testing.T) {
+	cwd, err := os.MkdirTemp("", "lankir-test-cwd-*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(cwd)
+
+	abs := filepath.Join(cwd, "abs.pdf")
+	got := resolveSecondInstancePaths([]string{"rel.pdf", abs, "other.txt"}, cwd)
+
+	want := []string{
+		filepath.Join(cwd, "rel.pdf"),
+		abs,
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("got %v want %v", got, want)
+	}
+}
+
+func TestNewWindowEnv(t *testing.T) {
+	in := []string{"PATH=/bin", "LANKIR_NEW_WINDOW=1", "HOME=/root", "LANKIR_NEW_WINDOW=stale"}
+	got := newWindowEnv(in)
+
+	// Must contain exactly one LANKIR_NEW_WINDOW=1 (we strip any prior and re-add).
+	count := 0
+	for _, e := range got {
+		if e == "LANKIR_NEW_WINDOW=1" {
+			count++
 		}
-	}()
-
-	app.startup(nil)
-
-	if app.ctx != nil {
-		t.Error("nil context should be preserved")
+		if strings.HasPrefix(e, "LANKIR_NEW_WINDOW=") && e != "LANKIR_NEW_WINDOW=1" {
+			t.Errorf("non-canonical LANKIR_NEW_WINDOW entry: %q", e)
+		}
 	}
-}
-
-// TestApp_ConcurrentAccess tests concurrent access to App
-func TestApp_ConcurrentAccess(t *testing.T) {
-	app := NewApp()
-
-	// Test that concurrent startup calls don't cause race conditions
-	done := make(chan bool, 10)
-
-	for i := 0; i < 10; i++ {
-		go func(id int) {
-			ctx := context.WithValue(context.Background(), "id", id)
-			app.startup(ctx)
-			done <- true
-		}(i)
+	if count != 1 {
+		t.Errorf("expected exactly one LANKIR_NEW_WINDOW=1; got %d in %v", count, got)
 	}
 
-	for i := 0; i < 10; i++ {
-		<-done
+	// Other env entries preserved.
+	hasPath, hasHome := false, false
+	for _, e := range got {
+		if e == "PATH=/bin" {
+			hasPath = true
+		}
+		if e == "HOME=/root" {
+			hasHome = true
+		}
 	}
-
-	// App should still be functional
-	if app.ctx == nil {
-		t.Error("Context not set after concurrent startups")
+	if !hasPath || !hasHome {
+		t.Errorf("non-LANKIR env not preserved: %v", got)
 	}
-}
-
-// TestRuntimeMethodSignatures tests that runtime methods have correct signatures
-func TestRuntimeMethodSignatures(t *testing.T) {
-	// Verify that runtime methods we use have the expected signatures
-	// This helps catch API changes in Wails
-
-	// These are compile-time checks - if they compile, signatures are correct
-	var _ func(context.Context, runtime.OpenDialogOptions) (string, error) = runtime.OpenDirectoryDialog
-	var _ func(context.Context, runtime.OpenDialogOptions) (string, error) = runtime.OpenFileDialog
-	var _ func(context.Context, runtime.MessageDialogOptions) (string, error) = runtime.MessageDialog
-}
-
-// TestApp_OpenDialogOptions tests OpenDialogOptions construction
-func TestApp_OpenDialogOptions(t *testing.T) {
-	// Test that we can construct OpenDialogOptions correctly
-	opts := runtime.OpenDialogOptions{
-		Title: "Test Title",
-	}
-
-	if opts.Title != "Test Title" {
-		t.Error("OpenDialogOptions Title not set correctly")
-	}
-
-	// Test with filters
-	opts2 := runtime.OpenDialogOptions{
-		Title: "Select PDF",
-		Filters: []runtime.FileFilter{
-			{
-				DisplayName: "PDF Files",
-				Pattern:     "*.pdf",
-			},
-		},
-	}
-
-	if len(opts2.Filters) != 1 {
-		t.Error("Filters not set correctly")
-	}
-	if opts2.Filters[0].Pattern != "*.pdf" {
-		t.Error("Filter pattern incorrect")
-	}
-}
-
-// TestApp_MessageDialogOptions tests MessageDialogOptions construction
-func TestApp_MessageDialogOptions(t *testing.T) {
-	// Test that we can construct MessageDialogOptions correctly
-	opts := runtime.MessageDialogOptions{
-		Type:    runtime.InfoDialog,
-		Title:   "Test",
-		Message: "Test message",
-	}
-
-	if opts.Type != runtime.InfoDialog {
-		t.Error("Dialog type incorrect")
-	}
-	if opts.Title != "Test" {
-		t.Error("Dialog title incorrect")
-	}
-	if opts.Message != "Test message" {
-		t.Error("Dialog message incorrect")
-	}
-}
-
-// TestApp_ErrorHandling tests error handling in App methods
-func TestApp_ErrorHandling(t *testing.T) {
-	app := NewApp()
-	app.startup(context.Background())
-
-	// These will fail without proper Wails runtime, but should not panic
-	// We skip this test as it requires Wails runtime
-	t.Skip("Requires Wails runtime context (tested in E2E)")
 }

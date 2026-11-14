@@ -4,8 +4,10 @@ import (
 	"crypto"
 	"crypto/x509"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -19,6 +21,7 @@ import (
 // Signer implements crypto.Signer for PKCS#12 files
 type Signer struct {
 	cert       *x509.Certificate
+	caCerts    []*x509.Certificate
 	privateKey crypto.PrivateKey
 }
 
@@ -38,6 +41,11 @@ func (ps *Signer) Sign(rand io.Reader, digest []byte, opts crypto.SignerOpts) ([
 
 func (ps *Signer) Certificate() *x509.Certificate {
 	return ps.cert
+}
+
+// CACertificates returns the other certificates in the file, usually the issuing chain.
+func (ps *Signer) CACertificates() []*x509.Certificate {
+	return ps.caCerts
 }
 
 // DefaultSystemCertDirs uses platform-specific system certificate directories
@@ -131,6 +139,7 @@ func loadCertificatesFromDirectory(dir string, source string) ([]types.Certifica
 			if certutil.IsCertificateValidForSigning(cert) {
 				c := certutil.ConvertX509Certificate(cert, source, fileName)
 				c.FilePath = filePath
+				c.CanSign = false // a bare certificate file has no private key
 				certs = append(certs, c)
 			}
 		}
@@ -156,60 +165,6 @@ func parseCertificate(data []byte) (*x509.Certificate, error) {
 	return nil, fmt.Errorf("failed to parse certificate")
 }
 
-// CheckPKCS12RequiresPassword checks if a PKCS#12 file requires a password
-// Returns: requiresPassword, error
-func CheckPKCS12RequiresPassword(filePath string) (bool, error) {
-	data, err := os.ReadFile(filePath)
-	if err != nil {
-		return false, fmt.Errorf("failed to read file: %w", err)
-	}
-
-	// Try to decode with empty password
-	_, _, _, err = goPkcs12.DecodeChain(data, "")
-	if err == nil {
-		// Successfully decoded with empty password
-		return false, nil
-	}
-
-	// Analyze error to distinguish between password errors and structural errors
-	errStr := strings.ToLower(err.Error())
-
-	// Password-related errors indicate the file is valid but needs a password
-	passwordErrors := []string{
-		"password",
-		"mac verification",
-		"decryption",
-		"authentication",
-	}
-
-	for _, passwordErr := range passwordErrors {
-		if strings.Contains(errStr, passwordErr) {
-			return true, nil
-		}
-	}
-
-	// Structural errors indicate invalid/corrupted file
-	structuralErrors := []string{
-		"expected",
-		"invalid",
-		"malformed",
-		"corrupt",
-		"bad",
-		"parse",
-		"decode",
-		"asn1",
-	}
-
-	for _, structErr := range structuralErrors {
-		if strings.Contains(errStr, structErr) {
-			return false, fmt.Errorf("invalid PKCS12 file: %w", err)
-		}
-	}
-
-	// Unknown error - be conservative and assume password required
-	return true, nil
-}
-
 // GetSignerFromPKCS12File loads a signer from a PKCS#12 file with password
 func GetSignerFromPKCS12File(filePath string, password string) (*Signer, error) {
 	data, err := os.ReadFile(filePath)
@@ -217,7 +172,10 @@ func GetSignerFromPKCS12File(filePath string, password string) (*Signer, error) 
 		return nil, fmt.Errorf("failed to read PKCS#12 file: %w", err)
 	}
 
-	privateKey, cert, _, err := goPkcs12.DecodeChain(data, password)
+	privateKey, cert, caCerts, err := goPkcs12.DecodeChain(data, password)
+	if errors.Is(err, goPkcs12.ErrIncorrectPassword) {
+		return nil, fmt.Errorf("cannot open %s: %w", filepath.Base(filePath), types.ErrIncorrectPIN)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode PKCS#12 file: %w", err)
 	}
@@ -232,6 +190,7 @@ func GetSignerFromPKCS12File(filePath string, password string) (*Signer, error) 
 
 	return &Signer{
 		cert:       cert,
+		caCerts:    caCerts,
 		privateKey: privateKey,
 	}, nil
 }
@@ -268,11 +227,17 @@ func LoadCertificateFromPKCS12File(filePath string) (*types.Certificate, error) 
 		}
 		return &c, nil
 	}
+	if !errors.Is(err, goPkcs12.ErrIncorrectPassword) {
+		slog.Warn("skipping unreadable PKCS#12 file", "file", filePath, "error", err)
+		return nil, fmt.Errorf("cannot read %s: %w", name, err)
+	}
 
-	// If we can't open it, assume it requires PIN
-	// We can't get details, but we return the file info
+	// Locked: the certificate can't be read until signing supplies the
+	// password, which then checks validity and key usage. The path stands in
+	// for the fingerprint so the file can be selected and remembered.
+	cert.Fingerprint = "file:" + filePath
 	cert.RequiresPin = true
-	// We mark it as valid for listing purposes, but it can't be used without PIN
+	cert.CanSign = true
 	cert.IsValid = true
 
 	return cert, nil
@@ -316,6 +281,7 @@ func LoadCertificatesFromPath(path string) ([]types.Certificate, error) {
 	if certutil.IsCertificateValidForSigning(cert) {
 		c := certutil.ConvertX509Certificate(cert, "User File", filepath.Base(path))
 		c.FilePath = path
+		c.CanSign = false // a bare certificate file has no private key
 		return []types.Certificate{c}, nil
 	}
 

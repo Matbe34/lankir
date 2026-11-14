@@ -159,22 +159,9 @@ import (
 	"unsafe"
 )
 
-// SuppressMuPDFWarnings redirects MuPDF warnings to the platform null device.
-// Not safe for concurrent use; the caller must serialize Suppress / Restore
-// calls and pair each Suppress with exactly one Restore.
-func SuppressMuPDFWarnings() {
-	suppressMuPDFWarnings()
-}
-
-// RestoreMuPDFWarnings restores stderr to its original target. Safe to call
-// when no Suppress is active (no-op).
-func RestoreMuPDFWarnings() {
-	restoreMuPDFWarnings()
-}
-
 // renderPageWithAnnotations renders a PDF page including all annotations and signature widgets
 // This uses a completely separate MuPDF context for safety
-func (s *PDFService) renderPageWithAnnotations(pageNum int, dpi float64) (*PageInfo, error) {
+func (s *Renderer) renderPageWithAnnotations(pageNum int, dpi float64) (*PageInfo, error) {
 	s.mu.RLock()
 	filePath := s.currentFile
 	totalPages := s.pageCount
@@ -244,13 +231,14 @@ func cPixmapToImage(cResult *C.RenderResult) image.Image {
 			// Access C data safely
 			dataPtr := unsafe.Pointer(cResult.data)
 
-			if n == 3 {
+			switch n {
+			case 3:
 				// RGB
 				img.Pix[dstOffset+0] = *(*byte)(unsafe.Pointer(uintptr(dataPtr) + uintptr(srcOffset+0)))
 				img.Pix[dstOffset+1] = *(*byte)(unsafe.Pointer(uintptr(dataPtr) + uintptr(srcOffset+1)))
 				img.Pix[dstOffset+2] = *(*byte)(unsafe.Pointer(uintptr(dataPtr) + uintptr(srcOffset+2)))
 				img.Pix[dstOffset+3] = 255
-			} else if n == 4 {
+			case 4:
 				// RGBA
 				img.Pix[dstOffset+0] = *(*byte)(unsafe.Pointer(uintptr(dataPtr) + uintptr(srcOffset+0)))
 				img.Pix[dstOffset+1] = *(*byte)(unsafe.Pointer(uintptr(dataPtr) + uintptr(srcOffset+1)))
@@ -264,7 +252,7 @@ func cPixmapToImage(cResult *C.RenderResult) image.Image {
 }
 
 // renderPageStandard is a fallback that uses the standard go-fitz rendering
-func (s *PDFService) renderPageStandard(pageNum int, dpi float64) (*PageInfo, error) {
+func (s *Renderer) renderPageStandard(pageNum int, dpi float64) (*PageInfo, error) {
 	s.mu.RLock()
 	doc := s.doc
 	s.mu.RUnlock()

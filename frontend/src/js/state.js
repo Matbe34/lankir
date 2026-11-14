@@ -1,40 +1,33 @@
-/** Global application state for open PDFs and UI configuration. */
+/** Global application state for open tabs. */
 export const state = {
     openPDFs: new Map(),
     activeTabId: null,
-    nextTabId: 1,
-    zoomLevel: 1.0,
-    viewMode: 'scroll', // 'single' or 'scroll'
-    loadingPages: new Set(),
-    selectedCertificate: null,
-    selectedProfile: null,
-    availableProfiles: null,
-    signaturePosition: null,
-    pdfPath: null
+    nextTabId: 1
 };
 
-/** Returns the currently active PDF data, or null if none. */
+/** Returns the currently active tab, or null if none. */
 export function getActivePDF() {
     return state.activeTabId ? state.openPDFs.get(state.activeTabId) : null;
 }
 
-/** Creates a new PDF data object for the state map. */
-export function createPDFData(tabId, filePath, metadata) {
+/**
+ * Creates the state of one tab. docId is the Go registry id that serves the
+ * file at /doc/<docId>; the pdf.js objects are filled in once it loads.
+ */
+export function createPDFData(tabId, filePath, docId) {
     return {
         id: tabId,
-        filePath: filePath,
-        fileName: filePath.split('/').pop(),
-        metadata: metadata,
-        currentPage: 0,
-        totalPages: metadata.pageCount,
-        renderedPages: new Map(),
-        thumbnails: new Map(),
-        viewerHTML: null,
-        pageListHTML: null,
-        scrollPosition: 0,
-        zoomLevel: getDefaultZoomLevel(),
-        leftSidebarCollapsed: false,
-        rightSidebarCollapsed: true
+        docId,
+        filePath,
+        fileName: filePath.split(/[/\\]/).pop(),
+        currentPage: 1,
+        totalPages: 0,
+        dirty: false,
+        loadingTask: null,
+        pdfDocument: null,
+        view: null, // { container, eventBus, linkService, findController, pdfViewer }
+        panelOpen: false, // the side panel, as this tab last had it
+        panelTab: 'pages' // its segment: 'pages', 'index' or 'signatures'
     };
 }
 
@@ -43,41 +36,17 @@ export function getNextTabId() {
     return state.nextTabId++;
 }
 
-/** Returns the default zoom level from user settings (default: 1.0). */
-export function getDefaultZoomLevel() {
-    try {
-        const settings = JSON.parse(localStorage.getItem('pdfEditorSettings') || '{}');
-        let zoom = (settings.defaultZoom || 100) / 100;
-        if (isNaN(zoom) || zoom < 0.1) zoom = 1.0;
-        return zoom;
-    } catch {
-        return 1.0;
-    }
-}
-
-/** Adds a PDF to the open documents map. */
+/** Adds a tab to the open documents map. */
 export function addOpenPDF(tabId, pdfData) {
     state.openPDFs.set(tabId, pdfData);
-    state.zoomLevel = pdfData.zoomLevel;
 }
 
-/** Removes a PDF from the open documents map and emits PDF_CLOSED event. */
+/** Removes a tab from the open documents map. */
 export function removeOpenPDF(tabId) {
     state.openPDFs.delete(tabId);
 }
 
-/** Sets the active tab and emits TAB_SWITCHED event. */
+/** Sets the active tab. */
 export function setActiveTab(tabId) {
     state.activeTabId = tabId;
-}
-
-/** Updates the global zoom level, clamped between 0.1 and 3.0. */
-export function setZoomLevel(level) {
-    state.zoomLevel = Math.max(0.1, Math.min(3.0, level));
-    return state.zoomLevel;
-}
-
-/** Adjusts zoom by delta and returns the new level. */
-export function changeZoom(delta) {
-    return setZoomLevel(state.zoomLevel + delta);
 }

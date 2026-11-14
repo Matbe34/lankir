@@ -1,267 +1,216 @@
+import { Events } from '@wailsio/runtime';
 import { initializeUI } from './ui.js';
 import { updateStatus } from './utils.js';
 import { loadRecentFilesWelcome } from './recentFiles.js';
-import { openPDFFile, openRecentFile, setViewMode } from './pdfOperations.js';
-import { signPDF, closeCertificateDialog } from './signature.js';
-import { renderPage, changePage } from './renderer.js';
-import { changeZoom } from './zoom.js';
-import { switchToTab } from './pdfManager.js';
+import {
+    openPDFFile, switchToNextTab, closeTab, saveTab, handleCloseRequested
+} from './documents.js';
+import { initCommandPalette, openCommandPalette, closeCommandPalette, isCommandPaletteOpen } from './commandPalette.js';
+import { signPDF, closeSignPanel } from './signature.js';
+import { zoomIn, zoomOut, handleZoomWheel, handleNavigationKey } from './navigation.js';
+import { initFindBar, openFindBar, closeFindBar } from './findBar.js';
+import { initAnnotationToolbar, handleEditCommand } from './annotationToolbar.js';
 import { initMessageDialog } from './messageDialog.js';
 import { initSettings, getSetting } from './settings.js';
-import { themeManager } from './themeManager.js';
 import { initLoadingIndicator } from './loadingIndicator.js';
-import { state } from './state.js';
+import { getActivePDF } from './state.js';
+import { initFileOpening } from './fileOpener.js';
+import { App } from './backend.js';
+import { hydrateIcons } from './icons.js';
+import { initTooltips } from './tooltip.js';
+import { renderShortcutHints } from './shortcuts.js';
+import { closeOpenMenu } from './menus.js';
 
+/** In debug mode, copy console output and uncaught errors to the Go log. */
+function forwardConsoleToGo() {
+    const format = (args) => args.map((a) => (a instanceof Error ? `${a.name}: ${a.message}` : typeof a === 'string' ? a : JSON.stringify(a))).join(' ');
+    for (const level of ['log', 'warn', 'error']) {
+        const original = console[level].bind(console);
+        console[level] = (...args) => {
+            original(...args);
+            App.LogFrontend(level, format(args)).catch(() => {});
+        };
+    }
+    window.addEventListener('error', (e) => App.LogFrontend('error', `${e.message} @ ${e.filename}:${e.lineno}`).catch(() => {}));
+    window.addEventListener('unhandledrejection', (e) => App.LogFrontend('error', `unhandled rejection: ${e.reason?.stack || e.reason}`).catch(() => {}));
+}
 
-document.addEventListener('DOMContentLoaded', async () => {
-    if (!window.go || !window.go.pdf || !window.go.signature) {
-        const errorMsg = 'Backend API not available. This application requires the Wails runtime to function.';
-        console.error(errorMsg);
-        document.body.innerHTML = `
-            <div style="display: flex; align-items: center; justify-content: center; height: 100vh; flex-direction: column; font-family: system-ui; padding: 2rem;">
-                <h1 style="color: #ef4444; margin-bottom: 1rem;">Backend API Error</h1>
-                <p style="color: #666; max-width: 600px; text-align: center;">${errorMsg}</p>
-                <p style="color: #666; margin-top: 1rem;">Please ensure you're running this application through the Wails desktop app, not directly in a browser.</p>
-            </div>
-        `;
+/** Parses "Control+Shift+n"-style shortcut strings from the settings. */
+function matchShortcut(ev, shortcutStr) {
+    if (!shortcutStr) return false;
+    const parts = shortcutStr.split('+').map(p => p.trim()).filter(Boolean);
+    if (parts.length === 0) return false;
+
+    let needCtrl = false;
+    let needAlt = false;
+    let needShift = false;
+    let needMeta = false;
+    let keyToken = null;
+
+    parts.forEach(part => {
+        const lower = part.toLowerCase();
+        if (lower === 'ctrl' || lower === 'control') needCtrl = true;
+        else if (lower === 'alt') needAlt = true;
+        else if (lower === 'shift') needShift = true;
+        else if (lower === 'meta' || lower === 'cmd' || lower === 'super') needMeta = true;
+        else keyToken = part; // last non-mod token wins
+    });
+
+    if (ev.ctrlKey !== needCtrl) return false;
+    if (ev.altKey !== needAlt) return false;
+    if (ev.shiftKey !== needShift) return false;
+    if (ev.metaKey !== needMeta) return false;
+
+    if (!keyToken) return true; // only modifiers
+
+    const k = keyToken.toLowerCase();
+    const evKey = ev.key;
+    if (k === 'plus' || k === '+') return evKey === '+' || evKey === '=';
+    if (k === 'minus' || k === '-') return evKey === '-';
+    if (k === 'tab') return evKey === 'Tab';
+    if (k === 'escape' || k === 'esc') return evKey === 'Escape' || evKey === 'Esc';
+    return evKey.toLowerCase() === k;
+}
+
+/** Escape closes the topmost open menu, dialog or overlay. */
+function closeTopDialog() {
+    // The palette is above everything, and its Escape lands here once focus has left its field.
+    if (isCommandPaletteOpen()) {
+        closeCommandPalette();
         return;
     }
+    if (closeOpenMenu({ focusButton: true })) return;
+    const visible = (id) => {
+        const el = document.getElementById(id);
+        return el && !el.classList.contains('hidden') ? el : null;
+    };
+    if (visible('profileEditorModal')) {
+        (document.getElementById('profileEditorCancel') || document.getElementById('profileEditorClose'))?.click();
+        return;
+    }
+    if (visible('settingsModal')) {
+        (document.getElementById('settingsModalClose') || document.getElementById('settingsCancel'))?.click();
+        return;
+    }
+    if (visible('signPanel')) {
+        closeSignPanel();
+        return;
+    }
+    if (visible('findBar')) {
+        closeFindBar();
+    }
+}
 
+const isDialogOpen = () => document.querySelector('.modal-overlay:not(.hidden), #signPanel:not(.hidden)') !== null;
+
+async function onKeyDown(e) {
+    const active = document.activeElement;
+    const isTyping = active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.tagName === 'SELECT' || active.isContentEditable);
+    const cfg = getSetting('shortcuts') || {};
+    const tab = getActivePDF();
+    const ctrl = e.ctrlKey && !e.altKey && !e.metaKey;
+    const key = e.key.toLowerCase();
+
+    if (e.key === 'Escape' || e.key === 'Esc') {
+        closeTopDialog();
+        return;
+    }
+    if (matchShortcut(e, cfg.commandPalette || 'Control+k')) {
+        e.preventDefault();
+        if (isCommandPaletteOpen()) closeCommandPalette();
+        else if (!isDialogOpen()) openCommandPalette();
+        return;
+    }
+    if (isDialogOpen()) return;
+
+    if (matchShortcut(e, cfg.nextTab || 'Control+Tab')) {
+        e.preventDefault();
+        switchToNextTab();
+        return;
+    }
+    if (!isTyping && matchShortcut(e, cfg.zoomIn || 'Control+Plus')) {
+        e.preventDefault();
+        zoomIn();
+        return;
+    }
+    if (!isTyping && matchShortcut(e, cfg.zoomOut || 'Control+Minus')) {
+        e.preventDefault();
+        zoomOut();
+        return;
+    }
+    if (!isTyping && matchShortcut(e, cfg.openFile || 'Control+o')) {
+        e.preventDefault();
+        openPDFFile();
+        return;
+    }
+    if (matchShortcut(e, cfg.newWindow || 'Control+Shift+n')) {
+        e.preventDefault();
+        App.OpenInNewWindow(tab?.filePath ?? '').catch(err => console.error('OpenInNewWindow failed:', err));
+        return;
+    }
+    if (!isTyping && matchShortcut(e, cfg.sign || 'Alt+s')) {
+        e.preventDefault();
+        signPDF();
+        return;
+    }
+    if (!tab) return;
+
+    if (ctrl && key === 'f') {
+        e.preventDefault();
+        openFindBar();
+        return;
+    }
+    if (ctrl && key === 's') {
+        e.preventDefault();
+        saveTab(tab.id, { saveAs: e.shiftKey });
+        return;
+    }
+    if (ctrl && !e.shiftKey && key === 'w') {
+        e.preventDefault();
+        closeTab(tab.id);
+        return;
+    }
+    // A focused control that already used the key (e.g. arrows between panel segments) keeps it.
+    if (isTyping || e.defaultPrevented) return;
+    if (handleNavigationKey(e)) e.preventDefault();
+}
+
+// pdf.js' editor manager handles copy/cut/paste on the whole document and calls
+// preventDefault, which swallowed clipboard use in our text fields and PDF form fields.
+function keepClipboardInTextFields() {
+    const isTextField = (el) => el instanceof Element
+        && (el.matches('input, textarea, select') || el.isContentEditable)
+        && !el.closest('.annotationEditorLayer');
+    for (const type of ['copy', 'cut', 'paste']) {
+        document.body.addEventListener(type, (e) => {
+            if (isTextField(e.target)) e.stopPropagation();
+        });
+    }
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+    keepClipboardInTextFields();
+    hydrateIcons();
+    initTooltips();
     initializeUI();
     initMessageDialog();
     initLoadingIndicator();
+    initCommandPalette();
+    initFindBar();
+    initAnnotationToolbar();
+    document.addEventListener('settings-applied', () => renderShortcutHints());
     await initSettings();
-    await themeManager.init();
+    renderShortcutHints();
+    if (getSetting('debugMode')) forwardConsoleToGo();
     updateStatus('Ready');
     loadRecentFilesWelcome();
 
-    const leftSidebar = document.getElementById('leftSidebar');
-    const rightSidebar = document.getElementById('rightSidebar');
-    const expandLeft = document.getElementById('expandLeft');
-    const expandRight = document.getElementById('expandRight');
+    Events.On('close-requested', () => handleCloseRequested());
+    Events.On('edit-command', ({ data }) => handleEditCommand(data, { dialogOpen: isDialogOpen() }));
+    initFileOpening();
 
-    if (leftSidebar) leftSidebar.style.display = 'none';
-    if (rightSidebar) rightSidebar.style.display = 'none';
-    if (expandLeft) expandLeft.style.display = 'none';
-    if (expandRight) expandRight.style.display = 'none';
-
-    document.addEventListener('keydown', async (e) => {
-        try {
-            const active = document.activeElement;
-            const isTyping = active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.isContentEditable);
-
-            const cfg = getSetting('shortcuts') || {};
-
-            const matchShortcut = (ev, shortcutStr) => {
-                if (!shortcutStr) return false;
-                const parts = shortcutStr.split('+').map(p => p.trim()).filter(Boolean);
-                if (parts.length === 0) return false;
-
-                let needCtrl = false;
-                let needAlt = false;
-                let needShift = false;
-                let needMeta = false;
-                let keyToken = null;
-
-                parts.forEach(part => {
-                    const lower = part.toLowerCase();
-                    if (lower === 'ctrl' || lower === 'control') needCtrl = true;
-                    else if (lower === 'alt') needAlt = true;
-                    else if (lower === 'shift') needShift = true;
-                    else if (lower === 'meta' || lower === 'cmd' || lower === 'super') needMeta = true;
-                    else keyToken = part; // last non-mod token wins
-                });
-
-                if (ev.ctrlKey !== needCtrl) return false;
-                if (ev.altKey !== needAlt) return false;
-                if (ev.shiftKey !== needShift) return false;
-                if (ev.metaKey !== needMeta) return false;
-
-                if (!keyToken) return true; // only modifiers
-
-                const k = keyToken.toLowerCase();
-                const evKey = ev.key;
-                // Special aliases
-                if (k === 'plus' || k === '+') {
-                    return evKey === '+' || evKey === '=';
-                }
-                if (k === 'minus' || k === '-') {
-                    return evKey === '-';
-                }
-                if (k === 'tab') return evKey === 'Tab';
-                if (k === 'escape' || k === 'esc') return evKey === 'Escape' || evKey === 'Esc';
-                // Single character keys
-                return evKey.toLowerCase() === k;
-            };
-
-            // Next tab (Ctrl+Tab by default)
-            if (matchShortcut(e, cfg.nextTab || 'Control+Tab')) {
-                // Always move to next tab; ignore typing state
-                e.preventDefault();
-                try {
-                    const tabIds = Array.from(state.openPDFs.keys());
-                    if (tabIds.length === 0) return;
-
-                    const currentIndex = tabIds.indexOf(state.activeTabId);
-                    const nextIndex = (currentIndex === -1) ? 0 : (currentIndex + 1) % tabIds.length;
-                    const nextTabId = tabIds[nextIndex];
-                    if (nextTabId !== undefined) {
-                        switchToTab(nextTabId);
-                    }
-                } catch (err) {
-                    console.error('Error switching tabs with shortcut:', err);
-                }
-                return;
-            }
-
-            // Zoom in
-            if (!isTyping && matchShortcut(e, cfg.zoomIn || 'Control+Plus')) {
-                e.preventDefault();
-                changeZoom(0.1);
-                return;
-            }
-
-            // Zoom out
-            if (!isTyping && matchShortcut(e, cfg.zoomOut || 'Control+Minus')) {
-                e.preventDefault();
-                changeZoom(-0.1);
-                return;
-            }
-
-            // Open file
-            if (!isTyping && matchShortcut(e, cfg.openFile || 'Control+o')) {
-                e.preventDefault();
-                openPDFFile();
-                return;
-            }
-
-            // Sign PDF
-            if (!isTyping && matchShortcut(e, cfg.sign || 'Alt+s')) {
-                e.preventDefault();
-                signPDF();
-                return;
-            }
-
-            // Escape: always close current modal (special, not configurable)
-            if (e.key === 'Escape' || e.key === 'Esc') {
-                // Order: signature placement overlay -> cert dialog -> profile dialog -> profile editor -> settings -> message dialog
-                // 1) Signature placement: trigger cancel button if present
-                const placementOverlay = document.getElementById('signaturePlacementOverlay');
-                if (placementOverlay && !placementOverlay.classList.contains('hidden')) {
-                    const cancelBtn = document.getElementById('placementCancel');
-                    if (cancelBtn) {
-                        cancelBtn.click();
-                        return;
-                    }
-                    // Fallback: hide overlay
-                    placementOverlay.classList.add('hidden');
-                    return;
-                }
-
-                // 2) Certificate dialog
-                const certDialog = document.getElementById('certDialog');
-                if (certDialog && !certDialog.classList.contains('hidden')) {
-                    closeCertificateDialog();
-                    return;
-                }
-
-                // 3) Profile dialog
-                const profileDialog = document.getElementById('profileDialog');
-                if (profileDialog && !profileDialog.classList.contains('hidden')) {
-                    const cancelBtn = document.getElementById('profileDialogCancel') || document.getElementById('profileDialogClose');
-                    if (cancelBtn) {
-                        cancelBtn.click();
-                    } else {
-                        profileDialog.classList.add('hidden');
-                        // clear signature-related state if available
-                        state.selectedProfile = null;
-                        state.pdfPath = null;
-                    }
-                    return;
-                }
-
-                // 4) Profile editor modal (signature profile create/edit)
-                const profileEditorModal = document.getElementById('profileEditorModal');
-                if (profileEditorModal && !profileEditorModal.classList.contains('hidden')) {
-                    const cancelBtn = document.getElementById('profileEditorCancel') || document.getElementById('profileEditorClose');
-                    if (cancelBtn) {
-                        cancelBtn.click();
-                    } else {
-                        profileEditorModal.classList.add('hidden');
-                    }
-                    return;
-                }
-
-                // 5) Settings modal
-                const settingsModal = document.getElementById('settingsModal');
-                if (settingsModal && !settingsModal.classList.contains('hidden')) {
-                    const closeBtn = document.getElementById('settingsModalClose') || document.getElementById('settingsCancel');
-                    if (closeBtn) {
-                        closeBtn.click();
-                    } else {
-                        settingsModal.classList.add('hidden');
-                    }
-                    return;
-                }
-
-                // 6) Generic message dialog
-                const messageDialog = document.getElementById('messageDialog');
-                if (messageDialog && !messageDialog.classList.contains('hidden')) {
-                    const closeBtn = document.getElementById('messageDialogClose') || document.getElementById('messageDialogOk');
-                    if (closeBtn) {
-                        closeBtn.click();
-                    } else {
-                        messageDialog.classList.add('hidden');
-                    }
-                    return;
-                }
-            }
-        } catch (error) {
-            // Swallow errors from keyboard handler to avoid breaking app
-            console.error('Keyboard shortcut handler error:', error);
-        }
+    document.addEventListener('keydown', (e) => {
+        onKeyDown(e).catch(err => console.error('Keyboard shortcut handler error:', err));
     });
-
-    const ZOOM_STEP = 0.1;
-    const ZOOM_THROTTLE_MS = 100;
-    const MAX_ACCUMULATED_ZOOM = 0.5;
-
-    let zoomThrottleTimeout = null;
-    let accumulatedZoomDelta = 0;
-
-    document.addEventListener('wheel', (e) => {
-        if (e.ctrlKey || e.metaKey) {
-            e.preventDefault();
-
-            const zoomDelta = e.deltaY > 0 ? -ZOOM_STEP : ZOOM_STEP;
-            
-            accumulatedZoomDelta = Math.max(
-                -MAX_ACCUMULATED_ZOOM,
-                Math.min(MAX_ACCUMULATED_ZOOM, accumulatedZoomDelta + zoomDelta)
-            );
-
-            // Throttle zoom changes to prevent performance issues
-            if (!zoomThrottleTimeout) {
-                zoomThrottleTimeout = setTimeout(() => {
-                    const deltaToApply = accumulatedZoomDelta;
-                    accumulatedZoomDelta = 0;
-                    zoomThrottleTimeout = null;
-                    changeZoom(deltaToApply);
-                }, ZOOM_THROTTLE_MS);
-            }
-        }
-    }, { passive: false });
+    document.addEventListener('wheel', handleZoomWheel, { passive: false });
 });
-
-window.pdfApp = {
-    openPDFFile,
-    signPDF,
-    updateStatus,
-    renderPage,
-    changePage,
-    changeZoom,
-    loadRecentFilesWelcome,
-    openRecentFile,
-    setViewMode,
-    switchToTab
-};

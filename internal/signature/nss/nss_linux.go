@@ -91,6 +91,8 @@ import (
 	"os"
 	"path/filepath"
 	"unsafe"
+
+	"github.com/Matbe34/lankir/internal/signature/types"
 )
 
 type NSSSigner struct {
@@ -228,7 +230,7 @@ func GetNSSSigner(nickname, pin string) (*NSSSigner, error) {
 		result := C.PK11_Authenticate(slot, C.PR_TRUE, unsafe.Pointer(cPin))
 		if result != C.SECSuccess {
 			C.CERT_DestroyCertificate(cert)
-			return nil, fmt.Errorf("NSS authentication failed: incorrect PIN or authentication error")
+			return nil, fmt.Errorf("NSS authentication failed: %w", types.ErrIncorrectPIN)
 		}
 	}
 

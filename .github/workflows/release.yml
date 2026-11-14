@@ -22,13 +22,13 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.24.0'
+          go-version-file: go.mod
           cache: true
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version-file: frontend/.nvmrc
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
@@ -43,9 +43,6 @@ jobs:
             desktop-file-utils \
             fuse \
             libfuse2
-
-      - name: Install Wails CLI
-        run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
 
       - name: Install nfpm for packaging
         run: go install github.com/goreleaser/nfpm/v2/cmd/nfpm@latest

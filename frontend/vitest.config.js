@@ -11,14 +11,13 @@ export default defineConfig({
       exclude: [
         'node_modules/',
         'tests/',
-        'wailsjs/',
+        'bindings/',
         'dist/',
-        '**/*.config.js',
-        '**/build.sh'
+        '**/*.config.js'
       ],
       include: ['src/js/**/*.js']
     },
     include: ['tests/**/*.test.js'],
-    exclude: ['node_modules', 'dist', 'wailsjs']
+    exclude: ['node_modules', 'dist', 'bindings']
   }
 });

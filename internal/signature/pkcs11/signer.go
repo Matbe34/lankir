@@ -6,13 +6,17 @@ import (
 	"crypto/sha256"
 	"crypto/x509"
 	"encoding/asn1"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
 	"sync"
 
+	"github.com/Matbe34/lankir/internal/signature/types"
 	"github.com/miekg/pkcs11"
 )
+
+var errPINLocked = errors.New("the token's PIN is locked")
 
 type Signer struct {
 	cert       *x509.Certificate
@@ -143,18 +147,26 @@ func GetSignerFromCertificate(modulePath, fingerprint string, pin string) (*Sign
 	}
 
 	if len(slots) == 0 {
-		return nil, fmt.Errorf("no PKCS#11 tokens found")
+		return nil, errors.New("no token present: connect your smart card or token and try again")
 	}
 
+	// A slot that fails (expired PIN, device error) is skipped, but its error
+	// beats "not found" when no other slot has the certificate.
+	var lastErr error
 	for _, slot := range slots {
 		session, err := p.OpenSession(slot, pkcs11.CKF_SERIAL_SESSION|pkcs11.CKF_RW_SESSION)
 		if err != nil {
+			lastErr = err
 			continue
 		}
 
 		signer, err := tryFindSignerInSlot(p, session, fingerprint, pin)
 		if err != nil {
 			p.CloseSession(session)
+			if errors.Is(err, types.ErrIncorrectPIN) || errors.Is(err, errPINLocked) {
+				return nil, err
+			}
+			lastErr = err
 			continue
 		}
 
@@ -167,6 +179,9 @@ func GetSignerFromCertificate(modulePath, fingerprint string, pin string) (*Sign
 		p.CloseSession(session)
 	}
 
+	if lastErr != nil {
+		return nil, lastErr
+	}
 	return nil, fmt.Errorf("certificate not found in any PKCS#11 token")
 }
 
@@ -239,8 +254,13 @@ func tryFindSignerInSlot(p *pkcs11.Ctx, session pkcs11.SessionHandle, fingerprin
 	}
 
 	if pin != "" {
-		err := p.Login(session, pkcs11.CKU_USER, pin)
-		if err != nil && err != pkcs11.Error(pkcs11.CKR_USER_ALREADY_LOGGED_IN) {
+		switch err := p.Login(session, pkcs11.CKU_USER, pin); err {
+		case nil, pkcs11.Error(pkcs11.CKR_USER_ALREADY_LOGGED_IN):
+		case pkcs11.Error(pkcs11.CKR_PIN_INCORRECT), pkcs11.Error(pkcs11.CKR_PIN_LEN_RANGE):
+			return nil, fmt.Errorf("token login failed: %w", types.ErrIncorrectPIN)
+		case pkcs11.Error(pkcs11.CKR_PIN_LOCKED):
+			return nil, errPINLocked
+		default:
 			return nil, fmt.Errorf("failed to login to token: %w", err)
 		}
 	}

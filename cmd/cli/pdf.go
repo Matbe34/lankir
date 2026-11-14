@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -29,8 +28,7 @@ var pdfInfoCmd = &cobra.Command{
 			ExitWithError("PDF file not found", err)
 		}
 
-		service := pdf.NewPDFService(nil)
-		service.Startup(context.Background())
+		service := pdf.NewRenderer()
 
 		metadata, err := service.OpenPDFByPath(pdfPath)
 		if err != nil {
@@ -70,8 +68,7 @@ var pdfPagesCmd = &cobra.Command{
 			ExitWithError("PDF file not found", err)
 		}
 
-		service := pdf.NewPDFService(nil)
-		service.Startup(context.Background())
+		service := pdf.NewRenderer()
 
 		_, err := service.OpenPDFByPath(pdfPath)
 		if err != nil {
@@ -138,8 +135,7 @@ var pdfRenderCmd = &cobra.Command{
 			ExitWithError("PDF file not found", err)
 		}
 
-		service := pdf.NewPDFService(nil)
-		service.Startup(context.Background())
+		service := pdf.NewRenderer()
 
 		_, err := service.OpenPDFByPath(pdfPath)
 		if err != nil {
@@ -165,14 +161,12 @@ var pdfRenderCmd = &cobra.Command{
 			renderOutput = base[:len(base)-len(ext)] + fmt.Sprintf("_page%d.png", renderPage)
 		}
 
-		const prefix = "data:image/png;base64,"
-		if len(pageInfo.ImageData) < len(prefix) {
-			ExitWithError("invalid image data format", nil)
+		png, err := pdf.DecodePNGDataURL(pageInfo.ImageData)
+		if err != nil {
+			ExitWithError("invalid image data format", err)
 		}
 
-		import64 := pageInfo.ImageData[len(prefix):]
-
-		err = os.WriteFile(renderOutput, []byte(import64), 0644)
+		err = os.WriteFile(renderOutput, png, 0644)
 		if err != nil {
 			ExitWithError("failed to write output file", err)
 		}
@@ -194,8 +188,7 @@ var pdfThumbnailCmd = &cobra.Command{
 			ExitWithError("PDF file not found", err)
 		}
 
-		service := pdf.NewPDFService(nil)
-		service.Startup(context.Background())
+		service := pdf.NewRenderer()
 
 		GetLogger().Info("generating thumbnail", "width", thumbnailSize)
 
@@ -210,13 +203,12 @@ var pdfThumbnailCmd = &cobra.Command{
 			renderOutput = base[:len(base)-len(ext)] + "_thumbnail.png"
 		}
 
-		const prefix = "data:image/png;base64,"
-		if len(thumbnailData) < len(prefix) {
-			ExitWithError("invalid thumbnail data format", nil)
+		png, err := pdf.DecodePNGDataURL(thumbnailData)
+		if err != nil {
+			ExitWithError("invalid thumbnail data format", err)
 		}
 
-		import64 := thumbnailData[len(prefix):]
-		err = os.WriteFile(renderOutput, []byte(import64), 0644)
+		err = os.WriteFile(renderOutput, png, 0644)
 		if err != nil {
 			ExitWithError("failed to write thumbnail file", err)
 		}

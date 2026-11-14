@@ -1,7 +1,6 @@
 package signature
 
 import (
-	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -40,20 +39,7 @@ func TestNewSignatureService_NilConfig(t *testing.T) {
 	}
 }
 
-// TestSignatureServiceStartup tests service startup
-func TestSignatureServiceStartup(t *testing.T) {
-	service := NewSignatureService(nil)
-	ctx := context.Background()
-
-	service.Startup(ctx)
-
-	if service.ctx == nil {
-		t.Error("Context not set after Startup")
-	}
-	if service.ctx != ctx {
-		t.Error("Context not set correctly")
-	}
-} // TestListSignatureProfiles tests profile listing
+// TestListSignatureProfiles tests profile listing
 func TestListSignatureProfiles(t *testing.T) {
 	tmpDir := t.TempDir()
 	cfgService, _ := config.NewServiceWithDir(tmpDir)
@@ -220,7 +206,9 @@ func TestDeleteSignatureProfile(t *testing.T) {
 		Name:       "To Delete",
 		Visibility: VisibilityInvisible,
 	}
-	service.SaveSignatureProfile(profile)
+	if err := service.SaveSignatureProfile(profile); err != nil {
+		t.Fatal(err)
+	}
 
 	// Delete it
 	err := service.DeleteSignatureProfile(profile.ID.String())
@@ -267,7 +255,9 @@ func TestValidateCertificateStorePath(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create the directory if it's a valid test case
 			if !tt.wantErr && tt.path != "/etc/ssl/certs" {
-				os.MkdirAll(tt.path, 0755)
+				if err := os.MkdirAll(tt.path, 0755); err != nil {
+					t.Fatal(err)
+				}
 				defer os.RemoveAll(tt.path)
 			}
 
@@ -285,10 +275,14 @@ func TestValidateCertificateStorePath_FileNotDirectory(t *testing.T) {
 	homeDir, _ := os.UserHomeDir()
 	testFile := filepath.Join(homeDir, filepath.Base(tmpDir), "file.txt")
 
-	os.MkdirAll(filepath.Dir(testFile), 0755)
+	if err := os.MkdirAll(filepath.Dir(testFile), 0755); err != nil {
+		t.Fatal(err)
+	}
 	defer os.RemoveAll(filepath.Dir(testFile))
 
-	os.WriteFile(testFile, []byte("test"), 0644)
+	if err := os.WriteFile(testFile, []byte("test"), 0644); err != nil {
+		t.Fatal(err)
+	}
 
 	err := validateCertificateStorePath(testFile)
 	if err == nil {
@@ -304,7 +298,9 @@ func TestAddCertificateStore(t *testing.T) {
 
 	homeDir, _ := os.UserHomeDir()
 	testStore := filepath.Join(homeDir, filepath.Base(tmpDir))
-	os.MkdirAll(testStore, 0755)
+	if err := os.MkdirAll(testStore, 0755); err != nil {
+		t.Fatal(err)
+	}
 	defer os.RemoveAll(testStore)
 
 	err := service.AddCertificateStore(testStore)
@@ -335,10 +331,14 @@ func TestAddCertificateStore_Duplicate(t *testing.T) {
 
 	homeDir, _ := os.UserHomeDir()
 	testStore := filepath.Join(homeDir, filepath.Base(tmpDir))
-	os.MkdirAll(testStore, 0755)
+	if err := os.MkdirAll(testStore, 0755); err != nil {
+		t.Fatal(err)
+	}
 	defer os.RemoveAll(testStore)
 
-	service.AddCertificateStore(testStore)
+	if err := service.AddCertificateStore(testStore); err != nil {
+		t.Fatal(err)
+	}
 
 	err := service.AddCertificateStore(testStore)
 	if err == nil {
@@ -366,10 +366,14 @@ func TestRemoveCertificateStore(t *testing.T) {
 
 	homeDir, _ := os.UserHomeDir()
 	testStore := filepath.Join(homeDir, filepath.Base(tmpDir))
-	os.MkdirAll(testStore, 0755)
+	if err := os.MkdirAll(testStore, 0755); err != nil {
+		t.Fatal(err)
+	}
 	defer os.RemoveAll(testStore)
 
-	service.AddCertificateStore(testStore)
+	if err := service.AddCertificateStore(testStore); err != nil {
+		t.Fatal(err)
+	}
 
 	err := service.RemoveCertificateStore(testStore)
 	if err != nil {
@@ -433,7 +437,9 @@ func TestAddTokenLibrary(t *testing.T) {
 
 	// Create a test .so file
 	testLib := filepath.Join(tmpDir, "test.so")
-	os.WriteFile(testLib, []byte("fake lib"), 0755)
+	if err := os.WriteFile(testLib, []byte("fake lib"), 0755); err != nil {
+		t.Fatal(err)
+	}
 
 	err := service.AddTokenLibrary(testLib)
 	if err != nil {
@@ -462,9 +468,13 @@ func TestAddTokenLibrary_Duplicate(t *testing.T) {
 	service := NewSignatureService(cfgService)
 
 	testLib := filepath.Join(tmpDir, "test.so")
-	os.WriteFile(testLib, []byte("fake lib"), 0755)
+	if err := os.WriteFile(testLib, []byte("fake lib"), 0755); err != nil {
+		t.Fatal(err)
+	}
 
-	service.AddTokenLibrary(testLib)
+	if err := service.AddTokenLibrary(testLib); err != nil {
+		t.Fatal(err)
+	}
 
 	err := service.AddTokenLibrary(testLib)
 	if err == nil {
@@ -479,9 +489,13 @@ func TestRemoveTokenLibrary(t *testing.T) {
 	service := NewSignatureService(cfgService)
 
 	testLib := filepath.Join(tmpDir, "test.so")
-	os.WriteFile(testLib, []byte("fake lib"), 0755)
+	if err := os.WriteFile(testLib, []byte("fake lib"), 0755); err != nil {
+		t.Fatal(err)
+	}
 
-	service.AddTokenLibrary(testLib)
+	if err := service.AddTokenLibrary(testLib); err != nil {
+		t.Fatal(err)
+	}
 
 	err := service.RemoveTokenLibrary(testLib)
 	if err != nil {

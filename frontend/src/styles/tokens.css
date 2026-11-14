@@ -1,0 +1,262 @@
+/*
+ * Lankir design tokens. Every colour, size and duration the UI uses is one of
+ * these. A theme is only a block that overrides colour roles: :root is light,
+ * [data-theme="dark"] is dark. themeManager.js sets data-theme (light, dark, or
+ * the system's) and may set --accent-base and data-palette on <html>.
+ */
+:root {
+  color-scheme: light;
+
+  /* Type: Inter (bundled, see style.css), four sizes */
+  --font-ui: "Inter Variable", "Inter", system-ui, "Cantarell", "Segoe UI", sans-serif;
+  --font-mono: ui-monospace, "Source Code Pro", "DejaVu Sans Mono", monospace;
+  --fs-display: 20px; /* the start page wordmark, the one size above a title */
+  --fs-title: 15px; /* panel and dialog titles */
+  --fs-body: 13px;  /* body text and every control */
+  --fs-small: 12px; /* labels, hints, metadata */
+  --fs-micro: 11px; /* keycaps, counters, badges */
+  --fw-regular: 400;
+  --fw-medium: 500;
+  --fw-semibold: 600;
+  --lh-body: 1.45;
+  --lh-tight: 1.25;
+  /* Inter's tracking: tighter only at title size; none at 12-13px, open at 11px */
+  --ls-title: -0.011em;
+  --ls-body: 0em;
+  --ls-micro: 0.01em;
+
+  /* Spacing: 4 px grid */
+  --sp-0: 2px;
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-8: 32px;
+  --sp-12: 48px;
+
+  /* Radius: 4 swatches, keys, segments; 6 controls, rows; 8 floating surfaces */
+  --r-xs: 2px; /* marks on the page: match, signature box */
+  --r-sm: 4px;
+  --r-md: 6px;
+  --r-lg: 8px;
+  --r-full: 999px;
+
+  /* Sizes */
+  --ctl-h: 30px;
+  --ctl-h-sm: 24px;
+  --header-h: 44px;
+  --panel-w: 272px; /* the side panel's default; panelResize.js sets the user's on #workspace */
+  --resizer-w: 8px; /* a resize handle's hit area */
+  --fact-col-min: 144px; /* a fact column, when facts sit side by side; a date fits */
+  --tab-min-w: 140px; /* a tab narrower than this goes to "N more tabs" */
+  --tab-max-w: 240px;
+  --pill-h: 30px; /* the page pill: a small control plus the float's padding */
+  --dock-w: 296px; /* the sign panel in the canvas margin */
+  --find-w: 300px;
+  --page-gutter: var(--sp-4); /* canvas above the page the view is on */
+  --page-gap: var(--sp-6); /* between pages: more than the gutter, so the page above stays out of view */
+  --icon: 16px;
+  --icon-sm: 14px;
+  --icon-stroke: 1.75;
+  --border-w: 1px;
+  --focus-w: 2px;
+
+  /* Motion */
+  --dur-fast: 120ms;
+  --dur: 180ms;
+  --ease: cubic-bezier(.2, 0, 0, 1);
+  --slide: 8px;
+
+  /* Layers */
+  --z-float: 10;
+  --z-panel: 20;
+  --z-header: 30; /* above the panel, so header menus open over it */
+  --z-menu: 40;
+  --z-dialog: 50;
+  --z-toast: 60;
+  --z-tooltip: 70;
+
+  /* Palette tint: 0% is plain neutral grey; data-palette raises it. */
+  --tint: #808080;
+  --tint-mix: 0%;
+
+  /* Colour roles, light */
+  --canvas: color-mix(in oklab, var(--tint) var(--tint-mix), #E4E5E9);
+  --chrome: color-mix(in oklab, var(--tint) var(--tint-mix), #F7F7F8);
+  --chrome-border: color-mix(in oklab, var(--tint) var(--tint-mix), #DCDDE2);
+  --surface: #FFFFFF;
+  --surface-raised: #FFFFFF;
+  --surface-sunken: color-mix(in oklab, var(--tint) var(--tint-mix), #F4F4F6);
+  --border: color-mix(in oklab, var(--tint) var(--tint-mix), #E1E2E6);
+  --border-strong: color-mix(in oklab, var(--tint) var(--tint-mix), #C6C8CF);
+  --field: #FFFFFF;
+  --fill: #14161C0D;
+  --fill-hover: #14161C14;
+  --fill-active: #14161C1F;
+
+  --text: #1B1C20;
+  --text-muted: #5C5E66;
+  --text-subtle: #A3A5AD;
+  --icon-color: #45474E;
+
+  --accent-base: #2D5FC4;
+  --accent: var(--accent-base);
+  --accent-hover: color-mix(in oklab, var(--accent) 88%, #000000);
+  --accent-fg: #FFFFFF;
+  --accent-text: color-mix(in oklab, var(--accent) 88%, #000000);
+  --accent-subtle: color-mix(in srgb, var(--accent) 11%, transparent);
+  /* A toggle that is on (header toggles, the chosen markup tool, find options):
+     opaque, so it reads the same on the header and on a floating bar. */
+  --toggle-on: color-mix(in oklab, var(--accent) 14%, var(--surface));
+  --focus-ring: var(--accent);
+  --selection: color-mix(in srgb, var(--accent) 26%, transparent);
+
+  --danger: #BE2A3E;
+  --danger-fg: #FFFFFF; /* text on a solid danger button */
+  --danger-hover: color-mix(in oklab, var(--danger) 88%, #000000);
+  --danger-subtle: color-mix(in srgb, var(--danger) 10%, transparent);
+  --success: #1E7A47;
+  --success-subtle: color-mix(in srgb, var(--success) 11%, transparent);
+  --warning: #8A5A00;
+  --warning-subtle: color-mix(in srgb, #D49A1E 16%, transparent);
+
+  /* Bars that float over the page: the header's chrome, a little see-through
+     and blurred, so the page passing under them reads as behind. */
+  --hud: color-mix(in srgb, var(--chrome) 74%, transparent);
+  --hud-blur: 12px;
+
+  --surface-overlay: #FFFFFF; /* menus, popovers and dialogs */
+  --segment-track: #14161C14; /* a segmented control's groove */
+  --segment-on: #FFFFFF; /* the chosen segment of a segmented control */
+  --switch-off: #8E9099; /* 3:1 against its row */
+  --switch-knob: #FFFFFF;
+
+  --scrim: #0000004D; /* 30% over everything, the header too */
+  --tooltip: #1B1C20;
+  --tooltip-fg: #F7F7F8;
+  --scroll-thumb: #00000038;
+  --scroll-thumb-hover: #00000059;
+  /* Find: pale yellow for every match, strong orange with an edge for the current one */
+  --match: #FFEB8A;
+  --match-current: #FF9A2E;
+  --match-current-edge: #D9700B;
+  --paper: #FFFFFF; /* blank page placeholders; pages keep their real colours */
+  --ink: #1B1B1B;
+  --mark-on-page: #1B1B1B26;
+
+  /* Glyphs drawn by CSS (select chevron, checkbox tick), in the icon colour */
+  --chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2345474E' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  --check-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E");
+
+  /* Elevation: 0 header, 1 page and margin panels, 2 floating bars and menus, 3 dialogs */
+  --elev-tab: 0 0 0 1px #0000000F, 0 1px 2px #00000014;
+  --elev-segment: 0 0 0 1px #00000024, 0 1px 2px #0000001F; /* the chosen segment: an edge in its groove */
+  --elev-1: 0 0 0 1px #0000000F, 0 1px 3px #0000001A, 0 4px 12px #0000000F;
+  --elev-2: 0 0 0 1px #00000014, 0 2px 6px #0000001A, 0 8px 24px #0000001A;
+  --elev-3: 0 0 0 1px #00000026, 0 4px 12px #0000001F, 0 24px 64px #00000059;
+  /* Bars that float over the page (markup tools, page pill): an edge and a tight shadow */
+  --elev-float: 0 0 0 1px #0000002B, 0 1px 3px #0000001A, 0 4px 12px #00000014;
+  --elev-page: 0 0 0 1px #0000001F, 0 1px 3px #00000024, 0 6px 16px #00000014;
+}
+
+/* :root[...] so it outweighs pdf_viewer.css's :root { color-scheme: light dark }:
+   pdf.js draws its editor UI with light-dark(), which must follow the app theme. */
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --canvas: color-mix(in oklab, var(--tint) var(--tint-mix), #161719);
+  /* The header is a clear step above the near-black canvas, with a hairline. */
+  --chrome: color-mix(in oklab, var(--tint) var(--tint-mix), #232428);
+  --chrome-border: color-mix(in oklab, var(--tint) var(--tint-mix), #393A40);
+  --surface: color-mix(in oklab, var(--tint) var(--tint-mix), #26272B);
+  --surface-raised: color-mix(in oklab, var(--tint) var(--tint-mix), #34353B);
+  --surface-sunken: color-mix(in oklab, var(--tint) var(--tint-mix), #1B1C1F);
+  --border: color-mix(in oklab, var(--tint) var(--tint-mix), #36373C);
+  --border-strong: color-mix(in oklab, var(--tint) var(--tint-mix), #4A4C53);
+  --field: #1B1C1F;
+  --fill: #FFFFFF0F;
+  --fill-hover: #FFFFFF17;
+  --fill-active: #FFFFFF21;
+
+  --text: #E8E9EC;
+  --text-muted: #A9ABB2; /* AA on chips over the lighter overlay surface */
+  --text-subtle: #62646B;
+  --icon-color: #C6C8CE;
+
+  --accent-base: #3B69CF;
+  --accent-hover: color-mix(in oklab, var(--accent) 88%, #FFFFFF);
+  --accent-fg: #FFFFFF;
+  --accent-text: color-mix(in oklab, var(--accent) 45%, #FFFFFF);
+  --accent-subtle: color-mix(in srgb, var(--accent) 24%, transparent);
+  --toggle-on: color-mix(in oklab, var(--accent) 30%, var(--surface));
+  --focus-ring: color-mix(in oklab, var(--accent) 45%, #FFFFFF);
+  --selection: color-mix(in srgb, var(--accent) 45%, transparent);
+
+  --danger: #F27B8A;
+  --danger-fg: #1B1C20;
+  --danger-hover: color-mix(in oklab, var(--danger) 88%, #FFFFFF);
+  --danger-subtle: color-mix(in srgb, var(--danger) 16%, transparent);
+  --success: #5CC98C;
+  --success-subtle: color-mix(in srgb, var(--success) 16%, transparent);
+  --warning: #E5B454;
+  --warning-subtle: color-mix(in srgb, var(--warning) 16%, transparent);
+
+  --hud: color-mix(in srgb, var(--chrome) 92%, transparent);
+
+  --surface-overlay: color-mix(in oklab, var(--tint) var(--tint-mix), #2F3036);
+  --segment-track: var(--fill);
+  --segment-on: color-mix(in oklab, var(--tint) var(--tint-mix), #4A4B53);
+  --switch-off: #7E8088; /* 3:1 against an overlay row */
+  --switch-knob: #F2F3F5;
+
+  --scrim: #00000094; /* 58% */
+  --tooltip: #E8E9EC;
+  --tooltip-fg: #1B1C20;
+  --scroll-thumb: #FFFFFF33;
+  --scroll-thumb-hover: #FFFFFF52;
+  --chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23C6C8CE' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+
+  --elev-tab: 0 0 0 1px #00000059, 0 1px 2px #00000040;
+  --elev-segment: var(--elev-tab);
+  --elev-1: 0 0 0 1px #00000080, 0 2px 8px #00000059;
+  /* Floating surfaces get a hairline light edge, so they lift off dark chrome. */
+  --elev-2: 0 0 0 1px #000000A0, inset 0 0 0 1px #FFFFFF17, 0 8px 24px #00000080;
+  --elev-3: 0 0 0 1px #000000, inset 0 0 0 1px #FFFFFF24, 0 8px 20px #00000080, 0 32px 80px #000000CC;
+  /* No wide shadow: on the white page it reads as a smudge. */
+  --elev-float: 0 0 0 1px #000000B3, inset 0 0 0 1px #FFFFFF1F, 0 2px 4px #00000066;
+  --elev-page: 0 0 0 1px #00000080, 0 2px 10px #00000066;
+}
+
+/* Raised surfaces in dark (dialogs, menus, popovers, the sign and side
+   panels) sit a step or two above the canvas, so the canvas's borders vanish
+   on them: their group borders and row dividers get lighter ones. */
+:root[data-theme="dark"] :is(.modal, .menu, .sign-dock, .find-box, .side-panel) {
+  --border: color-mix(in oklab, var(--tint) var(--tint-mix), #47484F);
+  --border-strong: color-mix(in oklab, var(--tint) var(--tint-mix), #5E6068);
+}
+
+/* The sign panel stays up while the page is used: one step above the canvas. */
+:root[data-theme="dark"] .sign-dock {
+  --surface: var(--surface-overlay);
+}
+
+/* Palettes ("Theme palette" in Settings): a hint of colour in the neutral chrome. */
+[data-palette="slate"] { --tint: #3E5C8A; --tint-mix: 6%; }
+[data-palette="purple"] { --tint: #6B3FA0; --tint-mix: 6%; }
+[data-palette="green"] { --tint: #2F7A5A; --tint-mix: 6%; }
+[data-palette="orange"] { --tint: #B0601E; --tint-mix: 6%; }
+[data-palette="red"] { --tint: #A8323E; --tint-mix: 5%; }
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-fast: 0ms;
+    --dur: 120ms;
+    --slide: 0px;
+  }
+}

@@ -1,39 +1,9 @@
-export const ZOOM = {
-    MIN: 0.1,           // Minimum zoom level (10%)
-    MAX: 3.0,           // Maximum zoom level (300%)
-    DEFAULT: 1.0,       // Default zoom level (100%)
-    STEP: 0.1,          // Zoom step increment (10%)
-    THROTTLE_MS: 100    // Throttle delay for zoom wheel events
-};
-
-// PDF Page Configuration
-export const PDF_PAGE = {
-    A4_WIDTH: 794,      // A4 page width in points
-    A4_HEIGHT: 1123,    // A4 page height in points (actually closer to 842, but this is used as fallback)
-    DEFAULT_WIDTH: 794,
-    DEFAULT_HEIGHT: 1123
-};
-
-// DPI Settings
-export const DPI = {
-    SCREEN: 96,         // Standard screen DPI
-    RENDER: 150,        // PDF rendering DPI (higher = better quality but slower)
-    SCALE: 96 / 150     // Scale factor between screen and render DPI
-};
-
-// Performance Settings
-export const PERFORMANCE = {
-    LAZY_LOAD_BUFFER_PX: 1000,      // Pixels above/below viewport to preload
-    LAZY_LOAD_DEBOUNCE_MS: 100,     // Debounce delay for scroll events
-    BACKGROUND_LOAD_BATCH_SIZE: 3,   // Pages to load before yielding to UI
-    BACKGROUND_LOAD_DELAY_MS: 10,    // Delay between background load batches
-    DEBOUNCE_DEFAULT_MS: 100         // Default debounce delay
-};
-
 // UI Settings
 export const UI = {
     LOADING_MIN_DISPLAY_MS: 500,    // Minimum time to show loading indicator
-    THUMBNAIL_WIDTH: 400            // Width for recent file thumbnails
+    THUMBNAIL_WIDTH: 48,            // CSS width of recent file thumbnails (a portrait page)
+    // Drawn this many times larger and scaled down: at that size pdf.js text comes out as hairlines.
+    THUMBNAIL_OVERSAMPLE: 4
 };
 
 // File Size Limits

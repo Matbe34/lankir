@@ -19,6 +19,12 @@ describe('Security - XSS Prevention', () => {
     it('should handle empty strings', () => {
       expect(escapeHtml('')).toBe('');
     });
+
+    it('escapes quotes too, so its output is safe inside an attribute', () => {
+      expect(escapeHtml(`<a href="x" title='y'>&</a>`)).toBe('&lt;a href=&quot;x&quot; title=&#39;y&#39;&gt;&amp;&lt;/a&gt;');
+      expect(escapeHtml(null)).toBe('');
+      expect(escapeHtml(42)).toBe('42');
+    });
   });
 
   describe('sanitizeError', () => {

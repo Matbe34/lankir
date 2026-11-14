@@ -8,6 +8,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
 // TestNewRecentFilesService tests service creation
@@ -36,7 +38,9 @@ func TestRecentFilesStartup(t *testing.T) {
 	service.configPath = filepath.Join(tmpDir, "recent.json")
 
 	ctx := context.Background()
-	service.Startup(ctx)
+	if err := service.ServiceStartup(ctx, application.ServiceOptions{}); err != nil {
+		t.Fatal(err)
+	}
 
 	if service.ctx == nil {
 		t.Error("Context not set after Startup")
@@ -64,11 +68,15 @@ func TestRecentFilesStartup_LoadsExistingFiles(t *testing.T) {
 	}
 
 	data, _ := json.Marshal(existingFiles)
-	os.WriteFile(configPath, data, 0600)
+	if err := os.WriteFile(configPath, data, 0600); err != nil {
+		t.Fatal(err)
+	}
 
 	service := NewRecentFilesService()
 	service.configPath = configPath
-	service.Startup(context.Background())
+	if err := service.ServiceStartup(context.Background(), application.ServiceOptions{}); err != nil {
+		t.Fatal(err)
+	}
 
 	files := service.GetRecent()
 	if len(files) != 1 {
@@ -87,7 +95,9 @@ func TestAddRecent(t *testing.T) {
 
 	service := NewRecentFilesService()
 	service.configPath = filepath.Join(tmpDir, "recent.json")
-	service.Startup(context.Background())
+	if err := service.ServiceStartup(context.Background(), application.ServiceOptions{}); err != nil {
+		t.Fatal(err)
+	}
 
 	err := service.AddRecent(testFile, 10)
 	if err != nil {
@@ -122,16 +132,22 @@ func TestAddRecent_Duplicate(t *testing.T) {
 
 	service := NewRecentFilesService()
 	service.configPath = filepath.Join(tmpDir, "recent.json")
-	service.Startup(context.Background())
+	if err := service.ServiceStartup(context.Background(), application.ServiceOptions{}); err != nil {
+		t.Fatal(err)
+	}
 
 	// Add first time
-	service.AddRecent(testFile, 10)
+	if err := service.AddRecent(testFile, 10); err != nil {
+		t.Fatal(err)
+	}
 	time1 := service.files[0].LastOpened
 
 	time.Sleep(10 * time.Millisecond)
 
 	// Add second time
-	service.AddRecent(testFile, 10)
+	if err := service.AddRecent(testFile, 10); err != nil {
+		t.Fatal(err)
+	}
 
 	files := service.GetRecent()
 	if len(files) != 1 {
@@ -151,13 +167,17 @@ func TestAddRecent_MaxLimit(t *testing.T) {
 	service := NewRecentFilesService()
 	service.configPath = filepath.Join(tmpDir, "recent.json")
 	service.maxRecent = 5 // Set lower limit for testing
-	service.Startup(context.Background())
+	if err := service.ServiceStartup(context.Background(), application.ServiceOptions{}); err != nil {
+		t.Fatal(err)
+	}
 
 	// Add more than max files
 	for i := 0; i < 10; i++ {
 		filename := filepath.Join(tmpDir, "test_"+string(rune('0'+i))+".pdf")
 		CreateTestPDF(t, filename, 1)
-		service.AddRecent(filename, i)
+		if err := service.AddRecent(filename, i); err != nil {
+			t.Fatal(err)
+		}
 		time.Sleep(2 * time.Millisecond) // Ensure different timestamps
 	}
 
@@ -186,9 +206,13 @@ func TestAddRecent_Persistence(t *testing.T) {
 
 	service := NewRecentFilesService()
 	service.configPath = configPath
-	service.Startup(context.Background())
+	if err := service.ServiceStartup(context.Background(), application.ServiceOptions{}); err != nil {
+		t.Fatal(err)
+	}
 
-	service.AddRecent(testFile, 10)
+	if err := service.AddRecent(testFile, 10); err != nil {
+		t.Fatal(err)
+	}
 
 	// Verify saved to disk
 	data, err := os.ReadFile(configPath)
@@ -214,9 +238,13 @@ func TestGetRecent(t *testing.T) {
 
 	service := NewRecentFilesService()
 	service.configPath = filepath.Join(tmpDir, "recent.json")
-	service.Startup(context.Background())
+	if err := service.ServiceStartup(context.Background(), application.ServiceOptions{}); err != nil {
+		t.Fatal(err)
+	}
 
-	service.AddRecent(testFile, 5)
+	if err := service.AddRecent(testFile, 5); err != nil {
+		t.Fatal(err)
+	}
 
 	files := service.GetRecent()
 	if len(files) != 1 {
@@ -235,7 +263,9 @@ func TestGetRecent(t *testing.T) {
 func TestGetRecent_FilterNonExistent(t *testing.T) {
 	tmpDir := t.TempDir()
 	configDir := filepath.Join(tmpDir, "config")
-	os.MkdirAll(configDir, 0755)
+	if err := os.MkdirAll(configDir, 0755); err != nil {
+		t.Fatal(err)
+	}
 	configPath := filepath.Join(configDir, "recent.json")
 
 	existingFile := filepath.Join(tmpDir, "exists.pdf")
@@ -243,10 +273,14 @@ func TestGetRecent_FilterNonExistent(t *testing.T) {
 
 	service := NewRecentFilesService()
 	service.configPath = configPath
-	service.Startup(context.Background())
+	if err := service.ServiceStartup(context.Background(), application.ServiceOptions{}); err != nil {
+		t.Fatal(err)
+	}
 
 	// Add both files using AddRecent
-	service.AddRecent(existingFile, 1)
+	if err := service.AddRecent(existingFile, 1); err != nil {
+		t.Fatal(err)
+	}
 
 	// Manually create a config with a nonexistent file
 	service.mu.Lock()
@@ -274,7 +308,9 @@ func TestGetRecent_OrderByMostRecent(t *testing.T) {
 
 	service := NewRecentFilesService()
 	service.configPath = filepath.Join(tmpDir, "recent.json")
-	service.Startup(context.Background())
+	if err := service.ServiceStartup(context.Background(), application.ServiceOptions{}); err != nil {
+		t.Fatal(err)
+	}
 
 	// Add files with different timestamps
 	file1 := filepath.Join(tmpDir, "file1.pdf")
@@ -284,11 +320,17 @@ func TestGetRecent_OrderByMostRecent(t *testing.T) {
 	CreateTestPDF(t, file2, 1)
 	CreateTestPDF(t, file3, 1)
 
-	service.AddRecent(file1, 1)
+	if err := service.AddRecent(file1, 1); err != nil {
+		t.Fatal(err)
+	}
 	time.Sleep(5 * time.Millisecond)
-	service.AddRecent(file2, 1)
+	if err := service.AddRecent(file2, 1); err != nil {
+		t.Fatal(err)
+	}
 	time.Sleep(5 * time.Millisecond)
-	service.AddRecent(file3, 1)
+	if err := service.AddRecent(file3, 1); err != nil {
+		t.Fatal(err)
+	}
 
 	files := service.GetRecent()
 
@@ -316,9 +358,13 @@ func TestClearRecent(t *testing.T) {
 
 	service := NewRecentFilesService()
 	service.configPath = filepath.Join(tmpDir, "recent.json")
-	service.Startup(context.Background())
+	if err := service.ServiceStartup(context.Background(), application.ServiceOptions{}); err != nil {
+		t.Fatal(err)
+	}
 
-	service.AddRecent(testFile, 5)
+	if err := service.AddRecent(testFile, 5); err != nil {
+		t.Fatal(err)
+	}
 
 	if len(service.GetRecent()) != 1 {
 		t.Fatal("File not added")
@@ -337,7 +383,9 @@ func TestClearRecent(t *testing.T) {
 	// Verify cleared on disk
 	data, _ := os.ReadFile(service.configPath)
 	var savedFiles []RecentFile
-	json.Unmarshal(data, &savedFiles)
+	if err := json.Unmarshal(data, &savedFiles); err != nil {
+		t.Fatal(err)
+	}
 	if len(savedFiles) != 0 {
 		t.Error("Files not cleared on disk")
 	}
@@ -353,10 +401,16 @@ func TestRemoveRecent(t *testing.T) {
 
 	service := NewRecentFilesService()
 	service.configPath = filepath.Join(tmpDir, "recent.json")
-	service.Startup(context.Background())
+	if err := service.ServiceStartup(context.Background(), application.ServiceOptions{}); err != nil {
+		t.Fatal(err)
+	}
 
-	service.AddRecent(file1, 1)
-	service.AddRecent(file2, 1)
+	if err := service.AddRecent(file1, 1); err != nil {
+		t.Fatal(err)
+	}
+	if err := service.AddRecent(file2, 1); err != nil {
+		t.Fatal(err)
+	}
 
 	if len(service.GetRecent()) != 2 {
 		t.Fatal("Files not added")
@@ -382,7 +436,9 @@ func TestRemoveRecent_NonExistent(t *testing.T) {
 
 	service := NewRecentFilesService()
 	service.configPath = filepath.Join(tmpDir, "recent.json")
-	service.Startup(context.Background())
+	if err := service.ServiceStartup(context.Background(), application.ServiceOptions{}); err != nil {
+		t.Fatal(err)
+	}
 
 	err := service.RemoveRecent("/nonexistent/file.pdf")
 	if err != nil {
@@ -402,7 +458,9 @@ func TestLoad(t *testing.T) {
 		{FilePath: testFile, FileName: "test.pdf", PageCount: 5, LastOpened: time.Now()},
 	}
 	data, _ := json.Marshal(files)
-	os.WriteFile(configPath, data, 0600)
+	if err := os.WriteFile(configPath, data, 0600); err != nil {
+		t.Fatal(err)
+	}
 
 	service := NewRecentFilesService()
 	service.configPath = configPath
@@ -439,7 +497,9 @@ func TestLoad_CorruptedFile(t *testing.T) {
 	configPath := filepath.Join(tmpDir, "recent.json")
 
 	// Write invalid JSON
-	os.WriteFile(configPath, []byte("invalid json {{{"), 0600)
+	if err := os.WriteFile(configPath, []byte("invalid json {{{"), 0600); err != nil {
+		t.Fatal(err)
+	}
 
 	service := NewRecentFilesService()
 	service.configPath = configPath
@@ -490,7 +550,9 @@ func TestConcurrentAccess(t *testing.T) {
 
 	service := NewRecentFilesService()
 	service.configPath = filepath.Join(tmpDir, "recent.json")
-	service.Startup(context.Background())
+	if err := service.ServiceStartup(context.Background(), application.ServiceOptions{}); err != nil {
+		t.Fatal(err)
+	}
 
 	var wg sync.WaitGroup
 	const goroutines = 50
@@ -503,7 +565,9 @@ func TestConcurrentAccess(t *testing.T) {
 			defer wg.Done()
 			testFile := filepath.Join(tmpDir, "test_"+string(rune('0'+id%10))+".pdf")
 			CreateTestPDF(t, testFile, 1)
-			service.AddRecent(testFile, id)
+			if err := service.AddRecent(testFile, id); err != nil {
+				t.Error(err)
+			}
 		}(i)
 	}
 
@@ -533,9 +597,13 @@ func TestFilePermissions(t *testing.T) {
 
 	service := NewRecentFilesService()
 	service.configPath = configPath
-	service.Startup(context.Background())
+	if err := service.ServiceStartup(context.Background(), application.ServiceOptions{}); err != nil {
+		t.Fatal(err)
+	}
 
-	service.AddRecent(testFile, 1)
+	if err := service.AddRecent(testFile, 1); err != nil {
+		t.Fatal(err)
+	}
 
 	info, err := os.Stat(configPath)
 	if err != nil {
@@ -569,7 +637,9 @@ func TestSaveAsync(t *testing.T) {
 
 	service := NewRecentFilesService()
 	service.configPath = configPath
-	service.Startup(context.Background())
+	if err := service.ServiceStartup(context.Background(), application.ServiceOptions{}); err != nil {
+		t.Fatal(err)
+	}
 
 	service.mu.Lock()
 	service.files = []RecentFile{
@@ -590,7 +660,9 @@ func TestSaveAsync(t *testing.T) {
 	}
 
 	var loaded []RecentFile
-	json.Unmarshal(data, &loaded)
+	if err := json.Unmarshal(data, &loaded); err != nil {
+		t.Fatal(err)
+	}
 	if len(loaded) != 1 {
 		t.Error("saveAsync did not save correctly")
 	}

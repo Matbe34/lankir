@@ -1,46 +1,49 @@
 // Test setup file - runs before all tests
 import { beforeEach, vi } from 'vitest';
 
-// Mock Wails runtime
-global.window = global.window || {};
-global.window.go = {
-  pdf: {
-    PDFService: {
-      OpenPDF: vi.fn(),
-      OpenPDFByPath: vi.fn(),
-      RenderPage: vi.fn(),
-      ClosePDF: vi.fn()
-    },
-    RecentFilesService: {
-      GetRecent: vi.fn(),
-      AddRecent: vi.fn(),
-      ClearRecent: vi.fn()
-    }
+// Mock the generated Wails bindings and runtime; there is no Go backend in tests.
+vi.mock('../src/js/backend.js', () => ({
+  App: {
+    TakeStartupFiles: vi.fn(() => Promise.resolve([])),
+    SetUnsavedChanges: vi.fn(() => Promise.resolve()),
+    ConfirmClose: vi.fn(() => Promise.resolve()),
+    OpenInNewWindow: vi.fn(),
+    OpenFileDialog: vi.fn(),
+    OpenDirectoryDialog: vi.fn()
   },
-  signature: {
-    SignatureService: {
-      ListCertificates: vi.fn(),
-      SignPDFWithProfile: vi.fn(),
-      SignPDFWithProfileAndPosition: vi.fn(),
-      VerifySignatures: vi.fn(),
-      ListSignatureProfiles: vi.fn(),
-      CreateSignatureProfile: vi.fn(),
-      DeleteSignatureProfile: vi.fn()
-    }
+  PDFService: {
+    OpenPDF: vi.fn(),
+    OpenPDFByPath: vi.fn(),
+    ClosePDF: vi.fn(() => Promise.resolve()),
+    SavePDF: vi.fn(),
+    SavePDFAs: vi.fn(),
+    ChooseSavePath: vi.fn()
   },
-  config: {
-    Service: {
-      Get: vi.fn(),
-      Set: vi.fn()
-    }
+  RecentFilesService: {
+    GetRecent: vi.fn(),
+    AddRecent: vi.fn(() => Promise.resolve()),
+    ClearRecent: vi.fn()
   },
-  main: {
-    App: {
-      OpenFileDialog: vi.fn(),
-      SaveFileDialog: vi.fn()
-    }
+  SignatureService: {
+    ListCertificates: vi.fn(),
+    SignPDF: vi.fn(),
+    VerifySignatures: vi.fn(),
+    ListSignatureProfiles: vi.fn(),
+    SaveSignatureProfile: vi.fn(),
+    DeleteSignatureProfile: vi.fn()
+  },
+  ConfigService: {
+    Get: vi.fn(),
+    Update: vi.fn()
   }
-};
+}));
+
+vi.mock('@wailsio/runtime', () => ({
+  Events: { On: vi.fn(), Emit: vi.fn() },
+  Window: { SetTitle: vi.fn(() => Promise.resolve()) },
+  Browser: { OpenURL: vi.fn(() => Promise.resolve()) },
+  System: { IsLinux: vi.fn(() => false) }
+}));
 
 // Reset mocks before each test
 beforeEach(() => {

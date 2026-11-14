@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -35,7 +34,6 @@ var certListCmd = &cobra.Command{
 			ExitWithError("failed to initialize config service", err)
 		}
 		service := signature.NewSignatureService(cfgService)
-		service.Startup(context.Background())
 
 		GetLogger().Info("listing certificates", "source", certSource, "valid_only", certValidOnly)
 
@@ -111,7 +109,6 @@ var certSearchCmd = &cobra.Command{
 			ExitWithError("failed to initialize config service", err)
 		}
 		service := signature.NewSignatureService(cfgService)
-		service.Startup(context.Background())
 
 		GetLogger().Info("searching certificates", "query", query)
 
@@ -162,7 +159,6 @@ var certInfoCmd = &cobra.Command{
 			ExitWithError("failed to initialize config service", err)
 		}
 		service := signature.NewSignatureService(cfgService)
-		service.Startup(context.Background())
 
 		GetLogger().Info("retrieving certificate info", "fingerprint", fingerprint)
 

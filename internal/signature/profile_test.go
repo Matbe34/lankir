@@ -219,7 +219,9 @@ func TestSaveProfile_Update(t *testing.T) {
 		Visibility: VisibilityInvisible,
 	}
 
-	pm.SaveProfile(profile)
+	if err := pm.SaveProfile(profile); err != nil {
+		t.Fatal(err)
+	}
 
 	// Update it
 	profile.Name = "Updated Name"
@@ -251,7 +253,9 @@ func TestDeleteProfile(t *testing.T) {
 		Visibility: VisibilityInvisible,
 	}
 
-	pm.SaveProfile(profile)
+	if err := pm.SaveProfile(profile); err != nil {
+		t.Fatal(err)
+	}
 
 	err := pm.DeleteProfile(profile.ID)
 	if err != nil {
@@ -394,8 +398,12 @@ func TestLoadCustomProfiles(t *testing.T) {
 		},
 	}
 
-	pm.SaveProfile(profile1)
-	pm.SaveProfile(profile2)
+	if err := pm.SaveProfile(profile1); err != nil {
+		t.Fatal(err)
+	}
+	if err := pm.SaveProfile(profile2); err != nil {
+		t.Fatal(err)
+	}
 
 	// Create new manager to force reload
 	pm2 := NewProfileManagerWithDir(tmpDir)
@@ -437,7 +445,7 @@ func TestCreateSignatureAppearance(t *testing.T) {
 
 	t.Run("invisible", func(t *testing.T) {
 		profile := DefaultInvisibleProfile()
-		appearance := CreateSignatureAppearance(profile, cert, signingTime)
+		appearance := CreateSignatureAppearance(profile, cert, "", signingTime)
 
 		if appearance.Visible {
 			t.Error("Invisible profile should create non-visible appearance")
@@ -446,7 +454,7 @@ func TestCreateSignatureAppearance(t *testing.T) {
 
 	t.Run("visible", func(t *testing.T) {
 		profile := DefaultVisibleProfile()
-		appearance := CreateSignatureAppearance(profile, cert, signingTime)
+		appearance := CreateSignatureAppearance(profile, cert, "", signingTime)
 
 		if !appearance.Visible {
 			t.Error("Visible profile should create visible appearance")
@@ -475,7 +483,7 @@ func TestCreateSignatureAppearance(t *testing.T) {
 		profile := DefaultVisibleProfile()
 		profile.Appearance.ShowSignerName = true
 
-		appearance := CreateSignatureAppearance(profile, cert, signingTime)
+		appearance := CreateSignatureAppearance(profile, cert, "", signingTime)
 
 		// The appearance content should be generated
 		// We can't easily test the exact content without knowing the implementation
@@ -578,7 +586,9 @@ func TestProfileFilePermissions(t *testing.T) {
 		Visibility: VisibilityInvisible,
 	}
 
-	pm.SaveProfile(profile)
+	if err := pm.SaveProfile(profile); err != nil {
+		t.Fatal(err)
+	}
 
 	profilePath := filepath.Join(tmpDir, profile.ID.String()+".json")
 	info, err := os.Stat(profilePath)
@@ -620,7 +630,9 @@ func TestProfileManagerWithManyProfiles(t *testing.T) {
 			Visibility: VisibilityInvisible,
 		}
 		ids[i] = profile.ID
-		pm.SaveProfile(profile)
+		if err := pm.SaveProfile(profile); err != nil {
+			t.Fatal(err)
+		}
 	}
 
 	// List all profiles

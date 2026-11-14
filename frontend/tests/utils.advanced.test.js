@@ -3,8 +3,8 @@ import {
   formatDate, 
   updateZoomDisplay, 
   updatePageIndicator,
-  updateScrollProgress,
-  debounce 
+  debounce,
+  formatFileSize
 } from '../src/js/utils.js';
 
 describe('Utils - Advanced Functions', () => {
@@ -13,9 +13,23 @@ describe('Utils - Advanced Functions', () => {
       <div id="zoomDisplay"></div>
       <div id="zoomLevel"></div>
       <input id="zoomInput" />
-      <div id="pageIndicator"></div>
-      <div id="scrollProgress"></div>
+      <input id="pageInput" />
+      <span id="pageTotal"></span>
     `;
+  });
+
+  describe('formatFileSize', () => {
+    it('uses the largest unit that keeps a short number', () => {
+      expect(formatFileSize(512)).toBe('512 bytes');
+      expect(formatFileSize(25351)).toBe('24.8 KB');
+      expect(formatFileSize(1258291)).toBe('1.2 MB');
+      expect(formatFileSize(123456789)).toBe('118 MB');
+    });
+
+    it('is empty when the size is unknown', () => {
+      expect(formatFileSize(undefined)).toBe('');
+      expect(formatFileSize(0)).toBe('');
+    });
   });
 
   describe('formatDate', () => {
@@ -70,22 +84,27 @@ describe('Utils - Advanced Functions', () => {
   });
 
   describe('updatePageIndicator', () => {
-    it('should show current page and total', () => {
+    it('should show current page in the input and the total', () => {
       updatePageIndicator(5, 10);
-      
-      expect(document.getElementById('pageIndicator').textContent).toBe('Page 5 of 10');
+
+      expect(document.getElementById('pageInput').value).toBe('5');
+      expect(document.getElementById('pageInput').disabled).toBe(false);
+      expect(document.getElementById('pageInput').max).toBe('10');
+      expect(document.getElementById('pageTotal').textContent).toBe('/ 10');
     });
 
-    it('should show dash when no pages', () => {
+    it('should clear and disable the input when no pages', () => {
       updatePageIndicator(null, null);
-      
-      expect(document.getElementById('pageIndicator').textContent).toBe('-');
+
+      expect(document.getElementById('pageInput').value).toBe('');
+      expect(document.getElementById('pageInput').disabled).toBe(true);
+      expect(document.getElementById('pageTotal').textContent).toBe('/ -');
     });
 
     it('should handle zero values', () => {
       updatePageIndicator(0, 0);
-      
-      expect(document.getElementById('pageIndicator').textContent).toBe('-');
+
+      expect(document.getElementById('pageInput').disabled).toBe(true);
     });
 
     it('should handle missing element', () => {
@@ -94,31 +113,6 @@ describe('Utils - Advanced Functions', () => {
     });
   });
 
-  describe('updateScrollProgress', () => {
-    it('should show percentage', () => {
-      updateScrollProgress(75.5);
-      
-      expect(document.getElementById('scrollProgress').textContent).toContain('76%');
-    });
-
-    it('should round percentages', () => {
-      updateScrollProgress(33.7);
-      
-      expect(document.getElementById('scrollProgress').textContent).toContain('34%');
-    });
-
-    it('should show dash for null', () => {
-      updateScrollProgress(null);
-      
-      expect(document.getElementById('scrollProgress').textContent).toBe('-');
-    });
-
-    it('should show dash for undefined', () => {
-      updateScrollProgress(undefined);
-      
-      expect(document.getElementById('scrollProgress').textContent).toBe('-');
-    });
-  });
 
   describe('debounce', () => {
     beforeEach(() => {

@@ -1,0 +1,58 @@
+%PDF-1.7
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [7 0 R 9 0 R] /Count 2 >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>
+endobj
+5 0 obj
+<< /Title (Meeting notes) /Producer (lankir preview fixtures) >>
+endobj
+6 0 obj
+<< /Length 555 >>
+stream
+BT /F2 20 Tf 60 762 Td (Meeting notes - project kickoff) Tj ET
+BT /F1 11 Tf 60 718 Td (Attendees: Maria, Jordi, Anna, Pau. The team agreed on the scope, the delivery calendar) Tj ET
+BT /F1 11 Tf 60 701.5 Td (and the review process for the first milestone.) Tj ET
+BT /F1 11 Tf 60 673 Td (Each party shall keep confidential all non public information it receives from the other) Tj ET
+BT /F1 11 Tf 60 656.5 Td (party and shall use it only to perform this Agreement. This obligation survives) Tj ET
+BT /F1 11 Tf 60 640 Td (termination for five years.) Tj ET
+endstream
+endobj
+7 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents 6 0 R >>
+endobj
+8 0 obj
+<< /Length 261 >>
+stream
+BT /F2 20 Tf 60 762 Td (Action items) Tj ET
+BT /F1 11 Tf 60 718 Td (Jordi to send the revised agreement to the Client. Anna to book the review meeting. Pau) Tj ET
+BT /F1 11 Tf 60 701.5 Td (to prepare the signing certificates before the contract is sent.) Tj ET
+endstream
+endobj
+9 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents 8 0 R >>
+endobj
+xref
+0 10
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000121 00000 n 
+0000000218 00000 n 
+0000000320 00000 n 
+0000000400 00000 n 
+0000001005 00000 n 
+0000001141 00000 n 
+0000001452 00000 n 
+trailer
+<< /Size 10 /Root 1 0 R /Info 5 0 R >>
+startxref
+1588
+%%EOF

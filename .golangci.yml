@@ -1,0 +1,16 @@
+version: "2"
+
+linters:
+  settings:
+    errcheck:
+      exclude-functions:
+        # Best-effort PKCS#11 cleanup; a failure here can't be acted on.
+        - (*github.com/miekg/pkcs11.Ctx).Finalize
+        - (*github.com/miekg/pkcs11.Ctx).CloseSession
+        - (*github.com/miekg/pkcs11.Ctx).FindObjectsFinal
+        # Close-style cleanup, like the Close calls the preset below allows.
+        - (*github.com/Matbe34/lankir/internal/pdf.Renderer).ClosePDF
+  exclusions:
+    presets:
+      # Unchecked Close/Remove/Setenv/fmt.Print* and similar idioms.
+      - std-error-handling

@@ -51,6 +51,7 @@ type SignatureProfile struct {
 	Visibility  SignatureVisibility `json:"visibility"`  // Invisible or visible
 	Position    SignaturePosition   `json:"position"`    // Where to place signature (if visible)
 	Appearance  SignatureAppearance `json:"appearance"`  // What to show (if visible)
+	Location    string              `json:"location"`    // Free-text signing location
 	IsDefault   bool                `json:"isDefault"`   // Whether this is the default profile
 }
 
