@@ -1,6 +1,6 @@
 # Release v1.0.0
 
-**Release Date:** TBD
+**Release Date:** 2026-11-14
 
 ---
 
