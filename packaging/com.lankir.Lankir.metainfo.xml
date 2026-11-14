@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>com.lankir.Lankir</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+  <name>Lankir</name>
+  <summary>Modern PDF editor and signer</summary>
+  <description>
+    <p>A modern PDF application for viewing, editing, and digitally signing PDF documents.</p>
+  </description>
+  <developer id="com.lankir">
+    <name>Matbe34</name>
+  </developer>
+  <url type="homepage">https://github.com/Matbe34/lankir</url>
+  <launchable type="desktop-id">com.lankir.Lankir.desktop</launchable>
+  <provides>
+    <binary>lankir</binary>
+  </provides>
+  <content_rating type="oars-1.1" />
+</component>

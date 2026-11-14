@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import fs from 'node:fs';
-import { ConfigService, SignatureService } from '../src/js/backend.js';
+import { App, ConfigService, SignatureService } from '../src/js/backend.js';
 
 vi.mock('../src/js/messageDialog.js', () => ({
   showMessage: vi.fn(async () => {}),
@@ -30,6 +30,7 @@ beforeEach(async () => {
   SignatureService.ListCertificates.mockResolvedValue([]);
   SignatureService.ListSignatureProfiles.mockResolvedValue([]);
   SignatureService.SaveSignatureProfile.mockResolvedValue();
+  App.Version.mockResolvedValue('1.2.3-test');
   await initSettings();
 });
 
@@ -52,6 +53,11 @@ describe('settings dialog', () => {
     expect(getSetting('checkRevocationOnline')).toBe(false);
     openSettings('signatures');
     expect($('settingCheckRevocationOnline').checked).toBe(false);
+  });
+
+  it('shows the app version under Advanced', async () => {
+    openSettings('advanced');
+    expect($('settingAppVersion').textContent).toBe('1.2.3-test');
   });
 
   it('names the open section in its header', () => {

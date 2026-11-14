@@ -42,7 +42,7 @@ jobs:
         # MuPDF static libs shipped by gen2brain/go-fitz are built with MSVC,
         # so cgo must use cl.exe to satisfy MSVC-only intrinsics like
         # __intrinsic_setjmpex / __memcpy_chk.
-        uses: ilammy/msvc-dev-cmd@v1
+        uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
         with:
           arch: x64
 

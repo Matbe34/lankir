@@ -8,7 +8,19 @@ import (
 	"testing"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
+
+	"github.com/Matbe34/lankir/internal/version"
 )
+
+func TestVersionReportsBuildVersion(t *testing.T) {
+	old := version.Version
+	version.Version = "1.2.3-test"
+	t.Cleanup(func() { version.Version = old })
+
+	if got := NewApp(nil).Version(); got != "1.2.3-test" {
+		t.Errorf("Version() = %q, want %q", got, "1.2.3-test")
+	}
+}
 
 type emitted struct {
 	name string

@@ -18,6 +18,10 @@ func TestParseArgs(t *testing.T) {
 		{"multiple pdf paths", []string{"a.pdf", "b.pdf"}, nil, []string{"a.pdf", "b.pdf"}},
 		{"global flag before subcommand", []string{"--verbose", "pdf", "info", "x.pdf"}, []string{"--verbose", "pdf", "info", "x.pdf"}, nil},
 		{"dot-slash workaround", []string{"./pdf"}, nil, []string{"./pdf"}},
+		{"completion subcommand", []string{"completion", "bash"}, []string{"completion", "bash"}, nil},
+		{"help subcommand", []string{"help"}, []string{"help"}, nil},
+		{"shell completion request", []string{"__complete", "pdf", ""}, []string{"__complete", "pdf", ""}, nil},
+		{"shell completion request without descriptions", []string{"__completeNoDesc", "pdf", ""}, []string{"__completeNoDesc", "pdf", ""}, nil},
 		{"unknown subcommand routes to GUI", []string{"pdf-info", "x.pdf"}, nil, []string{"pdf-info", "x.pdf"}},
 	}
 	for _, tc := range cases {

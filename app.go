@@ -10,6 +10,8 @@ import (
 	"sync/atomic"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
+
+	"github.com/Matbe34/lankir/internal/version"
 )
 
 // App exposes system dialogs and file hand-off to the frontend.
@@ -59,6 +61,11 @@ func (a *App) LogFrontend(level, message string) {
 	default:
 		slog.Info("frontend", "msg", message)
 	}
+}
+
+// Version returns the version this binary was built as, for the settings dialog.
+func (a *App) Version() string {
+	return version.Version
 }
 
 // interceptClose reports whether a window close must be held back; if so it

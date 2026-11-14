@@ -100,5 +100,13 @@ export function TakeStartupFiles() {
     }));
 }
 
+/**
+ * Version returns the version this binary was built as, for the settings dialog.
+ * @returns {$CancellablePromise<string>}
+ */
+export function Version() {
+    return $Call.ByID(2431199839);
+}
+
 // Private type creation functions
 const $$createType0 = $Create.Array($Create.Any);

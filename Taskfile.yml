@@ -7,6 +7,11 @@ vars:
   # Linux uses the Wails v3 GTK3/WebKit2GTK-4.1 backend; GTK4 needs GTK >= 4.10.
   GO_TAGS: gtk3
   WAILS3: wails3
+  # The git tag is the version: $VERSION when set (CI), else git describe.
+  VERSION:
+    sh: ./scripts/version.sh
+  NFPM_VERSION: v2.48.0
+  VERSION_LDFLAG: -X github.com/Matbe34/lankir/internal/version.Version={{.VERSION}}
 
 tasks:
   default:
@@ -29,13 +34,13 @@ tasks:
     deps: [frontend]
     cmds:
       - mkdir -p {{.BUILD_DIR}}
-      - go build -tags {{.GO_TAGS}},production -trimpath -ldflags="-w -s" -o {{.BUILD_DIR}}/{{.BINARY_NAME}} .
+      - go build -tags {{.GO_TAGS}},production -trimpath -ldflags="-w -s {{.VERSION_LDFLAG}}" -o {{.BUILD_DIR}}/{{.BINARY_NAME}} .
       - echo "✓ Build complete! Binary at {{.BUILD_DIR}}/{{.BINARY_NAME}}"
 
   build-static:
     desc: Build a portable binary for distribution (requires GTK3 on target)
     cmds:
-      - ./scripts/build-static.sh
+      - VERSION={{.VERSION}} ./scripts/build-static.sh
 
   build-windows:
     desc: Cross-compile a Windows amd64 CLI binary (requires mingw-w64; not the full Wails app)
@@ -54,18 +59,18 @@ tasks:
         GOOS=windows GOARCH=amd64 \
         CGO_CFLAGS="-I${PWD}/go-fitz-include" \
         CGO_LDFLAGS="-L${PWD}/go-fitz-libs -lmupdf_windows_amd64 -lmupdfthird_windows_amd64" \
-        go build -tags production -ldflags "-H windowsgui" -o {{.BUILD_DIR}}/{{.BINARY_NAME}}.exe .
+        go build -tags production -ldflags "-H windowsgui {{.VERSION_LDFLAG}}" -o {{.BUILD_DIR}}/{{.BINARY_NAME}}.exe .
       - echo "✓ Built {{.BUILD_DIR}}/{{.BINARY_NAME}}.exe"
 
   appimage:
     desc: Build a truly portable AppImage (runs on any Linux distro)
     cmds:
-      - ./scripts/build-appimage.sh
+      - VERSION={{.VERSION}} ./scripts/build-appimage.sh
 
   appimage-clean:
     desc: Build AppImage with clean cache (force rebuild all dependencies)
     cmds:
-      - ./scripts/build-appimage.sh --force
+      - VERSION={{.VERSION}} ./scripts/build-appimage.sh --force
 
   build-deb:
     desc: Build Debian package (.deb)
@@ -73,15 +78,12 @@ tasks:
       - |
         if ! command -v nfpm &> /dev/null; then
           echo "Error: nfpm is not installed."
-          echo "Install with: go install github.com/goreleaser/nfpm/v2/cmd/nfpm@latest"
+          echo "Install with: go install github.com/goreleaser/nfpm/v2/cmd/nfpm@{{.NFPM_VERSION}}"
           exit 1
         fi
-      - task: build
-      - |
-        VERSION=$(grep '"productVersion":' wails.json | sed 's/.*"productVersion": "\(.*\)".*/\1/')
-        echo "Building .deb package for version ${VERSION}..."
-        VERSION=${VERSION} nfpm package --packager deb --target build/bin/
-        echo "✓ Debian package built: build/bin/lankir_${VERSION}_amd64.deb"
+      - task: build-static
+      - VERSION={{.VERSION}} nfpm package --packager deb --target build/bin/lankir_{{.VERSION}}_amd64.deb
+      - 'echo "✓ Debian package built: build/bin/lankir_{{.VERSION}}_amd64.deb"'
 
   build-rpm:
     desc: Build RPM package (.rpm)
@@ -89,24 +91,21 @@ tasks:
       - |
         if ! command -v nfpm &> /dev/null; then
           echo "Error: nfpm is not installed."
-          echo "Install with: go install github.com/goreleaser/nfpm/v2/cmd/nfpm@latest"
+          echo "Install with: go install github.com/goreleaser/nfpm/v2/cmd/nfpm@{{.NFPM_VERSION}}"
           exit 1
         fi
-      - task: build
-      - |
-        VERSION=$(grep '"productVersion":' wails.json | sed 's/.*"productVersion": "\(.*\)".*/\1/')
-        echo "Building .rpm package for version ${VERSION}..."
-        VERSION=${VERSION} nfpm package --packager rpm --target build/bin/
-        echo "✓ RPM package built: build/bin/lankir-${VERSION}-1.x86_64.rpm"
+      - task: build-static
+      - VERSION={{.VERSION}} nfpm package --packager rpm --target build/bin/lankir-{{.VERSION}}-1.x86_64.rpm
+      - 'echo "✓ RPM package built: build/bin/lankir-{{.VERSION}}-1.x86_64.rpm"'
 
   build-packages:
     desc: Build all distribution packages (deb, rpm, AppImage, static)
     cmds:
       - echo "Building all distribution packages..."
-      - task: build-static
+      # The AppImage build also builds the static binary the deb and rpm package.
       - task: appimage
-      - task: build-deb
-      - task: build-rpm
+      - VERSION={{.VERSION}} nfpm package --packager deb --target build/bin/lankir_{{.VERSION}}_amd64.deb
+      - VERSION={{.VERSION}} nfpm package --packager rpm --target build/bin/lankir-{{.VERSION}}-1.x86_64.rpm
       - echo "✓ All packages built successfully!"
       - echo ""
       - echo "Built packages:"
@@ -189,7 +188,6 @@ tasks:
       - echo "Removing cached build tools and dependencies..."
       - rm -rf build/linuxdeploy-tools
       - rm -rf build/appimage-cache
-      - rm -f build/appimagetool-x86_64.AppImage
       - echo "✓ Build caches cleared"
 
   clean-all:
@@ -318,26 +316,6 @@ tasks:
       - ./{{.BUILD_DIR}}/{{.BINARY_NAME}}
 
   release:
-    desc: Create a new release with automatic version detection
+    desc: "Commit and tag a release on a clean, pushed master (prints the push commands): task release -- 1.0.0"
     cmds:
-      - ./scripts/release.sh --auto
-
-  release-patch:
-    desc: Create a patch release (bug fixes)
-    cmds:
-      - ./scripts/release.sh --patch
-
-  release-minor:
-    desc: Create a minor release (new features)
-    cmds:
-      - ./scripts/release.sh --minor
-
-  release-major:
-    desc: Create a major release (breaking changes)
-    cmds:
-      - ./scripts/release.sh --major
-
-  release-dry-run:
-    desc: Preview what a release would do without making changes
-    cmds:
-      - ./scripts/release.sh --auto --dry-run
+      - ./scripts/release.sh {{.CLI_ARGS}}

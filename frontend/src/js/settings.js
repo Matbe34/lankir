@@ -5,7 +5,7 @@ import { formatShortcut, keycaps } from './shortcuts.js';
 import { initSignatureProfiles, loadSignatureProfiles, closeProfileEditor } from './signatureProfiles.js';
 import { themeManager } from './themeManager.js';
 import { initCertificatesSettings, renderPathLists } from './certificates.js';
-import { ConfigService } from './backend.js';
+import { App, ConfigService } from './backend.js';
 
 const DEFAULT_SETTINGS = {
     theme: 'dark',
@@ -45,6 +45,15 @@ export async function initSettings() {
     setupSettingsModal();
     initSignatureProfiles();
     initCertificatesSettings();
+    await showVersion();
+}
+
+async function showVersion() {
+    try {
+        document.getElementById('settingAppVersion').textContent = await App.Version();
+    } catch (error) {
+        console.error('Failed to read the app version:', error);
+    }
 }
 
 function readLocalSettings() {

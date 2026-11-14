@@ -80,8 +80,9 @@ func runGUI(initialFiles []string) {
 			Handler: application.AssetFileServerFS(assets),
 		},
 		Linux: application.LinuxOptions{
-			// GTK derives the WM class "Lankir" from this, matching StartupWMClass in lankir.desktop.
-			ProgramName: "lankir",
+			// Also the program name, so the Wayland app_id and the X11 WM_CLASS
+			// match packaging/com.lankir.Lankir.desktop.
+			ApplicationID: "com.lankir.Lankir",
 		},
 	}
 

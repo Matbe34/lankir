@@ -144,6 +144,7 @@ export const App = lenient({
   OpenFileDialog: async () => '',
   OpenDirectoryDialog: async () => '',
   LogFrontend: async () => {},
+  Version: async () => '1.0.0',
 });
 
 export const PDFService = lenient({

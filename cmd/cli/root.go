@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 
 	"github.com/spf13/cobra"
+
+	"github.com/Matbe34/lankir/internal/version"
 )
 
 var (
@@ -48,6 +50,7 @@ func Execute(runGUI func()) {
 // startup files happens via main()'s direct call to runGUI(initialFiles).
 func ExecuteWithArgs(args []string, runGUI func([]string)) {
 	guiFunc = func() { runGUI(nil) }
+	rootCmd.Version = version.Version
 	rootCmd.SetArgs(args)
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
@@ -58,6 +61,10 @@ func ExecuteWithArgs(args []string, runGUI func([]string)) {
 // the root command (or one of its aliases). Used by main.go to disambiguate
 // file paths from CLI verbs.
 func IsKnownSubcommand(name string) bool {
+	// The shell completion scripts call these; Cobra adds them inside Execute.
+	if name == cobra.ShellCompRequestCmd || name == cobra.ShellCompNoDescRequestCmd {
+		return true
+	}
 	for _, c := range rootCmd.Commands() {
 		if c.Name() == name {
 			return true
@@ -76,6 +83,12 @@ var guiFunc func()
 func init() {
 	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "enable verbose logging")
 	rootCmd.PersistentFlags().BoolVar(&jsonLog, "json", false, "output logs in JSON format")
+
+	// Cobra adds `help` and `completion` only inside Execute, too late for
+	// IsKnownSubcommand. Both skip a root without subcommands; cert.go and
+	// config.go sort before this file, so their init has added theirs.
+	rootCmd.InitDefaultHelpCmd()
+	rootCmd.InitDefaultCompletionCmd()
 }
 
 func setupLogger() {

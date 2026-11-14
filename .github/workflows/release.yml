@@ -4,14 +4,79 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Build and keep the artifacts on this run only; publish nothing'
+        type: boolean
+        default: true
 
 permissions:
-  contents: write
+  contents: read
+
+env:
+  NFPM_VERSION: v2.48.0
+  GOLANGCI_LINT_VERSION: v2.15.0
+  CLOUDSMITH_CLI_VERSION: 1.30.1
 
 jobs:
-  build-and-release:
-    name: Build and Release
-    runs-on: ubuntu-latest
+  test:
+    name: Test
+    # Same runner as the build, whose glibc sets the oldest distro the binary runs on.
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: frontend/.nvmrc
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libnss3-dev
+
+      - name: Download Go dependencies
+        run: go mod download
+
+      - name: Setup go-fitz symlinks
+        run: |
+          ln -s "$(go list -m -f '{{.Dir}}' github.com/gen2brain/go-fitz)/include" go-fitz-include
+          ln -s "$(go list -m -f '{{.Dir}}' github.com/gen2brain/go-fitz)/libs" go-fitz-libs
+
+      - name: Frontend tests and build
+        working-directory: frontend
+        run: |
+          npm ci
+          npm test
+          npm run build
+
+      - name: Go vet
+        run: go vet -tags gtk3 ./...
+
+      - name: golangci-lint
+        run: |
+          go install "github.com/golangci/golangci-lint/v2/cmd/golangci-lint@${GOLANGCI_LINT_VERSION}"
+          golangci-lint run --build-tags gtk3 ./...
+
+      - name: Go tests
+        run: go test -tags gtk3 ./...
+
+  build:
+    name: Build
+    needs: test
+    runs-on: ubuntu-22.04
 
     steps:
       - name: Checkout code
@@ -39,86 +104,131 @@ jobs:
             libgtk-3-dev \
             libwebkit2gtk-4.1-dev \
             libnss3-dev \
-            libmupdf-dev \
             desktop-file-utils \
+            patchelf \
             fuse \
             libfuse2
 
-      - name: Install nfpm for packaging
-        run: go install github.com/goreleaser/nfpm/v2/cmd/nfpm@latest
-
-      - name: Install Python and Cloudsmith CLI
-        run: |
-          sudo apt-get install -y python3 python3-pip
-          pip install --upgrade cloudsmith-cli
+      - name: Install nfpm
+        run: go install "github.com/goreleaser/nfpm/v2/cmd/nfpm@${NFPM_VERSION}"
 
       - name: Download Go dependencies
         run: go mod download
 
-      - name: Install frontend dependencies
-        working-directory: frontend
-        run: npm ci
+      - name: Setup go-fitz symlinks
+        run: |
+          ln -s "$(go list -m -f '{{.Dir}}' github.com/gen2brain/go-fitz)/include" go-fitz-include
+          ln -s "$(go list -m -f '{{.Dir}}' github.com/gen2brain/go-fitz)/libs" go-fitz-libs
 
-      - name: Extract version from tag
+      - name: Version
         id: version
-        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            VERSION=${GITHUB_REF_NAME#v}
+            PKG_VERSION=$(node -p "require('./frontend/package.json').version")
+            if [ "$PKG_VERSION" != "$VERSION" ]; then
+              echo "::error::tag ${GITHUB_REF_NAME} but frontend/package.json is ${PKG_VERSION}; cut releases with scripts/release.sh"
+              exit 1
+            fi
+          else
+            VERSION=$(./scripts/version.sh)
+          fi
+          echo "VERSION=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "Building ${VERSION}"
 
-      - name: Build static binary
-        run: ./scripts/build-static.sh
-
-      - name: Build AppImage
+      - name: Build static binary and AppImage
+        env:
+          VERSION: ${{ steps.version.outputs.VERSION }}
         run: ./scripts/build-appimage.sh
 
-      - name: Build .deb package
-        run: VERSION=${{ steps.version.outputs.VERSION }} nfpm package --packager deb --target build/bin/
-
-      - name: Build .rpm package
-        run: VERSION=${{ steps.version.outputs.VERSION }} nfpm package --packager rpm --target build/bin/
-
-      - name: Generate checksums
+      - name: Build .deb and .rpm (static binary)
+        env:
+          VERSION: ${{ steps.version.outputs.VERSION }}
         run: |
-          cd build/bin
-          sha256sum lankir_static > checksums.txt
-          sha256sum lankir-${{ steps.version.outputs.VERSION }}-x86_64.AppImage >> checksums.txt
-          sha256sum lankir_${{ steps.version.outputs.VERSION }}_amd64.deb >> checksums.txt
-          sha256sum lankir-${{ steps.version.outputs.VERSION }}-1.x86_64.rpm >> checksums.txt
+          nfpm package --packager deb --target "build/bin/lankir_${VERSION}_amd64.deb"
+          nfpm package --packager rpm --target "build/bin/lankir-${VERSION}-1.x86_64.rpm"
+
+      - name: Collect artifacts and checksums
+        env:
+          VERSION: ${{ steps.version.outputs.VERSION }}
+        run: |
+          mkdir dist
+          cp build/bin/lankir_static "dist/lankir-${VERSION}-linux-x86_64"
+          cp "build/bin/lankir-${VERSION}-x86_64.AppImage" \
+             "build/bin/lankir_${VERSION}_amd64.deb" \
+             "build/bin/lankir-${VERSION}-1.x86_64.rpm" dist/
+          cd dist
+          sha256sum -- * > "lankir-${VERSION}-sha256sums.txt"
+          cat "lankir-${VERSION}-sha256sums.txt"
+          "./lankir-${VERSION}-linux-x86_64" --version
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: lankir-${{ steps.version.outputs.VERSION }}
+          path: dist/
+          if-no-files-found: error
+          retention-days: 14
+
+    outputs:
+      version: ${{ steps.version.outputs.VERSION }}
+
+  publish:
+    name: Publish
+    needs: build
+    # Tag pushes publish. A manual run publishes only when started on a tag with dry_run off.
+    if: startsWith(github.ref, 'refs/tags/v') && (github.event_name == 'push' || inputs.dry_run == false)
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: lankir-${{ needs.build.outputs.version }}
+          path: dist
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
         with:
-          files: |
-            build/bin/lankir_static
-            build/bin/lankir-${{ steps.version.outputs.VERSION }}-x86_64.AppImage
-            build/bin/lankir_${{ steps.version.outputs.VERSION }}_amd64.deb
-            build/bin/lankir-${{ steps.version.outputs.VERSION }}-1.x86_64.rpm
-            build/bin/checksums.txt
+          files: dist/*
           draft: false
-          prerelease: false
+          prerelease: ${{ contains(needs.build.outputs.version, '-') }}
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      # Release candidates (versions with a "-") stay GitHub prereleases; the
+      # package repositories that users follow get final versions only.
+      # cloudsmith-cli needs Python 3.11+; ubuntu-22.04 ships 3.10.
+      - name: Setup Python
+        if: ${{ !contains(needs.build.outputs.version, '-') }}
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: '3.12'
+
       - name: Upload to Cloudsmith
+        if: ${{ !contains(needs.build.outputs.version, '-') }}
         env:
           CLOUDSMITH_API_KEY: ${{ secrets.CLOUDSMITH_API_KEY }}
+          VERSION: ${{ needs.build.outputs.version }}
         run: |
           if [ -z "$CLOUDSMITH_API_KEY" ]; then
-            echo "⚠️  CLOUDSMITH_API_KEY secret not set. Skipping Cloudsmith upload."
+            echo "CLOUDSMITH_API_KEY secret not set. Skipping Cloudsmith upload."
             echo "To enable automatic package repository updates:"
             echo "  1. Get your API key from https://cloudsmith.io/user/settings/api/"
             echo "  2. Add it as CLOUDSMITH_API_KEY in repository secrets"
             echo "  3. Re-run this workflow or create a new release"
-          else
-            # Upload .deb to Debian/Ubuntu repositories
-            cloudsmith push deb matbe34/lankir/debian/bookworm build/bin/lankir_${{ steps.version.outputs.VERSION }}_amd64.deb
-            cloudsmith push deb matbe34/lankir/debian/bullseye build/bin/lankir_${{ steps.version.outputs.VERSION }}_amd64.deb
-            cloudsmith push deb matbe34/lankir/ubuntu/noble build/bin/lankir_${{ steps.version.outputs.VERSION }}_amd64.deb
-            cloudsmith push deb matbe34/lankir/ubuntu/jammy build/bin/lankir_${{ steps.version.outputs.VERSION }}_amd64.deb
-            cloudsmith push deb matbe34/lankir/ubuntu/focal build/bin/lankir_${{ steps.version.outputs.VERSION }}_amd64.deb
-
-            # Upload .rpm to Fedora/RHEL repositories
-            cloudsmith push rpm matbe34/lankir/fedora/40 build/bin/lankir-${{ steps.version.outputs.VERSION }}-1.x86_64.rpm
-            cloudsmith push rpm matbe34/lankir/fedora/39 build/bin/lankir-${{ steps.version.outputs.VERSION }}-1.x86_64.rpm
-            cloudsmith push rpm matbe34/lankir/el/9 build/bin/lankir-${{ steps.version.outputs.VERSION }}-1.x86_64.rpm
-            cloudsmith push rpm matbe34/lankir/el/8 build/bin/lankir-${{ steps.version.outputs.VERSION }}-1.x86_64.rpm
+            exit 0
           fi
+          pip install "cloudsmith-cli==${CLOUDSMITH_CLI_VERSION}"
+          DEB="dist/lankir_${VERSION}_amd64.deb"
+          RPM="dist/lankir-${VERSION}-1.x86_64.rpm"
+          # Only distros that have glibc >= 2.35 (the build runner's) and webkit2gtk-4.1.
+          for dist in debian/bookworm ubuntu/noble ubuntu/jammy; do
+            cloudsmith push deb "matbe34/lankir/${dist}" "$DEB"
+          done
+          for dist in fedora/40 fedora/39; do
+            cloudsmith push rpm "matbe34/lankir/${dist}" "$RPM"
+          done

@@ -1,8 +1,10 @@
 #!/bin/bash
 set -e
 
+VERSION=$(./scripts/version.sh)
+
 echo "============================================"
-echo "Building Lankir (Portable Binary)"
+echo "Building Lankir ${VERSION} (Portable Binary)"
 echo "============================================"
 echo ""
 
@@ -25,7 +27,7 @@ echo "Step 3: Building application binary..."
 mkdir -p build/bin
 go build \
   -tags gtk3,production \
-  -ldflags="-s -w" \
+  -ldflags="-s -w -X github.com/Matbe34/lankir/internal/version.Version=${VERSION}" \
   -trimpath \
   -o build/bin/lankir_static .
 

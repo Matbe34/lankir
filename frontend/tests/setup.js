@@ -9,7 +9,8 @@ vi.mock('../src/js/backend.js', () => ({
     ConfirmClose: vi.fn(() => Promise.resolve()),
     OpenInNewWindow: vi.fn(),
     OpenFileDialog: vi.fn(),
-    OpenDirectoryDialog: vi.fn()
+    OpenDirectoryDialog: vi.fn(),
+    Version: vi.fn(() => Promise.resolve('dev'))
   },
   PDFService: {
     OpenPDF: vi.fn(),

@@ -1,14 +1,17 @@
 #!/bin/bash
 set -e
 
+VERSION=$(./scripts/version.sh)
+export VERSION
+
 echo "============================================"
-echo "Building Lankir (Portable AppImage)"
+echo "Building Lankir ${VERSION} (Portable AppImage)"
 echo "============================================"
 echo ""
 
 # Configuration
 APP_NAME="lankir"
-APP_VERSION="0.1.2-rc1"
+APP_ID="com.lankir.Lankir"
 BINARY_NAME="lankir_static"
 BUILD_DIR="build/bin"
 APPIMAGE_DIR="build/appimage"
@@ -19,6 +22,21 @@ TOOLS_DIR="build/linuxdeploy-tools"
 LINUXDEPLOY="${TOOLS_DIR}/linuxdeploy-x86_64.AppImage"
 PLUGIN_GTK="${TOOLS_DIR}/linuxdeploy-plugin-gtk.sh"
 PLUGIN_GST="${TOOLS_DIR}/linuxdeploy-plugin-gstreamer.sh"
+APPIMAGETOOL="${TOOLS_DIR}/appimagetool-x86_64.AppImage"
+APPIMAGE_RUNTIME="${TOOLS_DIR}/runtime-x86_64"
+
+# Pinned build tools: URL and sha256. Bump both together.
+LINUXDEPLOY_URL="https://github.com/linuxdeploy/linuxdeploy/releases/download/1-alpha-20251107-1/linuxdeploy-x86_64.AppImage"
+LINUXDEPLOY_SHA256="c20cd71e3a4e3b80c3483cef793cda3f4e990aca14014d23c544ca3ce1270b4d"
+PLUGIN_GTK_URL="https://raw.githubusercontent.com/linuxdeploy/linuxdeploy-plugin-gtk/3b67a1d1c1b0c8268f57f2bce40fe2d33d409cea/linuxdeploy-plugin-gtk.sh"
+PLUGIN_GTK_SHA256="b0f4cbc684a0103a9651f0955b635eaea0096b3a66c0f5a2c2aa337960375171"
+PLUGIN_GST_URL="https://raw.githubusercontent.com/linuxdeploy/linuxdeploy-plugin-gstreamer/432af639725bc8b99df12351e86bb2e8a6b3585f/linuxdeploy-plugin-gstreamer.sh"
+PLUGIN_GST_SHA256="d1cf90701047aa9583c274bb66dd82db352255374fbfb8f3c4c89a05fe23bce0"
+APPIMAGETOOL_URL="https://github.com/AppImage/appimagetool/releases/download/1.9.1/appimagetool-x86_64.AppImage"
+APPIMAGETOOL_SHA256="ed4ce84f0d9caff66f50bcca6ff6f35aae54ce8135408b3fa33abfc3cb384eb0"
+# appimagetool would otherwise download the latest runtime while it builds.
+APPIMAGE_RUNTIME_URL="https://github.com/AppImage/type2-runtime/releases/download/20251108/runtime-x86_64"
+APPIMAGE_RUNTIME_SHA256="2fca8b443c92510f1483a883f60061ad09b46b978b2631c807cd873a47ec260d"
 
 # Parse arguments
 FORCE_REBUILD=false
@@ -39,26 +57,9 @@ BLUE='\033[0;34m'
 CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
-# Build frontend first
-echo "Step 1: Building frontend..."
-(cd frontend && npm ci && npm run build)
-echo -e "${GREEN}✓ Frontend built${NC}"
-echo ""
-
-# Set CGO flags for portable linking with MuPDF
-echo "Step 2: Configuring build..."
-export CGO_ENABLED=1
-export CGO_CFLAGS="-I${PWD}/go-fitz-include"
-export CGO_LDFLAGS="-L${PWD}/go-fitz-libs -lmupdf_linux_amd64 -lmupdfthird_linux_amd64 -lm"
-
-# Build the binary
-echo "Step 3: Building application binary..."
-mkdir -p "$BUILD_DIR"
-go build \
-  -tags gtk3,production \
-  -ldflags="-s -w" \
-  -trimpath \
-  -o "${BUILD_DIR}/${BINARY_NAME}" .
+# The AppImage wraps the portable binary.
+echo "Steps 1-3: Building the portable binary..."
+./scripts/build-static.sh
 
 if [ ! -f "${BUILD_DIR}/${BINARY_NAME}" ]; then
     echo -e "${RED}✗ Build failed - binary not found${NC}"
@@ -67,36 +68,28 @@ fi
 echo -e "${GREEN}✓ Binary built${NC}"
 echo ""
 
-# Download linuxdeploy tools if needed
-download_tools() {
-    mkdir -p "$TOOLS_DIR"
-
-    # Download linuxdeploy if not cached
-    if [ ! -f "$LINUXDEPLOY" ]; then
-        echo "Downloading linuxdeploy..."
-        wget -q --show-progress -O "$LINUXDEPLOY" \
-            "https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage"
-        chmod +x "$LINUXDEPLOY"
+# fetch PATH URL SHA256: downloads URL to PATH unless PATH already has that checksum.
+fetch() {
+    local path=$1 url=$2 sha=$3
+    if [ -f "$path" ] && echo "${sha}  ${path}" | sha256sum --check --status; then
+        return
     fi
-
-    # Download GTK plugin
-    if [ ! -f "$PLUGIN_GTK" ]; then
-        echo "Downloading linuxdeploy-plugin-gtk..."
-        wget -q --show-progress -O "$PLUGIN_GTK" \
-            "https://raw.githubusercontent.com/linuxdeploy/linuxdeploy-plugin-gtk/master/linuxdeploy-plugin-gtk.sh"
-        chmod +x "$PLUGIN_GTK"
+    echo "Downloading ${url}..."
+    wget -q -O "${path}.part" "$url"
+    if ! echo "${sha}  ${path}.part" | sha256sum --check --status; then
+        echo -e "${RED}✗ Checksum mismatch for ${url}${NC}"
+        exit 1
     fi
-
-    # Download GStreamer plugin
-    if [ ! -f "$PLUGIN_GST" ]; then
-        echo "Downloading linuxdeploy-plugin-gstreamer..."
-        wget -q --show-progress -O "$PLUGIN_GST" \
-            "https://raw.githubusercontent.com/linuxdeploy/linuxdeploy-plugin-gstreamer/master/linuxdeploy-plugin-gstreamer.sh"
-        chmod +x "$PLUGIN_GST"
-    fi
+    mv "${path}.part" "$path"
+    chmod +x "$path"
 }
 
-download_tools
+mkdir -p "$TOOLS_DIR"
+fetch "$LINUXDEPLOY" "$LINUXDEPLOY_URL" "$LINUXDEPLOY_SHA256"
+fetch "$PLUGIN_GTK" "$PLUGIN_GTK_URL" "$PLUGIN_GTK_SHA256"
+fetch "$PLUGIN_GST" "$PLUGIN_GST_URL" "$PLUGIN_GST_SHA256"
+fetch "$APPIMAGETOOL" "$APPIMAGETOOL_URL" "$APPIMAGETOOL_SHA256"
+fetch "$APPIMAGE_RUNTIME" "$APPIMAGE_RUNTIME_URL" "$APPIMAGE_RUNTIME_SHA256"
 
 # Create AppImage
 echo "Step 4: Creating AppImage..."
@@ -343,24 +336,16 @@ echo "✓ Fontconfig data bundled"
     cat > "${CACHE_DIR}/cache.meta" <<CACHE_META
 created=$(date +%s)
 webkit_hash=${webkit_hash}
-version=${APP_VERSION}
+version=${VERSION}
 CACHE_META
     echo -e "${GREEN}✓ Cache saved${NC}"
 else
     echo -e "${GREEN}✓ Used cached dependencies${NC}"
 fi
 
-cat > "${APPDIR}/usr/share/applications/${APP_NAME}.desktop" <<EOF
-[Desktop Entry]
-Type=Application
-Name=Lankir
-Comment=Modern PDF editor and signer
-Exec=${APP_NAME} %F
-Icon=${APP_NAME}
-Categories=Office;Utility;
-Terminal=false
-MimeType=application/pdf;
-EOF
+# Desktop entry and AppStream metadata come from packaging/, as in the .deb/.rpm.
+mkdir -p "${APPDIR}/usr/share/applications" "${APPDIR}/usr/share/metainfo"
+cp "packaging/${APP_ID}.desktop" "${APPDIR}/usr/share/applications/${APP_ID}.desktop"
 
 # Create AppRun script
 cat > "${APPDIR}/AppRun" <<'EOF'
@@ -596,39 +581,19 @@ else
 EOF
 fi
 
-# Create metainfo file (use reverse-DNS format for AppImage compatibility)
-cat > "${APPDIR}/usr/share/metainfo/io.github.pdfapp.appdata.xml" <<EOF
-<?xml version="1.0" encoding="UTF-8"?>
-<component type="desktop-application">
-  <id>io.github.pdfapp</id>
-  <metadata_license>CC0-1.0</metadata_license>
-  <project_license>MIT</project_license>
-  <name>Lankir</name>
-  <summary>Modern PDF editor and signer</summary>
-  <description>
-    <p>A modern PDF application for viewing, editing, and digitally signing PDF documents.</p>
-  </description>
-  <content_rating type="oars-1.1" />
-</component>
-EOF
+# AppStream metadata, with this build's version as its release
+RELEASE_DATE=$(git log -1 --format=%cs 2>/dev/null || date +%F)
+sed "s|</component>|  <releases>\n    <release version=\"${VERSION}\" date=\"${RELEASE_DATE}\" />\n  </releases>\n</component>|" \
+    "packaging/${APP_ID}.metainfo.xml" > "${APPDIR}/usr/share/metainfo/${APP_ID}.metainfo.xml"
 
 # Create symlinks for AppImage
-ln -sf "usr/share/applications/${APP_NAME}.desktop" "${APPDIR}/${APP_NAME}.desktop"
+ln -sf "usr/share/applications/${APP_ID}.desktop" "${APPDIR}/${APP_ID}.desktop"
 ln -sf "usr/share/icons/hicolor/256x256/apps/${APP_NAME}.svg" "${APPDIR}/${APP_NAME}.svg"
 
-# Download appimagetool if not present
-APPIMAGETOOL="build/appimagetool-x86_64.AppImage"
-if [ ! -f "$APPIMAGETOOL" ]; then
-    echo "Downloading appimagetool..."
-    mkdir -p build
-    wget -q --show-progress -O "$APPIMAGETOOL" \
-        "https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage"
-    chmod +x "$APPIMAGETOOL"
-fi
 # Build AppImage
-OUTPUT_APPIMAGE="${BUILD_DIR}/${APP_NAME}-${APP_VERSION}-x86_64.AppImage"
+OUTPUT_APPIMAGE="${BUILD_DIR}/${APP_NAME}-${VERSION}-x86_64.AppImage"
 rm -f "$OUTPUT_APPIMAGE"
-ARCH=x86_64 "$APPIMAGETOOL" --no-appstream "${APPDIR}" "$OUTPUT_APPIMAGE" 2>&1 | grep -v "desktop-file-validate" || true
+ARCH=x86_64 "$APPIMAGETOOL" --no-appstream --runtime-file "$APPIMAGE_RUNTIME" "${APPDIR}" "$OUTPUT_APPIMAGE"
 
 echo ""
 echo "============================================"

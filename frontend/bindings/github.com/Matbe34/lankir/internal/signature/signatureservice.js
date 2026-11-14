@@ -166,7 +166,8 @@ export function SignPDF(req) {
 }
 
 /**
- * VerifySignatures validates all digital signatures in a PDF and returns their status.
+ * VerifySignatures validates all digital signatures in a PDF and returns their
+ * status, the same one for a file unchanged on disk for verifiedTTL.
  * @param {string} pdfPath
  * @returns {$CancellablePromise<types$0.SignatureInfo[]>}
  */

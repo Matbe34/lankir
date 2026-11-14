@@ -6,10 +6,12 @@ docs/plans/
 CLAUDE.md
 TODOs.md
 
-# Scripts (temporary build files); the build scripts the Taskfile runs are tracked
+# Scripts (temporary build files); the scripts the Taskfile runs are tracked
 /scripts/*
 !/scripts/build-static.sh
 !/scripts/build-appimage.sh
+!/scripts/version.sh
+!/scripts/release.sh
 
 # Go
 *.exe

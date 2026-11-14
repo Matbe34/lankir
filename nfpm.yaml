@@ -3,7 +3,7 @@
 name: "lankir"
 arch: "amd64"
 platform: "linux"
-version: "${VERSION}"  # Will be set by build script
+version: "${VERSION}"  # from the environment: the tag in CI, scripts/version.sh locally
 section: "utils"
 priority: "optional"
 maintainer: "Matbe34 <matbe34@github.com>"
@@ -15,11 +15,19 @@ vendor: "Lankir"
 homepage: "https://github.com/Matbe34/lankir"
 license: "MIT"
 
-# Dependencies
+# The packages of the shared libraries build/bin/lankir_static links (readelf -d: NEEDED);
+# MuPDF is linked in statically. glibc >= the build runner's (ubuntu-22.04: 2.35).
+# Debian/Ubuntu names here, Fedora names under overrides.rpm.
 depends:
+  - libc6 (>= 2.35)
+  - libglib2.0-0
+  - libgdk-pixbuf-2.0-0
   - libgtk-3-0
-  - libwebkit2gtk-4.1-0
+  - libjavascriptcoregtk-4.1-0
   - libnss3
+  - libsoup-3.0-0
+  - libwebkit2gtk-4.1-0
+  - libx11-6
 
 recommends:
   - gstreamer1.0-plugins-good
@@ -27,15 +35,21 @@ recommends:
 
 # Package contents
 contents:
-  # Main binary
-  - src: ./build/bin/lankir
+  # The portable binary (scripts/build-static.sh)
+  - src: ./build/bin/lankir_static
     dst: /usr/bin/lankir
     file_info:
       mode: 0755
 
   # Desktop file
-  - src: ./packaging/lankir.desktop
-    dst: /usr/share/applications/lankir.desktop
+  - src: ./packaging/com.lankir.Lankir.desktop
+    dst: /usr/share/applications/com.lankir.Lankir.desktop
+    file_info:
+      mode: 0644
+
+  # AppStream metadata for software centres
+  - src: ./packaging/com.lankir.Lankir.metainfo.xml
+    dst: /usr/share/metainfo/com.lankir.Lankir.metainfo.xml
     file_info:
       mode: 0644
 
@@ -49,6 +63,22 @@ contents:
 scripts:
   postinstall: ./packaging/postinstall.sh
   preremove: ./packaging/preremove.sh
+
+overrides:
+  rpm:
+    depends:
+      - glibc >= 2.35
+      - glib2
+      - gdk-pixbuf2
+      - gtk3
+      - javascriptcoregtk4.1
+      - nss
+      - libsoup3
+      - webkit2gtk4.1
+      - libX11
+    recommends:
+      - gstreamer1-plugins-good
+      - gstreamer1-plugins-bad-free
 
 # RPM specific
 rpm:

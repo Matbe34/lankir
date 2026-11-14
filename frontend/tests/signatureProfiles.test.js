@@ -55,6 +55,11 @@ describe('profile editor', () => {
     expect(saved.location).toBe('Barcelona, Spain');
   });
 
+  it('says a profile without a default position starts the box centred, as initialBox places it', () => {
+    const help = $('profileDefinePosition').closest('.pref-row').querySelector('.pref-help').textContent;
+    expect(help).toBe('Off: the box starts in the middle of the current page');
+  });
+
   it('forgets a saved position when "Define signature position" is unchecked', async () => {
     const custom = {
       id: 'p1', name: 'Corner', visibility: 'visible', isDefault: false,
