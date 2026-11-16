@@ -647,7 +647,8 @@ describe('saving', () => {
 
   it('gives the organize bar its page actions back once the save ends', async () => {
     const page = document.createElement('template');
-    page.innerHTML = fs.readFileSync(new URL('index.html', `file://${process.cwd()}/`), 'utf8').replace(/[\s\S]*<body[^>]*>|<\/body>[\s\S]*/g, '');
+    const html = fs.readFileSync(new URL('index.html', `file://${process.cwd()}/`), 'utf8');
+    page.innerHTML = html.slice(html.indexOf('>', html.indexOf('<body')) + 1, html.lastIndexOf('</body>'));
     for (const el of ['organizeView', 'organizeBar', 'organizePill']) document.body.append(page.content.getElementById(el));
     const id = await openTab(1);
     const tab = state.openPDFs.get(id);

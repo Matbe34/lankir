@@ -158,7 +158,8 @@ describe('printing', () => {
 
   it('gives the organize bar its page actions back once it has printed', async () => {
     const page = document.createElement('template');
-    page.innerHTML = fs.readFileSync(new URL('index.html', `file://${process.cwd()}/`), 'utf8').replace(/[\s\S]*<body[^>]*>|<\/body>[\s\S]*/g, '');
+    const html = fs.readFileSync(new URL('index.html', `file://${process.cwd()}/`), 'utf8');
+    page.innerHTML = html.slice(html.indexOf('>', html.indexOf('<body')) + 1, html.lastIndexOf('</body>'));
     for (const el of ['organizeView', 'organizeBar', 'organizePill']) document.body.append(page.content.getElementById(el));
     const doc = makeDoc([[100, 100]]);
     const tab = { id: 7, pdfDocument: doc, totalPages: 1, currentPage: 1, organizing: true, selection: new Set([1]), selectionAnchor: 1 };
