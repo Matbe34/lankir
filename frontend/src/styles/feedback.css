@@ -79,8 +79,9 @@
   }
 
   /* The first button of a dialog opened with the pointer: focused, but no ring
-     until a key is pressed (messageDialog.js). */
-  .message-footer > [data-quiet-focus]:focus-visible {
+     until a key is pressed (messageDialog.js, documentDialog.js). */
+  .message-footer > [data-quiet-focus]:focus-visible,
+  .modal-footer > [data-quiet-focus]:focus-visible {
     outline: none;
   }
 
@@ -138,6 +139,9 @@
   }
 
   .palette-list {
+    --edge-top: var(--sp-1);
+    --edge-bottom: var(--sp-1);
+    --edge-bleed: var(--sp-1);
     max-height: min(408px, calc(100vh - var(--sp-12) * 4));
     padding: var(--sp-1);
     overflow-y: auto;

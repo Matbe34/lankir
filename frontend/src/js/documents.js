@@ -5,7 +5,7 @@ import {
 } from './state.js';
 import { loadDocument, createViewer, AnnotationEditorType, PasswordResponses } from './viewer.js';
 import { showChoice, showConfirm, showMessage, showPrompt } from './messageDialog.js';
-import { updateStatus, updatePageIndicator, updateZoomDisplay, sanitizeError, formatFileSize } from './utils.js';
+import { updateStatus, updatePageIndicator, updateZoomDisplay, sanitizeError, formatFileSize, middleCut } from './utils.js';
 import { showSidebars, hideSidebars } from './ui.js';
 import { setupSidebar, showSidebarFor, disposeSidebar } from './sidebar.js';
 import { attachFindBar, closeFindBar } from './findBar.js';
@@ -14,11 +14,12 @@ import { loadSignatureInfo, clearSignatureInfo } from './signature.js';
 import { loadRecentFilesWelcome } from './recentFiles.js';
 import { getSetting } from './settings.js';
 import { iconSvg } from './icons.js';
-import { showToast } from './toast.js';
+import { showToast, showBusy } from './toast.js';
 import { showOpenError, plainReason } from './errorRecovery.js';
 import { showLoading } from './loadingIndicator.js';
-import { setTabName, refreshTabStrip } from './tabStrip.js';
+import { setTabName, refreshTabStrip, tabLabel } from './tabStrip.js';
 import { updatePageRoom } from './pageRoom.js';
+import { syncOrganize, disposeOrganize } from './organize.js';
 
 const DOC_ROUTE = '/doc/';
 const AUTO_SCALES = ['auto', 'page-width', 'page-fit', 'page-actual'];
@@ -109,15 +110,8 @@ async function openRegisteredDocument(doc) {
         tab.loadingTask = loadDocument(DOC_ROUTE + tab.docId, (update, reason) => askPassword(tab, update, reason));
         const pdfDocument = await Promise.race([tab.loadingTask.promise, closed]);
         if (tab.closed) return null;
-        tab.pdfDocument = pdfDocument;
-        tab.totalPages = pdfDocument.numPages;
-        tab.savedHash = storageHash(tab);
-        tab.touched = false;
-        pdfDocument.annotationStorage.onSetModified = () => refreshDirty(tab);
-        pdfDocument.annotationStorage.onResetModified = () => refreshDirty(tab);
-        tab.view.pdfViewer.setDocument(pdfDocument);
-        tab.view.linkService.setDocument(pdfDocument, null);
-        setupSidebar(tab);
+        await adoptDocument(tab, pdfDocument);
+        if (tab.closed) return null;
     } catch (error) {
         if (tab.closed) return null;
         const wasActive = state.activeTabId === tab.id;
@@ -157,7 +151,64 @@ async function askPassword(tab, updatePassword, reason) {
         updatePassword(new Error('cancelled'));
         return;
     }
+    // Reloads and Go's pdfcpu operations need it again.
+    tab.password = password;
+    PDFService.SetPassword(tab.docId, password).catch((err) => console.error('SetPassword failed:', err));
     updatePassword(password);
+}
+
+/** Shows a loaded pdf.js document in its tab, replacing what the tab showed. */
+async function adoptDocument(tab, pdfDocument) {
+    const { info } = await pdfDocument.getMetadata();
+    if (tab.closed) return;
+    tab.pdfDocument = pdfDocument;
+    tab.totalPages = pdfDocument.numPages;
+    tab.encrypted = Boolean(info?.EncryptFilterName);
+    tab.signed = Boolean(info?.IsSignaturesPresent);
+    tab.savedHash = storageHash(tab);
+    tab.touched = false;
+    tab.editingState = {};
+    pdfDocument.annotationStorage.onSetModified = () => refreshDirty(tab);
+    pdfDocument.annotationStorage.onResetModified = () => refreshDirty(tab);
+    disposeSidebar(tab);
+    tab.view.pdfViewer.setDocument(pdfDocument);
+    tab.view.linkService.setDocument(pdfDocument, null);
+    setupSidebar(tab);
+}
+
+/**
+ * Reloads a tab from what Go serves for it now (after a page operation, undo
+ * or revert), keeping the zoom and showing page (default: the current one).
+ * doc, when given, is Go's document state to take over.
+ */
+export async function reloadTab(tab, { page, doc } = {}) {
+    if (doc) {
+        tab.modified = doc.modified;
+        tab.undoSteps = doc.undoSteps;
+        tab.redoSteps = doc.redoSteps ?? 0;
+    }
+    const viewer = tab.view.pdfViewer;
+    const scale = viewer.currentScaleValue;
+    const task = loadDocument(`${DOC_ROUTE}${tab.docId}?v=${++tab.loadSeq}`, (update, reason) => askPassword(tab, update, reason), tab.password);
+    let pdfDocument;
+    try {
+        pdfDocument = await task.promise;
+    } catch (error) {
+        task.destroy().catch(() => {});
+        throw error;
+    }
+    if (tab.closed) {
+        task.destroy().catch(() => {});
+        return;
+    }
+    const previous = tab.loadingTask;
+    tab.loadingTask = task;
+    tab.currentPage = Math.min(Math.max(page ?? tab.currentPage, 1), pdfDocument.numPages);
+    tab.restoreView = { scale, page: tab.currentPage };
+    await adoptDocument(tab, pdfDocument);
+    previous?.destroy().catch(() => {});
+    refreshDirty(tab);
+    if (state.activeTabId === tab.id) refreshActiveTab();
 }
 
 /** Connects a tab's pdf.js events to the shared UI. */
@@ -166,8 +217,20 @@ function wireViewer(tab) {
     const isActive = () => state.activeTabId === tab.id;
 
     eventBus.on('pagesinit', () => {
+        const restore = tab.restoreView;
+        if (restore) {
+            pdfViewer.currentScaleValue = restore.scale;
+            pdfViewer.currentPageNumber = restore.page;
+            return;
+        }
         const zoom = Number(getSetting('defaultZoom')) || 100;
         pdfViewer.currentScaleValue = String(zoom / 100);
+    });
+    // Until every page's size is known, pages are laid out with the first
+    // one's, so the page scrolled to at pagesinit can drift off screen.
+    eventBus.on('pagesloaded', () => {
+        if (tab.restoreView) pdfViewer.currentPageNumber = tab.restoreView.page;
+        tab.restoreView = null;
     });
     eventBus.on('pagechanging', ({ pageNumber }) => {
         tab.currentPage = pageNumber;
@@ -293,13 +356,15 @@ function storageHash(tab) {
 }
 
 /**
- * Re-checks whether a tab's edits differ from what was last written. pdf.js'
- * own modified flag can't tell: saveDocument() clears it before the bytes reach
- * disk, and moving, recolouring or undoing an editor never sets it.
+ * Re-checks whether a tab differs from what was last written: an unsaved page
+ * operation, a pending protection change, or annotation and form edits.
+ * pdf.js' own modified flag can't tell the latter: saveDocument() clears it
+ * before the bytes reach disk, and moving, recolouring or undoing an editor
+ * never sets it.
  */
 export function refreshDirty(tab) {
     if (!tab.pdfDocument) return tab.dirty;
-    const dirty = storageHash(tab) !== tab.savedHash;
+    const dirty = Boolean(tab.modified) || tab.protect !== undefined || hasUnsavedEdits(tab);
     const holdsEdits = tab.pdfDocument.annotationStorage.size > 0;
     if (tab.dirty === dirty && tab.holdsEdits === holdsEdits) return dirty;
     if (tab.dirty !== dirty) {
@@ -312,6 +377,11 @@ export function refreshDirty(tab) {
     tab.holdsEdits = holdsEdits;
     reportUnsaved();
     return dirty;
+}
+
+/** True when the tab's annotation and form edits aren't in what Go serves for it. */
+export function hasUnsavedEdits(tab) {
+    return storageHash(tab) !== tab.savedHash;
 }
 
 // Starts from the clock so Go doesn't ignore a reloaded page's reports.
@@ -391,6 +461,7 @@ export function refreshActiveTab() {
     if (signBtn) signBtn.disabled = !loaded;
     showSidebarFor(tab);
     syncAnnotationToolbar(tab);
+    syncOrganize(tab);
     updatePageRoom();
     updateWindowTitle();
     if (loaded) loadSignatureInfo(tab.filePath);
@@ -410,6 +481,7 @@ export function switchToHome() {
     document.getElementById('app')?.classList.add('no-doc');
     setActiveTab(null);
     hideSidebars();
+    syncOrganize(null);
     updatePageIndicator(null, null);
     const signBtn = document.getElementById('signBtn');
     if (signBtn) signBtn.disabled = true;
@@ -425,8 +497,8 @@ export function switchToHome() {
 export async function resolveUnsaved(tab) {
     if (state.activeTabId !== tab.id) await switchToTab(tab.id);
     const choice = await showChoice(
-        'If you don’t save, your changes will be lost.',
-        `Save changes to “${tab.fileName}” before closing?`,
+        `“${tabLabel(tab.fileName)}” has changes that aren’t saved. If you don’t save, they will be lost.`,
+        'Save changes before closing?',
         [
             { label: 'Don’t save', value: 'discard', danger: true, start: true },
             { label: 'Cancel', value: 'cancel' },
@@ -466,6 +538,7 @@ function disposeTab(tab) {
         setActiveTab(null);
     }
     disposeSidebar(tab);
+    disposeOrganize(tab);
     tab.resizeObserver?.disconnect();
     clearTimeout(tab.recheckTimer);
     window.removeEventListener('pointerup', tab.recheck, true);
@@ -487,12 +560,44 @@ function disposeTab(tab) {
 }
 
 /**
- * Writes the tab's current bytes (with form values and annotations) to its
- * file, or to a new one with saveAs. Resolves true when saved.
+ * How a save of tab is written: null to write pdf.js' bytes as they are, or
+ * the SaveOptions that have Go rewrite them, to change or remove the
+ * protection, optimize, or protect again a copy that a page operation
+ * decrypted.
  */
-export async function saveTab(tabId, { saveAs = false } = {}) {
+export function saveOptionsFor(tab, optimize = false) {
+    // pdf.js saves an encrypted document with its own encryption.
+    if (tab.encrypted && tab.protect === undefined && !optimize) return null;
+    const password = tab.protect ?? tab.password ?? '';
+    if (!password && !optimize && !tab.encrypted) return null;
+    return { rewrite: true, password, optimize };
+}
+
+/**
+ * Writes the tab's current bytes (with form values and annotations) to its
+ * file, or to a new one with saveAs; optimize has Go shrink them. Resolves
+ * true when saved.
+ */
+export async function saveTab(tabId, { saveAs = false, optimize = false } = {}) {
     const tab = state.openPDFs.get(tabId);
     if (!tab?.pdfDocument) return false;
+    if (tab.busy) {
+        showBusy();
+        return false;
+    }
+    // A page operation meanwhile would change Go's copies or reload the
+    // document under the save.
+    tab.busy = true;
+    try {
+        return await writeTab(tab, saveAs, optimize);
+    } finally {
+        tab.busy = false;
+        // The save's refresh of the view ran while the tab was held.
+        if (state.activeTabId === tab.id) syncOrganize(tab);
+    }
+}
+
+async function writeTab(tab, saveAs, optimize) {
     try {
         let target = null;
         if (saveAs) {
@@ -516,13 +621,15 @@ export async function saveTab(tabId, { saveAs = false } = {}) {
         updateStatus(`Saving ${tab.fileName}...`);
         const started = performance.now();
         const hash = storageHash(tab);
+        const { protect } = tab;
+        const options = saveOptionsFor(tab, optimize);
         let stopLoading = showLoading(`Saving ${tab.fileName}`);
         let doc;
         let bytes;
         try {
             // Not getData(): that returns the file as loaded, without edits saved since.
             bytes = await tab.pdfDocument.saveDocument();
-            doc = await writeBytes(tab, bytes, target?.path);
+            doc = await writeBytes(tab, bytes, target?.path, false, options);
         } catch (error) {
             stopLoading();
             if (error.cause?.conflict !== 'changed') throw error;
@@ -531,19 +638,27 @@ export async function saveTab(tabId, { saveAs = false } = {}) {
                 `Overwrite “${tab.fileName}”?`,
                 [{ label: 'Save as…', value: 'saveAs', start: true }, { label: 'Cancel', value: 'cancel' }, { label: 'Overwrite', value: 'overwrite', danger: true }]
             );
-            if (choice === 'saveAs') return await saveTab(tabId, { saveAs: true });
+            if (choice === 'saveAs') return await writeTab(tab, true, optimize);
             if (choice !== 'overwrite') {
                 updateStatus('Save cancelled');
                 return false;
             }
             stopLoading = showLoading(`Saving ${tab.fileName}`);
-            doc = await writeBytes(tab, bytes, null, true);
+            doc = await writeBytes(tab, bytes, null, true, options);
         } finally {
             stopLoading();
         }
         const elapsed = Math.round(performance.now() - started);
+        const sizeBefore = tab.fileSize;
 
         tab.savedHash = hash;
+        tab.modified = false;
+        tab.undoSteps = 0;
+        tab.redoSteps = 0;
+        // Without a pending change, the file keeps the password it had.
+        if (protect !== undefined) tab.password = protect || null;
+        // One set while writing is for the next save.
+        if (tab.protect === protect) tab.protect = undefined;
         // Edits made while saving keep the tab dirty and count as touched.
         if (!refreshDirty(tab)) tab.touched = false;
         if (doc?.size) tab.fileSize = doc.size;
@@ -554,9 +669,13 @@ export async function saveTab(tabId, { saveAs = false } = {}) {
             if (el) setTabLabel(el, tab);
             RecentFilesService.AddRecent(tab.filePath, tab.totalPages).catch(() => {});
         }
-        if (state.activeTabId === tab.id) refreshActiveTab();
+        // The file's encryption no longer matches what pdf.js loaded, whose
+        // next incremental save would bring the old one back.
+        if (options && tab.encrypted) await reloadTab(tab);
+        else if (state.activeTabId === tab.id) refreshActiveTab();
         updateStatus(`Saved ${tab.fileName} (${(bytes.length / 1048576).toFixed(1)} MB in ${elapsed} ms)`);
-        showToast(`Saved ${tab.fileName}`, { tone: 'success' });
+        const shrunk = optimize && sizeBefore && doc?.size ? ` · ${formatFileSize(sizeBefore)} → ${formatFileSize(doc.size)}` : '';
+        showToast(`Saved ${middleCut(tab.fileName)}${shrunk}`, { tone: 'success' });
         console.log(`save ${tab.fileName}: ${bytes.length} bytes in ${elapsed} ms`);
         return true;
     } catch (error) {
@@ -569,15 +688,69 @@ export async function saveTab(tabId, { saveAs = false } = {}) {
 
 /**
  * Writes bytes to the tab's file, or to saveAsPath (the path ChooseSavePath
- * returned). On Linux the raw bytes go to the document route; the binding
- * call is limited by its base64 JSON body. A conflict rejects with an error
- * whose cause is Go's ConflictError ({ conflict, path }).
+ * returned). A conflict rejects with an error whose cause is Go's
+ * ConflictError ({ conflict, path }). options are Go's SaveOptions for this
+ * write.
  */
-async function writeBytes(tab, bytes, saveAsPath, overwrite = false) {
+async function writeBytes(tab, bytes, saveAsPath, overwrite = false, options = null) {
+    const query = {};
+    if (saveAsPath) query.saveAs = saveAsPath;
+    if (overwrite) query.overwrite = '1';
+    return withSaveOptions(tab, options, () => sendBytes(tab, bytes, query, (data) => (saveAsPath
+        ? PDFService.SavePDFAs(tab.docId, saveAsPath, data)
+        : PDFService.SavePDF(tab.docId, data, overwrite))));
+}
+
+/** Sets options (Go's SaveOptions) for the write that write() makes. */
+async function withSaveOptions(tab, options, write) {
+    if (!options) return write();
+    await PDFService.SetSaveOptions(tab.docId, options);
+    try {
+        return await write();
+    } catch (error) {
+        // A write refused before Go read it would leave them for the next one.
+        await PDFService.SetSaveOptions(tab.docId, { rewrite: false, password: '', optimize: false }).catch(() => {});
+        throw error;
+    }
+}
+
+/** Makes bytes the tab's new working copy (an undoable, unsaved page operation); resolves Go's document. */
+export function pushWorkingCopy(tab, bytes) {
+    return sendBytes(tab, bytes, { work: '1' }, (data) => PDFService.PushWorkingCopy(tab.docId, data));
+}
+
+/**
+ * The SaveOptions for a new file written from tab (extracted or split
+ * pages): its password, as the next save would apply it, unless protect is
+ * false. null writes the bytes as they are.
+ */
+export function exportOptionsFor(tab, { protect = true } = {}) {
+    const password = protect ? tab.protect ?? tab.password ?? '' : '';
+    if (password) return { rewrite: true, password, optimize: false };
+    // pdf.js copies the /Encrypt of a document that all the pages come from,
+    // so Go has to decrypt them.
+    return tab.encrypted && tab.password ? { rewrite: true, password: '', optimize: false } : null;
+}
+
+/**
+ * Writes bytes to path, a new file chosen in a dialog, without touching the
+ * tab. options are Go's SaveOptions for the write; by default a file from a
+ * protected document keeps its password.
+ */
+export async function exportBytes(tab, path, bytes, overwrite = false, options = exportOptionsFor(tab)) {
+    const query = overwrite ? { export: path, overwrite: '1' } : { export: path };
+    return withSaveOptions(tab, options, () => sendBytes(tab, bytes, query, (data) => PDFService.ExportPDF(tab.docId, path, data, overwrite)));
+}
+
+/**
+ * Hands bytes to Go for the tab. On Linux they go raw to the document route
+ * with query; elsewhere through binding(base64), which is limited by its
+ * base64 JSON body.
+ */
+async function sendBytes(tab, bytes, query, binding) {
     if (System.IsLinux()) {
         const url = new URL(DOC_ROUTE + tab.docId, location.href);
-        if (saveAsPath) url.searchParams.set('saveAs', saveAsPath);
-        if (overwrite) url.searchParams.set('overwrite', '1');
+        for (const [key, value] of Object.entries(query)) url.searchParams.set(key, value);
         const res = await fetch(url, { method: 'PUT', body: bytes });
         if (res.ok) return res.json();
         const text = (await res.text()).trim();
@@ -587,10 +760,7 @@ async function writeBytes(tab, bytes, saveAsPath, overwrite = false) {
     if (bytes.length > BINDING_SAVE_LIMIT) {
         throw new Error(`The document is too large to save from the editor (${(bytes.length / 1048576).toFixed(0)} MB; the limit is about 48 MB).`);
     }
-    const data = bytes.toBase64();
-    return saveAsPath
-        ? PDFService.SavePDFAs(tab.docId, saveAsPath, data)
-        : PDFService.SavePDF(tab.docId, data, overwrite);
+    return binding(bytes.toBase64());
 }
 
 /** Go asks this when the window is closed with unsaved tabs. */

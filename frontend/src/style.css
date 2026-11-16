@@ -16,6 +16,7 @@
 @import "./styles/welcome.css";
 @import "./styles/feedback.css";
 @import "./styles/viewer.css";
+@import "./styles/organize.css";
 
 /* Tailwind gets only what the tokens define: its palette, type scale, radii
    and shadows are gone, so bg-blue-600 and friends do not exist. Colour

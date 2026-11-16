@@ -66,12 +66,6 @@
     box-shadow: inset 0 1px 2px var(--fill-active);
   }
 
-  .btn-primary:disabled {
-    background: color-mix(in srgb, var(--accent) 45%, transparent);
-    box-shadow: none;
-    color: var(--accent-fg);
-  }
-
   .btn-ghost {
     background: transparent;
     box-shadow: none;
@@ -216,6 +210,69 @@
     width: var(--ctl-h-sm);
     height: var(--ctl-h-sm);
     border-radius: var(--r-sm);
+  }
+
+  /* An action that removes something: danger-toned, quiet until hovered. */
+  /* Neutral at rest, so it isn't the loudest control on its bar; danger on hover and focus. */
+  .icon-btn-danger:not(:disabled):is(:hover, :focus-visible) {
+    background: var(--danger-subtle);
+    color: var(--danger);
+  }
+
+  /* ---------- Range slider ---------- */
+  .range {
+    height: var(--ctl-h-sm);
+    margin: 0;
+    background: transparent;
+    -webkit-appearance: none;
+    appearance: none;
+    cursor: pointer;
+  }
+
+  /* --range-fill (set by its script) is how far the value is along the track. */
+  .range::-webkit-slider-runnable-track {
+    height: 4px;
+    border-radius: var(--r-full);
+    background: linear-gradient(to right, var(--text-muted) var(--range-fill, 0%), var(--border-strong) var(--range-fill, 0%));
+  }
+
+  .range::-moz-range-track {
+    height: 4px;
+    border-radius: var(--r-full);
+    background: linear-gradient(to right, var(--text-muted) var(--range-fill, 0%), var(--border-strong) var(--range-fill, 0%));
+  }
+
+  .range::-webkit-slider-thumb {
+    width: 14px;
+    height: 14px;
+    margin-top: -5px;
+    border: 0;
+    border-radius: var(--r-full);
+    background: var(--switch-knob);
+    box-shadow: var(--elev-1);
+    -webkit-appearance: none;
+    appearance: none;
+  }
+
+  .range::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    border: 0;
+    border-radius: var(--r-full);
+    background: var(--switch-knob);
+    box-shadow: var(--elev-1);
+  }
+
+  .range:focus {
+    outline: none;
+  }
+
+  .range:focus-visible::-webkit-slider-thumb {
+    box-shadow: 0 0 0 var(--focus-w) var(--focus-ring);
+  }
+
+  .range:focus-visible::-moz-range-thumb {
+    box-shadow: 0 0 0 var(--focus-w) var(--focus-ring);
   }
 
   /* ---------- Fields ---------- */
@@ -672,6 +729,11 @@
     color: currentColor;
   }
 
+  .menu-item-danger:not(:disabled),
+  .menu-item-danger:not(:disabled) > .icon {
+    color: var(--danger);
+  }
+
   .menu-label {
     flex: 1;
     min-width: 0;
@@ -758,31 +820,30 @@
   }
 
   /* ---------- Toast ---------- */
-  /* Bottom right, clear of the page pill (a control's height above the window edge). */
+  /* All one width, bottom right, level with the page pill; lifted above it
+     when they would meet it (toast.js). */
   .toast-region {
     position: fixed;
     z-index: var(--z-toast);
     right: var(--sp-4);
-    bottom: calc(var(--sp-4) + var(--ctl-h) + var(--sp-3));
+    bottom: var(--sp-3);
     display: flex;
     flex-direction: column;
-    align-items: flex-end;
     gap: var(--sp-2);
-    width: min(420px, calc(100vw - var(--sp-8)));
+    width: min(var(--toast-w), calc(100vw - var(--sp-8)));
     pointer-events: none;
   }
 
-  .no-doc .toast-region {
-    bottom: var(--sp-4);
+  .toast-region.is-lifted {
+    bottom: var(--toast-bottom);
   }
 
   .toast {
-    display: inline-flex;
+    display: flex;
     align-items: center;
-    gap: var(--sp-3);
-    max-width: 100%;
+    gap: var(--sp-2);
     min-height: 40px;
-    padding: var(--sp-1) 6px var(--sp-1) var(--sp-3);
+    padding: var(--sp-1) 6px var(--sp-1) var(--sp-2);
     border-radius: var(--r-lg);
     background: var(--surface);
     box-shadow: var(--elev-2);
@@ -807,16 +868,60 @@
     color: var(--danger);
   }
 
+  /* A longer notice wraps to a second line rather than losing its end. */
   .toast-text {
+    display: -webkit-box;
     flex: 1;
     min-width: 0;
     overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-height: var(--lh-tight);
+    overflow-wrap: anywhere;
   }
 
-  .toast-action {
+  .toast-action + .toast-action {
+    margin-left: calc(var(--sp-1) * -1);
+  }
+
+  .toast-action .keys {
     margin-right: calc(var(--sp-1) * -1);
+  }
+
+  .toast-action .keys kbd {
+    min-width: 16px;
+    padding: 1px var(--sp-1);
+    font-size: var(--fs-micro);
+  }
+
+  /* How far a job has got: a bar under the toast's content, inside its
+     padding and clear of the rounded corners, in the progress line's neutral
+     colour (progress is not a selection or a confirm, so not the accent). */
+  .toast:has(> .toast-progress) {
+    --progress-h: 3px;
+    position: relative;
+    padding-bottom: calc(var(--sp-1) + var(--sp-2) + var(--progress-h));
+  }
+
+  .toast-progress {
+    position: absolute;
+    right: var(--sp-3);
+    bottom: var(--sp-2);
+    left: var(--sp-3);
+    height: var(--progress-h);
+    overflow: hidden;
+    border-radius: var(--r-full);
+    background: var(--border);
+  }
+
+  .toast-progress::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: var(--text-muted);
+    transform: scaleX(var(--progress, 0));
+    transform-origin: left;
+    transition: transform var(--dur) var(--ease);
   }
 
   .toast.leaving {
@@ -990,7 +1095,8 @@
     align-items: center;
     justify-content: flex-end;
     gap: var(--sp-2);
-    padding: var(--sp-3) var(--sp-4);
+    /* Inset as the body is, so its buttons end where the content does. */
+    padding: var(--sp-3) var(--sp-5);
     border-top: var(--border-w) solid var(--border);
   }
 
@@ -1243,6 +1349,13 @@
     background: linear-gradient(transparent, color-mix(in srgb, var(--scrim) 50%, transparent));
   }
 
+  /* Over a solid foot: a deeper lift, so a cut-off row reads as scrolling on, not clipped. */
+  [data-scroll-edges="foot"]::after {
+    height: var(--sp-3);
+    margin-top: calc(var(--sp-3) * -1);
+    background: linear-gradient(transparent, color-mix(in srgb, var(--scrim) 70%, transparent));
+  }
+
   [data-scroll-edges][data-more-above]::before,
   [data-scroll-edges][data-more-below]::after {
     opacity: 1;
@@ -1250,14 +1363,22 @@
 
   /* ---------- Destructive confirm: the danger twin of .btn-primary ---------- */
   .btn-destructive {
-    background: var(--danger);
+    background: var(--danger-solid);
     box-shadow: 0 1px 1px var(--fill);
     color: var(--danger-fg);
   }
 
   .btn-destructive:hover,
   .btn-destructive:active {
-    background: var(--danger-hover);
+    background: var(--danger-solid-hover);
+  }
+
+  /* A confirm that can't run yet is a plain disabled button: only a live one is coloured. */
+  .btn-primary:disabled,
+  .btn-destructive:disabled {
+    background: transparent;
+    box-shadow: inset 0 0 0 var(--border-w) var(--border);
+    color: var(--text-subtle);
   }
 
   /* Keycaps inside a button ("Open file…  Ctrl O"). */
@@ -1397,6 +1518,20 @@
     max-width: 100%;
   }
 
+  /* Cut by tabStrip.js: no hole between the head's last letter, "…" and the tail. */
+  .is-cut > .truncate-head {
+    text-overflow: clip;
+    clip-path: inset(0 calc(100% - var(--head-shown)) 0 0);
+  }
+
+  .is-cut > .truncate-tail {
+    transform: translateX(calc(var(--head-gap) * -1));
+  }
+
+  .is-cut > .truncate-tail::before {
+    content: "…";
+  }
+
   /* ---------- Facts: a small label above its value ---------- */
   .facts {
     display: flex;
@@ -1426,6 +1561,168 @@
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: var(--sp-3);
+  }
+
+  /* Many facts in two columns, filled row by row; .wide takes a whole row. */
+  /* ---------- Dialog sizes and parts ---------- */
+  .modal.modal-sm {
+    max-width: 420px;
+  }
+
+  .modal.modal-md {
+    max-width: 520px;
+  }
+
+  /* The sentence a dialog opens with, above its fields. */
+  .dialog-lead {
+    margin: 0;
+    line-height: var(--lh-body);
+  }
+
+  .dialog-lead + .dialog-field,
+  .segmented + .dialog-field {
+    margin-top: var(--sp-4);
+  }
+
+  .modal-body > .notice,
+  .modal-body > .dialog-check,
+  .modal-body > .save-row {
+    margin-top: var(--sp-4);
+  }
+
+  /* A heading that starts a later part of a dialog. */
+  .group-title.dialog-section {
+    margin: var(--sp-6) 0 var(--sp-3);
+  }
+
+  /* ---------- Form grid: short labels beside their fields ---------- */
+  .form-grid {
+    display: grid;
+    grid-template-columns: max-content minmax(0, 1fr);
+    align-items: center;
+    gap: var(--sp-3) var(--sp-4);
+  }
+
+  /* A field's label (.field-label) beside its field, not above it. */
+  .form-grid .field-label {
+    margin-bottom: 0;
+  }
+
+  /* Read-only facts under a heading, as rows on the fields' two columns. */
+  .form-grid > .group-title {
+    grid-column: 1 / -1;
+    margin: var(--sp-3) 0 0;
+  }
+
+  .form-grid > .facts,
+  .form-grid > .facts > .fact {
+    display: contents;
+  }
+
+  /* A label and its value share a baseline, though their sizes differ. */
+  .form-grid > .facts > .fact > * {
+    align-self: baseline;
+  }
+
+  .form-grid > .facts > .fact > dd {
+    margin: 0;
+  }
+
+  /* ---------- Save row: where new files go, and the button that changes it ---------- */
+  .save-row {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+    min-height: var(--ctl-h);
+  }
+
+  .save-row-icon {
+    display: inline-grid;
+    flex: none;
+    place-items: center;
+    color: var(--icon-color);
+  }
+
+  /* "Save in" and a .path that loses its middle, never the folder's name. */
+  .save-row-text {
+    display: flex;
+    flex: 1;
+    align-items: baseline;
+    gap: var(--sp-2);
+    min-width: 0;
+    overflow: hidden;
+    color: var(--text-muted);
+    white-space: nowrap;
+  }
+
+  .save-row-label {
+    flex: none;
+  }
+
+  /* The head's shrink factor still leaves the tail a fraction of a pixel to
+     give, which WebKitGTK shows as an ellipsis ("spl…"); as in .dock-dest the
+     folder's own name doesn't shrink until it alone is too long. */
+  .save-row-text .path-tail {
+    flex-shrink: 0;
+    max-width: 100%;
+  }
+
+  /* ---------- Page ribbon: pages as small sheets, grouped into parts ----------
+   * Each part's sheets sit on a rule as long as they are, with the part's name
+   * under it. The parts share the strip's width with even space around them, wrapping
+   * and then scrolling when there are more than fit. */
+  .ribbon {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-evenly;
+    gap: var(--sp-3) var(--sp-4);
+    max-height: 160px;
+    overflow-y: auto;
+    padding: var(--sp-3);
+    border-radius: var(--r-md);
+    background: var(--fill);
+  }
+
+  .ribbon-part {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-1);
+    color: var(--text-muted);
+    font-size: var(--fs-micro);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .ribbon-pages {
+    display: flex;
+    gap: 3px;
+    padding-bottom: var(--sp-1);
+    border-bottom: var(--focus-w) solid var(--border-strong);
+  }
+
+  .ribbon-page {
+    display: grid;
+    place-items: center;
+    width: 24px;
+    height: 32px;
+    background: var(--surface-raised);
+    box-shadow: var(--elev-tab);
+    color: var(--text);
+    font-size: var(--fs-micro);
+  }
+
+  /* The pages a long part skips in the ribbon. */
+  .ribbon-page.is-gap {
+    width: auto;
+    background: none;
+    box-shadow: none;
+    color: var(--text-muted);
+  }
+
+  .ribbon-more {
+    align-self: center;
+    color: var(--text-muted);
+    font-size: var(--fs-small);
   }
 
   /* ---------- Progress line: indeterminate, under the header ---------- */

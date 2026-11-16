@@ -1,7 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import fs from 'node:fs';
 import { App, PDFService, RecentFilesService } from '../src/js/backend.js';
 import { Browser, System, Window } from '@wailsio/runtime';
 import { state } from '../src/js/state.js';
+import { loadDocument } from '../src/js/viewer.js';
 
 const showChoice = vi.fn();
 const showMessage = vi.fn(() => Promise.resolve());
@@ -58,6 +60,8 @@ function makeStorage() {
 
 const docs = [];
 const views = [];
+// pdf.js' document info for the next loads, e.g. { EncryptFilterName: 'Standard' }.
+let docInfoOverrides = {};
 // Per-load overrides of the loading task, consumed in order: (task, onPassword, doc) => void
 const loadHooks = [];
 vi.mock('../src/js/viewer.js', () => ({
@@ -78,6 +82,7 @@ vi.mock('../src/js/viewer.js', () => ({
         return bytes;
       }),
       getData: vi.fn(async () => new TextEncoder().encode('PDF')),
+      getMetadata: vi.fn(async () => ({ info: { ...docInfoOverrides } })),
       listeners
     };
     docs.push(doc);
@@ -123,6 +128,7 @@ beforeEach(async () => {
   docs.length = 0;
   views.length = 0;
   loadHooks.length = 0;
+  docInfoOverrides = {};
   System.IsLinux.mockReturnValue(false);
   showChoice.mockReset();
   showConfirm.mockReset();
@@ -411,6 +417,15 @@ describe('noticing edits pdf.js reports through no storage callback', () => {
     expect(App.ConfirmClose).toHaveBeenCalled();
   });
 
+  it('asks to save changes before closing, naming the document as its tab does', async () => {
+    const id = await openTab(1);
+    showChoice.mockResolvedValueOnce('cancel');
+    expect(await documents.resolveUnsaved(state.openPDFs.get(id))).toBe('cancel');
+    const [message, title] = showChoice.mock.calls[0];
+    expect(title).toBe('Save changes before closing?');
+    expect(message).toBe('“doc1” has changes that aren’t saved. If you don’t save, they will be lost.');
+  });
+
   it('asks at window close about an edit no event reported', async () => {
     const id = await openTab(1);
     edit(docs[0]);
@@ -519,6 +534,18 @@ describe('saving', () => {
     expect(tabEl(id).querySelector('.pdf-tab-name').textContent).toBe('other');
   });
 
+  it('an optimized copy says how much smaller the file got', async () => {
+    document.body.insertAdjacentHTML('beforeend', '<div id="toastRegion"></div>');
+    PDFService.OpenPDFByPath.mockResolvedValueOnce({ ...docInfo(1), size: 2_400_000 });
+    const id = await documents.openFilePath('/files/doc1.pdf');
+    PDFService.ChooseSavePath.mockResolvedValueOnce({ path: '/files/small.pdf', exists: false });
+    PDFService.SavePDFAs.mockResolvedValueOnce({ id: 'id-1', path: '/files/small.pdf', fileName: 'small.pdf', size: 1_150_000 });
+
+    expect(await documents.saveTab(id, { saveAs: true, optimize: true })).toBe(true);
+    expect(PDFService.SetSaveOptions).toHaveBeenCalledWith('id-1', { rewrite: true, password: '', optimize: true });
+    expect(document.querySelector('#toastRegion .toast-text').textContent).toBe('Saved small.pdf · 2.3 MB → 1.1 MB');
+  });
+
   it('save, then save again writes the same edited bytes', async () => {
     const id = await openTab(1);
     edit(docs[0], 'first');
@@ -596,6 +623,59 @@ describe('saving', () => {
     expect(showChoice).toHaveBeenCalled();
   });
 
+  it('waits for a page operation to finish, and holds off others while it writes', async () => {
+    const id = await openTab(1);
+    const tab = state.openPDFs.get(id);
+    edit(docs[0]);
+    tab.busy = true;
+    document.body.insertAdjacentHTML('beforeend', '<div id="toastRegion"></div>');
+    expect(await documents.saveTab(id)).toBe(false);
+    expect(docs[0].saveDocument).not.toHaveBeenCalled();
+    // Ctrl S, Save in the close prompt and Save and Sign say why nothing happened.
+    expect(document.querySelector('#toastRegion .toast-text').textContent).toBe('Wait for the current change to finish');
+    tab.busy = false;
+
+    let written;
+    PDFService.SavePDF.mockReturnValueOnce(new Promise((resolve) => { written = resolve; }));
+    const saving = documents.saveTab(id);
+    await vi.waitFor(() => expect(PDFService.SavePDF).toHaveBeenCalled());
+    expect(tab.busy).toBe(true);
+    written(docInfo(1));
+    expect(await saving).toBe(true);
+    expect(tab.busy).toBe(false);
+  });
+
+  it('gives the organize bar its page actions back once the save ends', async () => {
+    const page = document.createElement('template');
+    page.innerHTML = fs.readFileSync(new URL('index.html', `file://${process.cwd()}/`), 'utf8').replace(/[\s\S]*<body[^>]*>|<\/body>[\s\S]*/g, '');
+    for (const el of ['organizeView', 'organizeBar', 'organizePill']) document.body.append(page.content.getElementById(el));
+    const id = await openTab(1);
+    const tab = state.openPDFs.get(id);
+    Object.assign(tab, { organizing: true, selection: new Set([1]), selectionAnchor: 1 });
+    edit(docs[0]);
+    PDFService.SavePDF.mockResolvedValueOnce(docInfo(1));
+
+    expect(await documents.saveTab(id)).toBe(true);
+    // The save's refresh of the view ran while it still held the tab.
+    expect(document.getElementById('organizeRotateLeft').disabled).toBe(false);
+  });
+
+  it('keeps a password set while the save was writing for the next save', async () => {
+    const id = await openTab(1);
+    const tab = state.openPDFs.get(id);
+    edit(docs[0]);
+    let written;
+    PDFService.SavePDF.mockReturnValueOnce(new Promise((resolve) => { written = resolve; }));
+    const saving = documents.saveTab(id);
+    await vi.waitFor(() => expect(PDFService.SavePDF).toHaveBeenCalled());
+    tab.protect = 'new';
+    written(docInfo(1));
+    expect(await saving).toBe(true);
+    expect(tab.protect).toBe('new');
+    expect(tab.password).toBeNull();
+    expect(tab.dirty).toBe(true);
+  });
+
   it('save as does nothing when the user declines to replace', async () => {
     const id = await openTab(1);
     PDFService.ChooseSavePath.mockResolvedValueOnce({ path: '/files/other.pdf', exists: true });
@@ -629,6 +709,17 @@ describe('closing the window', () => {
 
     await documents.handleCloseRequested();
     expect(showChoice).toHaveBeenCalledTimes(1);
+    expect(App.ConfirmClose).not.toHaveBeenCalled();
+  });
+
+  it('stays open when Save is chosen while a page operation runs', async () => {
+    const id = await openTab(1);
+    edit(docs[0]);
+    state.openPDFs.get(id).busy = true;
+    showChoice.mockResolvedValueOnce('save');
+
+    await documents.handleCloseRequested();
+    expect(PDFService.SavePDF).not.toHaveBeenCalled();
     expect(App.ConfirmClose).not.toHaveBeenCalled();
   });
 });
@@ -815,5 +906,208 @@ describe('saving on Linux', () => {
     expect(showMessage).toHaveBeenCalledWith(expect.stringContaining('read-only'), expect.any(String), 'error');
     expect(state.openPDFs.get(id).dirty).toBe(true);
     fetch.mockRestore();
+  });
+
+  it('clears the save options of a write Go never took, so the next write doesn’t use them', async () => {
+    const id = await openTab(1);
+    const tab = state.openPDFs.get(id);
+    tab.password = 'pw';
+    const none = { rewrite: false, password: '', optimize: false };
+
+    System.IsLinux.mockReturnValue(true);
+    const fetch = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(response(400, 'http: request body too large\n'));
+    await expect(documents.exportBytes(tab, '/out/doc1_part1.pdf', new Uint8Array([1]))).rejects.toThrow('too large');
+    expect(PDFService.SetSaveOptions).toHaveBeenLastCalledWith('id-1', none);
+    fetch.mockRestore();
+
+    System.IsLinux.mockReturnValue(false);
+    PDFService.SetSaveOptions.mockClear();
+    await expect(documents.exportBytes(tab, '/out/doc1_part1.pdf', new Uint8Array(48 * 1024 * 1024 + 1))).rejects.toThrow('too large');
+    expect(PDFService.ExportPDF).not.toHaveBeenCalled();
+    expect(PDFService.SetSaveOptions).toHaveBeenLastCalledWith('id-1', none);
+  });
+});
+
+describe('working copies', () => {
+  const modifiedDoc = { ...docInfo(1), modified: true, undoSteps: 1, redoSteps: 2 };
+
+  it('reloads the tab from the working copy and stays dirty until saved', async () => {
+    const id = await openTab(1);
+    const tab = state.openPDFs.get(id);
+    const firstTask = tab.loadingTask;
+
+    await documents.reloadTab(tab, { doc: modifiedDoc });
+    expect(loadDocument).toHaveBeenLastCalledWith('/doc/id-1?v=1', expect.any(Function), null);
+    expect(firstTask.destroy).toHaveBeenCalled();
+    expect(tab.pdfDocument).toBe(docs[1]);
+    expect(views[0].pdfViewer.setDocument).toHaveBeenLastCalledWith(docs[1]);
+    expect(tab.dirty).toBe(true);
+    expect(tabEl(id).classList.contains('dirty')).toBe(true);
+    expect(tab.redoSteps).toBe(2);
+
+    PDFService.SavePDF.mockResolvedValueOnce(docInfo(1));
+    expect(await documents.saveTab(id)).toBe(true);
+    expect(tab.modified).toBe(false);
+    expect(tab.redoSteps).toBe(0);
+    expect(tab.dirty).toBe(false);
+  });
+
+  it('is clean again when undo goes back to the file', async () => {
+    const id = await openTab(1);
+    const tab = state.openPDFs.get(id);
+    await documents.reloadTab(tab, { doc: modifiedDoc });
+    await documents.reloadTab(tab, { doc: { ...docInfo(1), modified: false, undoSteps: 0 } });
+    expect(tab.dirty).toBe(false);
+  });
+
+  it('keeps the zoom and a valid page across a reload', async () => {
+    const id = await openTab(1);
+    const tab = state.openPDFs.get(id);
+    views[0].pdfViewer.currentScaleValue = '1.5';
+    tab.currentPage = 2;
+
+    await documents.reloadTab(tab, { page: 7, doc: modifiedDoc });
+    // The reloaded document has 3 pages.
+    expect(tab.restoreView).toEqual({ scale: '1.5', page: 3 });
+    expect(tab.currentPage).toBe(3);
+  });
+
+  it('shows the kept page again once every page size is known', async () => {
+    const id = await openTab(1);
+    const tab = state.openPDFs.get(id);
+    const { eventBus, pdfViewer } = views[0];
+    await documents.reloadTab(tab, { page: 2, doc: modifiedDoc });
+
+    eventBus.dispatch('pagesinit');
+    expect(pdfViewer.currentPageNumber).toBe(2);
+    // Laid out with the first page's size until now, the page drifted.
+    pdfViewer.currentPageNumber = 1;
+    eventBus.dispatch('pagesloaded');
+    expect(pdfViewer.currentPageNumber).toBe(2);
+    expect(tab.restoreView).toBeNull();
+
+    // A later load is not pulled back to it.
+    pdfViewer.currentPageNumber = 3;
+    eventBus.dispatch('pagesloaded');
+    expect(pdfViewer.currentPageNumber).toBe(3);
+  });
+
+  it('reloads a protected document with the password given at open', async () => {
+    loadHooks.push((task, onPassword, doc) => {
+      task.promise = new Promise((resolve) => onPassword(() => resolve(doc), 1));
+    });
+    showPrompt.mockResolvedValueOnce('secret');
+    const id = await openTab(1);
+    const tab = state.openPDFs.get(id);
+    expect(PDFService.SetPassword).toHaveBeenCalledWith('id-1', 'secret');
+
+    await documents.reloadTab(tab);
+    expect(loadDocument).toHaveBeenLastCalledWith(expect.any(String), expect.any(Function), 'secret');
+  });
+
+  it('a pending protection change makes the tab dirty', async () => {
+    const id = await openTab(1);
+    const tab = state.openPDFs.get(id);
+    tab.protect = 'new';
+    expect(documents.refreshDirty(tab)).toBe(true);
+  });
+});
+
+describe('save options', () => {
+  const tab = (fields) => ({ encrypted: false, protect: undefined, password: null, ...fields });
+
+  it('writes pdf.js bytes as they are unless protection changes or a decrypted copy needs it back', () => {
+    expect(documents.saveOptionsFor(tab({}))).toBeNull();
+    expect(documents.saveOptionsFor(tab({ encrypted: true, password: 'pw' }))).toBeNull();
+    // A pdfcpu operation or a merge left a decrypted copy of a protected file.
+    expect(documents.saveOptionsFor(tab({ password: 'pw' }))).toEqual({ rewrite: true, password: 'pw', optimize: false });
+    expect(documents.saveOptionsFor(tab({ protect: 'new' }))).toEqual({ rewrite: true, password: 'new', optimize: false });
+    expect(documents.saveOptionsFor(tab({ encrypted: true, password: 'pw', protect: '' }))).toEqual({ rewrite: true, password: '', optimize: false });
+    expect(documents.saveOptionsFor(tab({ password: 'pw', protect: '' }))).toBeNull();
+    expect(documents.saveOptionsFor(tab({}), true)).toEqual({ rewrite: true, password: '', optimize: true });
+    expect(documents.saveOptionsFor(tab({ encrypted: true, password: 'pw' }), true)).toEqual({ rewrite: true, password: 'pw', optimize: true });
+  });
+
+  it('protecting an encrypted tab sets Go save options and reloads it with the new password', async () => {
+    docInfoOverrides = { EncryptFilterName: 'Standard' };
+    const id = await openTab(1);
+    const tab = state.openPDFs.get(id);
+    tab.password = 'old';
+    tab.protect = 'new';
+    PDFService.SavePDF.mockResolvedValueOnce(docInfo(1));
+
+    expect(await documents.saveTab(id)).toBe(true);
+    expect(PDFService.SetSaveOptions).toHaveBeenCalledWith('id-1', { rewrite: true, password: 'new', optimize: false });
+    expect(PDFService.SetSaveOptions.mock.invocationCallOrder[0]).toBeLessThan(PDFService.SavePDF.mock.invocationCallOrder[0]);
+    expect(loadDocument).toHaveBeenLastCalledWith(expect.any(String), expect.any(Function), 'new');
+    expect(tab.protect).toBeUndefined();
+    expect(tab.dirty).toBe(false);
+  });
+
+  it('removing the password pdf.js never encrypted with leaves later saves unprotected', async () => {
+    // Protecting a plain file and saving keeps pdf.js' unencrypted copy loaded.
+    const id = await openTab(1);
+    const tab = state.openPDFs.get(id);
+    tab.protect = 'x';
+    PDFService.SavePDF.mockResolvedValueOnce(docInfo(1)).mockResolvedValueOnce(docInfo(1)).mockResolvedValueOnce(docInfo(1));
+    expect(await documents.saveTab(id)).toBe(true);
+    expect(tab.password).toBe('x');
+
+    tab.protect = '';
+    PDFService.SetSaveOptions.mockClear();
+    expect(await documents.saveTab(id)).toBe(true);
+    expect(PDFService.SetSaveOptions).not.toHaveBeenCalled();
+    expect(tab.password).toBeNull();
+    expect(tab.dirty).toBe(false);
+
+    edit(docs[0]);
+    expect(await documents.saveTab(id)).toBe(true);
+    expect(PDFService.SetSaveOptions).not.toHaveBeenCalled();
+  });
+
+  it('files written from a protected document keep its password unless asked not to', () => {
+    expect(documents.exportOptionsFor(tab({}))).toBeNull();
+    expect(documents.exportOptionsFor(tab({ encrypted: true, password: 'pw' }))).toEqual({ rewrite: true, password: 'pw', optimize: false });
+    // A page operation decrypted the working copy; the document still has its password.
+    expect(documents.exportOptionsFor(tab({ password: 'pw' }))).toEqual({ rewrite: true, password: 'pw', optimize: false });
+    // A password set or removed in this session counts, as it does for the next save.
+    expect(documents.exportOptionsFor(tab({ protect: 'new' }))).toEqual({ rewrite: true, password: 'new', optimize: false });
+    expect(documents.exportOptionsFor(tab({ password: 'pw', protect: '' }))).toBeNull();
+    expect(documents.exportOptionsFor(tab({ password: 'pw' }), { protect: false })).toBeNull();
+    // Encrypted with only an owner password: it opens without one, so there is none to keep.
+    expect(documents.exportOptionsFor(tab({ encrypted: true }))).toBeNull();
+  });
+
+  it('files written unprotected from an encrypted document are decrypted by Go', () => {
+    // pdf.js copies the /Encrypt of a document all the pages come from.
+    const plain = { rewrite: true, password: '', optimize: false };
+    expect(documents.exportOptionsFor(tab({ encrypted: true, password: 'pw' }), { protect: false })).toEqual(plain);
+    // The password is removed at the next save, so the new file has none.
+    expect(documents.exportOptionsFor(tab({ encrypted: true, password: 'pw', protect: '' }))).toEqual(plain);
+    expect(documents.exportOptionsFor(tab({ encrypted: true, password: 'pw', protect: 'new' }), { protect: false })).toEqual(plain);
+  });
+
+  it('an export sets its options in Go just before writing', async () => {
+    const id = await openTab(1);
+    const tab = state.openPDFs.get(id);
+    tab.password = 'pw';
+    const bytes = new Uint8Array([1, 2, 3]);
+
+    await documents.exportBytes(tab, '/out/doc1_part1.pdf', bytes);
+    expect(PDFService.SetSaveOptions).toHaveBeenCalledWith('id-1', { rewrite: true, password: 'pw', optimize: false });
+    expect(PDFService.SetSaveOptions.mock.invocationCallOrder[0]).toBeLessThan(PDFService.ExportPDF.mock.invocationCallOrder[0]);
+
+    PDFService.SetSaveOptions.mockClear();
+    await documents.exportBytes(tab, '/out/doc1_part2.pdf', bytes, false, null);
+    expect(PDFService.SetSaveOptions).not.toHaveBeenCalled();
+    expect(PDFService.ExportPDF).toHaveBeenLastCalledWith('id-1', '/out/doc1_part2.pdf', expect.any(String), false);
+  });
+
+  it('a plain save sets no options', async () => {
+    const id = await openTab(1);
+    edit(docs[0]);
+    PDFService.SavePDF.mockResolvedValueOnce(docInfo(1));
+    expect(await documents.saveTab(id)).toBe(true);
+    expect(PDFService.SetSaveOptions).not.toHaveBeenCalled();
   });
 });

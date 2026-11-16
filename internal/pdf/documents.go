@@ -30,8 +30,21 @@ type Document struct {
 	FileName string    `json:"fileName"`
 	Size     int64     `json:"size"`
 	ModTime  time.Time `json:"modTime"`
+	// Modified: page or document operations left a working copy that isn't saved.
+	Modified bool `json:"modified"`
+	// UndoSteps: how many of those operations UndoPageOp can still take back.
+	UndoSteps int `json:"undoSteps"`
+	// RedoSteps: how many undone operations RedoPageOp can bring back.
+	RedoSteps int `json:"redoSteps"`
 
 	saveAsPath string
+	exportDir  string
+	saveOpts   SaveOptions
+	password   string
+	work       []string // working copies, oldest first; see workcopy.go
+	undone     []string // copies UndoPageOp took back, newest last
+	replaced   []string // what undone held before the newest copy was pushed, for DropPageOp
+	trimmed    bool     // the oldest working copy is past the undo bound
 }
 
 // Reasons for a ConflictError.
@@ -40,6 +53,8 @@ const (
 	ConflictChanged = "changed"
 	// ConflictOpen: the Save As target is open in another tab.
 	ConflictOpen = "open"
+	// ConflictExists: the export target exists and overwriting wasn't asked for.
+	ConflictExists = "exists"
 )
 
 // ConflictError is returned instead of writing when a save would clobber
@@ -50,8 +65,11 @@ type ConflictError struct {
 }
 
 func (e *ConflictError) Error() string {
-	if e.Reason == ConflictOpen {
+	switch e.Reason {
+	case ConflictOpen:
 		return fmt.Sprintf("%s is open in another tab", e.Path)
+	case ConflictExists:
+		return fmt.Sprintf("%s already exists", e.Path)
 	}
 	return fmt.Sprintf("%s changed on disk", e.Path)
 }
@@ -59,8 +77,10 @@ func (e *ConflictError) Error() string {
 // PDFService keeps the registry of documents open in the GUI, serves their
 // bytes to pdf.js and writes the bytes pdf.js produces back to disk.
 type PDFService struct {
-	mu   sync.RWMutex
-	docs map[string]*Document
+	mu      sync.RWMutex
+	docs    map[string]*Document
+	workDir string
+	workSeq int
 }
 
 // NewPDFService creates an empty document registry.
@@ -107,9 +127,11 @@ func (s *PDFService) OpenPDFByPath(path string) (*Document, error) {
 func (s *PDFService) ClosePDF(id string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if _, ok := s.docs[id]; !ok {
+	doc, ok := s.docs[id]
+	if !ok {
 		return fmt.Errorf("unknown document %q", id)
 	}
+	doc.dropWork()
 	delete(s.docs, id)
 	return nil
 }
@@ -118,7 +140,7 @@ func (s *PDFService) ClosePDF(id string) error {
 // refuses, with a ConflictError, when the file changed on disk since it was
 // opened or last saved.
 func (s *PDFService) SavePDF(id string, data []byte, overwrite bool) (*Document, error) {
-	doc, err := s.get(id)
+	doc, opts, err := s.takeSaveOptions(id)
 	if err != nil {
 		return nil, err
 	}
@@ -127,7 +149,7 @@ func (s *PDFService) SavePDF(id string, data []byte, overwrite bool) (*Document,
 			return nil, &ConflictError{Reason: ConflictChanged, Path: doc.Path}
 		}
 	}
-	return s.saveAs(id, doc.Path, data)
+	return s.saveAs(doc, doc.Path, data, opts)
 }
 
 // SaveTarget is a destination picked in the Save As dialog.
@@ -180,7 +202,7 @@ func (s *PDFService) chooseSaveAsPath(id, path string) {
 // returned for the document; the document then refers to the new file. It
 // refuses, with a ConflictError, a path open under another id.
 func (s *PDFService) SavePDFAs(id, path string, data []byte) (*Document, error) {
-	doc, err := s.get(id)
+	doc, opts, err := s.takeSaveOptions(id)
 	if err != nil {
 		return nil, err
 	}
@@ -195,15 +217,27 @@ func (s *PDFService) SavePDFAs(id, path string, data []byte) (*Document, error) 
 		}
 	}
 	s.mu.RUnlock()
-	return s.saveAs(id, path, data)
+	return s.saveAs(doc, path, data, opts)
 }
 
-func (s *PDFService) saveAs(id, path string, data []byte) (*Document, error) {
+// saveAs writes data, rewritten as opts ask, to path; from is the document
+// as it was before the save.
+func (s *PDFService) saveAs(from *Document, path string, data []byte, opts SaveOptions) (*Document, error) {
 	if len(data) == 0 {
 		return nil, errors.New("refusing to save an empty document")
 	}
-	if _, err := s.get(id); err != nil {
-		return nil, err
+	id, password := from.ID, from.password
+	if opts.Rewrite {
+		s.mu.Lock()
+		dir, err := s.sessionDir()
+		s.mu.Unlock()
+		if err != nil {
+			return nil, err
+		}
+		if data, err = rewriteForSave(dir, data, opts, password); err != nil {
+			return nil, err
+		}
+		password = opts.Password
 	}
 	if err := writeFileAtomic(path, data); err != nil {
 		return nil, err
@@ -215,19 +249,25 @@ func (s *PDFService) saveAs(id, path string, data []byte) (*Document, error) {
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if _, ok := s.docs[id]; !ok {
+	current, ok := s.docs[id]
+	if !ok {
 		return nil, fmt.Errorf("unknown document %q", id)
 	}
+	// The saved bytes are the whole content, so the working copies are done with.
+	current.dropWork()
 	doc.ID = id
+	doc.password = password
 	s.docs[id] = doc
 	copied := *doc
 	return &copied, nil
 }
 
-// ServeHTTP streams a registered document, and saves the body of a PUT like
-// SavePDF (?overwrite=1) or SavePDFAs (?saveAs=<path>). Raw bytes avoid the
-// binding call's base64 JSON body and its 64 MiB cap. The asset server strips
-// DocumentRoute, so the request path is just the id.
+// ServeHTTP streams a registered document's current content: its newest
+// working copy, else its file. The body of a PUT is saved like SavePDF
+// (?overwrite=1) or SavePDFAs (?saveAs=<path>), pushed like PushWorkingCopy
+// (?work=1) or written like ExportPDF (?export=<path>[&overwrite=1]). Raw
+// bytes avoid the binding call's base64 JSON body and its 64 MiB cap. The
+// asset server strips DocumentRoute, so the request path is just the id.
 func (s *PDFService) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodPut {
 		s.serveSave(w, r)
@@ -238,7 +278,7 @@ func (s *PDFService) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	f, err := os.Open(doc.Path)
+	f, err := os.Open(doc.source())
 	if err != nil {
 		http.NotFound(w, r)
 		return
@@ -263,9 +303,16 @@ func (s *PDFService) serveSave(w http.ResponseWriter, r *http.Request) {
 	}
 	query := r.URL.Query()
 	var doc *Document
-	if query.Has("saveAs") {
+	switch {
+	case query.Has("export"):
+		path := query.Get("export")
+		err = s.ExportPDF(id, path, data, query.Get("overwrite") == "1")
+		doc = &Document{Path: path, FileName: filepath.Base(path)}
+	case query.Has("work"):
+		doc, err = s.PushWorkingCopy(id, data)
+	case query.Has("saveAs"):
 		doc, err = s.SavePDFAs(id, query.Get("saveAs"), data)
-	} else {
+	default:
 		doc, err = s.SavePDF(id, data, query.Get("overwrite") == "1")
 	}
 	w.Header().Set("Content-Type", "application/json")

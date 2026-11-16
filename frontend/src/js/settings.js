@@ -7,6 +7,7 @@ import { themeManager } from './themeManager.js';
 import { initCertificatesSettings, renderPathLists } from './certificates.js';
 import { App, ConfigService } from './backend.js';
 import { SETTINGS } from './constants.js';
+import { markScrollEdges } from './utils.js';
 
 const DEFAULT_SETTINGS = {
     theme: 'dark',
@@ -36,6 +37,8 @@ DEFAULT_SETTINGS.shortcuts = {
     nextTab: 'Control+Tab',
     newWindow: 'Control+Shift+n',
     commandPalette: 'Control+k',
+    print: 'Control+p',
+    organizePages: 'Control+Shift+o',
 };
 
 let currentSettings = { ...DEFAULT_SETTINGS };
@@ -171,14 +174,26 @@ const SHORTCUT_FIELDS = {
     nextTab: { id: 'settingShortcutNextTab', name: 'Next tab' },
     newWindow: { id: 'settingShortcutNewWindow', name: 'New window' },
     commandPalette: { id: 'settingShortcutCommandPalette', name: 'All commands' },
+    print: { id: 'settingShortcutPrint', name: 'Print' },
+    organizePages: { id: 'settingShortcutOrganizePages', name: 'Organize pages' },
 };
 
-// Fixed shortcuts the app handles itself (see onKeyDown in app.js).
+// Fixed shortcuts the app handles itself (see onKeyDown in app.js and handleOrganizeKey in organize.js).
+const MOVE_KEYS = ['arrowleft', 'arrowright', 'arrowup', 'arrowdown', 'home', 'end'];
 const RESERVED_SHORTCUTS = {
     'control+s': 'Save',
     'control+shift+s': 'Save as',
     'control+w': 'Close tab',
     'control+f': 'Find',
+    'control+a': 'Select all pages',
+    'control+d': 'Duplicate pages',
+    'control+z': 'Undo',
+    'control+shift+z': 'Redo',
+    r: 'Rotate pages',
+    'shift+r': 'Rotate pages',
+    delete: 'Delete pages',
+    enter: 'Open the selected page',
+    ...Object.fromEntries(MOVE_KEYS.flatMap((key) => [[key, 'Move between pages'], [`shift+${key}`, 'Move between pages']])),
     escape: 'closing dialogs',
 };
 
@@ -321,12 +336,9 @@ function setupShortcutCapture() {
     }
 }
 
-/** Marks the edges of a scrolling area that have more content beyond them (for the edge shadows). */
+/** Keeps a scrolling area's edge shadows up to date. */
 function watchScrollEdges(area) {
-    const update = () => {
-        area.toggleAttribute('data-more-above', area.scrollTop > 0);
-        area.toggleAttribute('data-more-below', area.scrollTop + area.clientHeight < area.scrollHeight - 1);
-    };
+    const update = () => markScrollEdges(area);
     area.addEventListener('scroll', update, { passive: true });
     if (typeof ResizeObserver !== 'undefined') {
         const observer = new ResizeObserver(update);

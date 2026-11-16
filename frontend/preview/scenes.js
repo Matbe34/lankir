@@ -8,6 +8,8 @@ import { showToast } from '../src/js/toast.js';
 import { showLoading } from '../src/js/loadingIndicator.js';
 import { openFindBar } from '../src/js/findBar.js';
 import { state, getActivePDF } from '../src/js/state.js';
+import { splitDocument, protectDocument, editProperties, insertFromFiles } from '../src/js/documentTools.js';
+import { printTab } from '../src/js/print.js';
 import { queueOpen, DNIE_FINGERPRINT, SignatureService, addDamagedSignature, setContractRevocation } from './backend.mock.js';
 
 const DOCS = '/home/ferran/Documents';
@@ -103,6 +105,45 @@ async function pagesAt(key) {
   const width = $('#pageList .page-item').offsetWidth;
   await waitFor(() => [...document.querySelectorAll('#pageList .page-thumbnail canvas')]
     .slice(0, 4).every((canvas) => Number(canvas.dataset.width) >= Math.min(width, 220)), 'sharp thumbnails');
+}
+
+/** A pointer event at (x, y), default the middle of el. */
+function pointer(el, type, { x, y, ...mods } = {}) {
+  const rect = el.getBoundingClientRect();
+  el.dispatchEvent(new PointerEvent(type, {
+    bubbles: true, cancelable: true, button: 0, buttons: type === 'pointerup' ? 0 : 1, pointerId: 1, isPrimary: true,
+    clientX: x ?? rect.left + rect.width / 2, clientY: y ?? rect.top + rect.height / 2, ...mods,
+  }));
+}
+
+const organizeTile = (n) => $(`#organizeView .organize-tile[data-page="${n}"]`);
+
+/** Clicks pages in the organize grid, the first plainly and the rest with Ctrl. */
+function pickPages(...pages) {
+  pages.forEach((n, i) => {
+    pointer(organizeTile(n), 'pointerdown', { ctrlKey: i > 0 });
+    pointer(organizeTile(n), 'pointerup', { ctrlKey: i > 0 });
+  });
+}
+
+/** The contract organizing, its first pages drawn, pages selected. */
+async function openOrganize(...pages) {
+  await openViewer();
+  $('#organizePagesBtn').click();
+  await waitFor(() => document.querySelectorAll('#organizeView .organize-paper canvas').length >= 8, 'organize thumbnails');
+  pickPages(...pages);
+}
+
+/** Runs a bar action and, for the first change, goes ahead past the signed warning. */
+async function organizeAction(id) {
+  const tab = getActivePDF();
+  const steps = tab.undoSteps;
+  $(`#${id}`).click();
+  await waitFor(() => tab.undoSteps > steps || !$('#messageDialog').classList.contains('hidden'), `${id} to run`);
+  if (!$('#messageDialog').classList.contains('hidden')) {
+    [...document.querySelectorAll('#messageDialog button')].find((b) => b.textContent.trim() === 'Change anyway').click();
+  }
+  await waitFor(() => tab.undoSteps > steps && !tab.busy, `${id} to finish`);
 }
 
 export const SCENES = {
@@ -385,6 +426,127 @@ export const SCENES = {
     await openViewer();
     $('#mainMenuBtn').click();
     await waitFor(() => !$('#mainMenu').classList.contains('hidden'), 'main menu');
+  },
+
+  // Not scored: the main menu open on its Document section, Split under the pointer.
+  async 'menu-document'() {
+    await openViewer();
+    $('#mainMenuBtn').click();
+    await waitFor(() => !$('#mainMenu').classList.contains('hidden'), 'main menu');
+    $('#splitBtn').focus();
+  },
+
+  // Not scored: Split with three ranges typed and a folder chosen.
+  async split() {
+    await openViewer();
+    splitDocument(getActivePDF());
+    const input = await waitFor(() => $('#splitRanges'), 'split dialog');
+    input.value = '1-3, 4-9, 10-12';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    $('#splitFolderBtn').click();
+    await waitFor(() => !$('#splitDialog .btn-primary').disabled, 'a chosen folder');
+    input.focus();
+  },
+
+  // Not scored: Protect with password, past the signed-file warning, both fields typed.
+  async protect() {
+    await openViewer();
+    await waitFor(() => getActivePDF().signatures, 'signature check');
+    protectDocument(getActivePDF());
+    await waitFor(() => !$('#messageDialog').classList.contains('hidden'), 'signed-file warning');
+    [...document.querySelectorAll('#messageDialogFooter button')].find((b) => b.textContent === 'Change anyway').click();
+    const [password, confirm] = await waitFor(() => $('#protectConfirm') && [$('#protectPassword'), $('#protectConfirm')], 'protect dialog');
+    password.value = 'correct horse';
+    confirm.value = 'correct horse';
+    await sleep(50);
+    confirm.focus();
+  },
+
+  // Not scored: the Properties dialog (the side panel's Info is the scored "properties").
+  async 'document-properties'() {
+    await openViewer();
+    await waitFor(() => getActivePDF().signatures, 'signature check');
+    editProperties(getActivePDF());
+    await waitFor(() => $('#propTitle'), 'properties dialog');
+  },
+
+  // Not scored: preparing to print, held at page 5 of 12.
+  async 'print-progress'() {
+    await openViewer();
+    const doc = getActivePDF().pdfDocument;
+    const getPage = doc.getPage.bind(doc);
+    let calls = 0;
+    // The first call sizes the sheet; then pages 1 to 4 render and page 5 never arrives.
+    doc.getPage = (n) => (++calls > 5 ? new Promise(() => {}) : getPage(n));
+    printTab(getActivePDF());
+    await waitFor(() => /page 5 of/.test($('#toastRegion .toast-text')?.textContent ?? ''), 'print progress');
+  },
+
+  // Not scored: Insert pages, notes.pdf picked.
+  async insert() {
+    await openViewer();
+    await waitFor(() => getActivePDF().signatures, 'signature check');
+    insertFromFiles(getActivePDF());
+    await waitFor(() => !$('#messageDialog').classList.contains('hidden'), 'signed-file warning');
+    [...document.querySelectorAll('#messageDialogFooter button')].find((b) => b.textContent === 'Change anyway').click();
+    await waitFor(() => $('#insertDialog'), 'insert dialog');
+  },
+
+  // Organize pages: the grid with three pages selected and the page tools.
+  organize: () => openOrganize(4, 5, 8),
+
+  // Mid-drag: the three pages dimmed, the line after page 9, the pill in words.
+  async 'organize-drag'() {
+    await openOrganize(4, 5, 8);
+    const from = organizeTile(4).getBoundingClientRect();
+    pointer(organizeTile(4), 'pointerdown');
+    const target = organizeTile(10).querySelector('.organize-paper').getBoundingClientRect();
+    const steps = 8;
+    for (let i = 1; i <= steps; i++) {
+      const x = from.left + from.width / 2 + ((target.left + 12 - (from.left + from.width / 2)) * i) / steps;
+      const y = from.top + from.height / 2 + ((target.top + target.height * 0.55 - (from.top + from.height / 2)) * i) / steps;
+      pointer($('#organizeView'), 'pointermove', { x, y });
+      await nextFrame();
+    }
+    await waitFor(() => !$('#organizeView .organize-drop-line').hidden, 'insertion line');
+  },
+
+  // Not scored: right-clicking a page that wasn't selected.
+  async 'organize-menu'() {
+    await openOrganize(1);
+    const rect = organizeTile(3).getBoundingClientRect();
+    organizeTile(3).dispatchEvent(new MouseEvent('contextmenu', {
+      bubbles: true, cancelable: true, button: 2, detail: 1, clientX: rect.right - 40, clientY: rect.top + 140,
+    }));
+  },
+
+  // Not scored: a rubber band over empty space selecting two rows' worth.
+  async 'organize-band'() {
+    await openOrganize();
+    const view = $('#organizeView');
+    const a = organizeTile(2).getBoundingClientRect();
+    const b = organizeTile(9).getBoundingClientRect();
+    pointer(view, 'pointerdown', { x: a.left - 14, y: a.top - 20 });
+    pointer(view, 'pointermove', { x: a.left + 10, y: a.top });
+    pointer(view, 'pointermove', { x: b.left + 60, y: b.top + 80 });
+  },
+
+  // The first change to a signed document names whose signature breaks.
+  async 'organize-signed'() {
+    await openOrganize(2);
+    $('#organizeDelete').click();
+    await waitFor(() => !$('#messageDialog').classList.contains('hidden'), 'signed warning');
+  },
+
+  // Done after three page changes: reading again, the tab dirty, the toast.
+  async 'organize-done'() {
+    await openOrganize(3);
+    await organizeAction('organizeRotateRight');
+    await organizeAction('organizeDuplicate');
+    await organizeAction('organizeRotateLeft');
+    $('#organizeDone').click();
+    await waitFor(() => $('#toastRegion .toast'), 'page changes toast');
+    await waitForRender(getActivePDF().currentPage);
   },
 
   // Not scored: find alone at a narrow width moves the page clear of the box.

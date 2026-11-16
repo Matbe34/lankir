@@ -19,6 +19,64 @@ function tailOf(label) {
     return tail.replace(/^[\s\-–—_]+/, '') || tail;
 }
 
+const SEPARATORS = /[\s\-–—_]/;
+
+/**
+ * Where a head too wide for room px ends: after its last whole letter that
+ * fits, less any spaces and separators before it. rightOf(n) is how far its
+ * first n letters reach. Null when it all fits.
+ */
+export function headCut(text, rightOf, room) {
+    if (rightOf(text.length) <= room) return null;
+    let end = 0;
+    while (end < text.length && rightOf(end + 1) <= room) end++;
+    while (end > 0 && SEPARATORS.test(text[end - 1])) end--;
+    return { end, shown: rightOf(end) };
+}
+
+// The browser's own ellipsis leaves the rest of a cut head's box empty, a
+// hole before the tail. So a cut head is clipped after its last whole letter
+// and the tail, "…" first, closes up to it (.is-cut, components.css).
+function fitName(name) {
+    const head = name.querySelector('.truncate-head');
+    const text = head?.firstChild;
+    name.classList.remove('is-cut');
+    if (!text || head.scrollWidth <= head.clientWidth) return;
+    name.classList.add('is-cut');
+    const left = head.getBoundingClientRect().left;
+    const range = document.createRange();
+    range.setStart(text, 0);
+    const rightOf = (n) => {
+        range.setEnd(text, n);
+        return n ? range.getBoundingClientRect().right - left : 0;
+    };
+    const room = head.getBoundingClientRect().width;
+    const cut = headCut(text.data, rightOf, room);
+    if (!cut) {
+        name.classList.remove('is-cut');
+        return;
+    }
+    name.style.setProperty('--head-shown', `${cut.shown}px`);
+    name.style.setProperty('--head-gap', `${room - cut.shown}px`);
+}
+
+const fitter = typeof ResizeObserver === 'function'
+    ? new ResizeObserver((entries) => entries.forEach((entry) => fitName(entry.target)))
+    : null;
+// The names fitter follows, each marked once seen in the page: one that has
+// left it since (its tab closed, the menu refilled) is let go. A name not in
+// the page yet is kept, as a new tab's is until it is added.
+const followed = new Map();
+function forgetRemovedNames() {
+    for (const [el, seen] of followed) {
+        if (el.isConnected) followed.set(el, true);
+        else if (seen) {
+            fitter.unobserve(el);
+            followed.delete(el);
+        }
+    }
+}
+
 /** Shows a file name as a tab label in el, cut in the middle when it doesn't fit so its end stays. */
 export function setTabName(el, name) {
     const label = tabLabel(name);
@@ -33,6 +91,9 @@ export function setTabName(el, name) {
     el.classList.add('truncate-middle');
     el.dataset.name = name;
     el.replaceChildren(head, end);
+    if (!fitter) return;
+    fitter.observe(el);
+    if (!followed.has(el)) followed.set(el, false);
 }
 
 const tabs = () => [...document.querySelectorAll('#pdfTabsContainer .pdf-tab')];
@@ -61,6 +122,7 @@ export function refreshTabStrip() {
     const strip = $('pdfTabsContainer');
     const button = $('tabOverflowBtn');
     if (!strip || !button) return;
+    forgetRemovedNames();
     const all = tabs();
     strip.classList.remove('is-full');
     button.classList.add('hidden');
@@ -100,6 +162,7 @@ function fillOverflowMenu(menu, onSelect) {
         item.addEventListener('click', () => onSelect(Number(tab.dataset.tabId)));
         return item;
     }));
+    forgetRemovedNames();
 }
 
 /** Binds the overflow menu and follows the window's width; call once at startup. */

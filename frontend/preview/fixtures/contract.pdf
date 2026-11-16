@@ -1,6 +1,6 @@
 %PDF-1.7
 1 0 obj
-<< /Type /Catalog /Pages 2 0 R /Outlines 33 0 R /PageMode /UseOutlines /AcroForm << /Fields [30 0 R 31 0 R 32 0 R] /NeedAppearances true /DA (/Helv 0 Tf 0 g) /DR << /Font << /Helv 3 0 R >> >> >> >>
+<< /Type /Catalog /Pages 2 0 R /Outlines 35 0 R /PageMode /UseOutlines /AcroForm << /Fields [30 0 R 31 0 R 32 0 R 34 0 R] /NeedAppearances true /SigFlags 3 /DA (/Helv 0 Tf 0 g) /DR << /Font << /Helv 3 0 R >> >> >> >>
 endobj
 2 0 obj
 << /Type /Pages /Kids [7 0 R 9 0 R 11 0 R 13 0 R 15 0 R 17 0 R 19 0 R 21 0 R 23 0 R 25 0 R 27 0 R 29 0 R] /Count 12 >>
@@ -318,7 +318,7 @@ BT /F1 11 Tf 60 529 Td (Date of signature) Tj ET
 endstream
 endobj
 29 0 obj
-<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents 28 0 R /Annots [30 0 R 31 0 R 32 0 R] >>
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents 28 0 R /Annots [30 0 R 31 0 R 32 0 R 34 0 R] >>
 endobj
 30 0 obj
 << /Type /Annot /Subtype /Widget /FT /Tx /T (client_name) /V (Maria Garcia) /DA (/Helv 11 Tf 0 g) /F 4 /Rect [60 642 360 664] /BS << /W 1 /S /S >> /MK << /BC [0.4 0.4 0.4] /BG [0.96 0.96 0.98] >> /P 29 0 R >>
@@ -330,90 +330,98 @@ endobj
 << /Type /Annot /Subtype /Widget /FT /Tx /T (signature_date) /V () /DA (/Helv 11 Tf 0 g) /F 4 /Rect [60 492 360 514] /BS << /W 1 /S /S >> /MK << /BC [0.4 0.4 0.4] /BG [0.96 0.96 0.98] >> /P 29 0 R >>
 endobj
 33 0 obj
-<< /Type /Outlines /First 34 0 R /Last 44 0 R /Count 11 >>
+<< /Type /Sig /Filter /Adobe.PPKLite /SubFilter /adbe.pkcs7.detached /Name (PUIG FERRER JORDI - 47110824K) /M (D:20261109113200Z) /ByteRange [0 0 0 0] /Contents <0000000000000000000000000000000000000000000000000000000000000000> >>
 endobj
 34 0 obj
-<< /Title (1. Definitions and interpretation) /Parent 33 0 R /Dest [9 0 R /Fit] /Next 35 0 R >>
+<< /Type /Annot /Subtype /Widget /FT /Sig /T (signature_4) /V 33 0 R /F 132 /Rect [0 0 0 0] /P 29 0 R >>
 endobj
 35 0 obj
-<< /Title (2. Services) /Parent 33 0 R /Dest [11 0 R /Fit] /Prev 34 0 R /Next 36 0 R >>
+<< /Type /Outlines /First 36 0 R /Last 46 0 R /Count 11 >>
 endobj
 36 0 obj
-<< /Title (3. Client obligations) /Parent 33 0 R /Dest [13 0 R /Fit] /Prev 35 0 R /Next 37 0 R >>
+<< /Title (1. Definitions and interpretation) /Parent 35 0 R /Dest [9 0 R /Fit] /Next 37 0 R >>
 endobj
 37 0 obj
-<< /Title (4. Fees and payment) /Parent 33 0 R /Dest [15 0 R /Fit] /Prev 36 0 R /Next 38 0 R >>
+<< /Title (2. Services) /Parent 35 0 R /Dest [11 0 R /Fit] /Prev 36 0 R /Next 38 0 R >>
 endobj
 38 0 obj
-<< /Title (5. Confidentiality) /Parent 33 0 R /Dest [17 0 R /Fit] /Prev 37 0 R /Next 39 0 R >>
+<< /Title (3. Client obligations) /Parent 35 0 R /Dest [13 0 R /Fit] /Prev 37 0 R /Next 39 0 R >>
 endobj
 39 0 obj
-<< /Title (6. Intellectual property) /Parent 33 0 R /Dest [19 0 R /Fit] /Prev 38 0 R /Next 40 0 R >>
+<< /Title (4. Fees and payment) /Parent 35 0 R /Dest [15 0 R /Fit] /Prev 38 0 R /Next 40 0 R >>
 endobj
 40 0 obj
-<< /Title (7. Warranties) /Parent 33 0 R /Dest [21 0 R /Fit] /Prev 39 0 R /Next 41 0 R >>
+<< /Title (5. Confidentiality) /Parent 35 0 R /Dest [17 0 R /Fit] /Prev 39 0 R /Next 41 0 R >>
 endobj
 41 0 obj
-<< /Title (8. Limitation of liability) /Parent 33 0 R /Dest [23 0 R /Fit] /Prev 40 0 R /Next 42 0 R >>
+<< /Title (6. Intellectual property) /Parent 35 0 R /Dest [19 0 R /Fit] /Prev 40 0 R /Next 42 0 R >>
 endobj
 42 0 obj
-<< /Title (9. Term and termination) /Parent 33 0 R /Dest [25 0 R /Fit] /Prev 41 0 R /Next 43 0 R >>
+<< /Title (7. Warranties) /Parent 35 0 R /Dest [21 0 R /Fit] /Prev 41 0 R /Next 43 0 R >>
 endobj
 43 0 obj
-<< /Title (10. General provisions) /Parent 33 0 R /Dest [27 0 R /Fit] /Prev 42 0 R /Next 44 0 R >>
+<< /Title (8. Limitation of liability) /Parent 35 0 R /Dest [23 0 R /Fit] /Prev 42 0 R /Next 44 0 R >>
 endobj
 44 0 obj
-<< /Title (Signature page) /Parent 33 0 R /Dest [29 0 R /Fit] /Prev 43 0 R >>
+<< /Title (9. Term and termination) /Parent 35 0 R /Dest [25 0 R /Fit] /Prev 43 0 R /Next 45 0 R >>
+endobj
+45 0 obj
+<< /Title (10. General provisions) /Parent 35 0 R /Dest [27 0 R /Fit] /Prev 44 0 R /Next 46 0 R >>
+endobj
+46 0 obj
+<< /Title (Signature page) /Parent 35 0 R /Dest [29 0 R /Fit] /Prev 45 0 R >>
 endobj
 xref
-0 45
+0 47
 0000000000 65535 f 
 0000000009 00000 n 
-0000000222 00000 n 
-0000000356 00000 n 
-0000000453 00000 n 
-0000000555 00000 n 
-0000000647 00000 n 
-0000001492 00000 n 
-0000001628 00000 n 
-0000003520 00000 n 
-0000003656 00000 n 
-0000005525 00000 n 
-0000005663 00000 n 
-0000007536 00000 n 
-0000007674 00000 n 
-0000009536 00000 n 
-0000009674 00000 n 
-0000011573 00000 n 
-0000011711 00000 n 
-0000013595 00000 n 
-0000013733 00000 n 
-0000015604 00000 n 
-0000015742 00000 n 
-0000017620 00000 n 
-0000017758 00000 n 
-0000019624 00000 n 
-0000019762 00000 n 
-0000021668 00000 n 
-0000021806 00000 n 
-0000022227 00000 n 
-0000022396 00000 n 
-0000022621 00000 n 
-0000022861 00000 n 
-0000023077 00000 n 
-0000023152 00000 n 
-0000023264 00000 n 
-0000023368 00000 n 
-0000023482 00000 n 
-0000023594 00000 n 
-0000023705 00000 n 
-0000023822 00000 n 
-0000023928 00000 n 
-0000024047 00000 n 
-0000024163 00000 n 
-0000024278 00000 n 
+0000000241 00000 n 
+0000000375 00000 n 
+0000000472 00000 n 
+0000000574 00000 n 
+0000000666 00000 n 
+0000001511 00000 n 
+0000001647 00000 n 
+0000003539 00000 n 
+0000003675 00000 n 
+0000005544 00000 n 
+0000005682 00000 n 
+0000007555 00000 n 
+0000007693 00000 n 
+0000009555 00000 n 
+0000009693 00000 n 
+0000011592 00000 n 
+0000011730 00000 n 
+0000013614 00000 n 
+0000013752 00000 n 
+0000015623 00000 n 
+0000015761 00000 n 
+0000017639 00000 n 
+0000017777 00000 n 
+0000019643 00000 n 
+0000019781 00000 n 
+0000021687 00000 n 
+0000021825 00000 n 
+0000022246 00000 n 
+0000022422 00000 n 
+0000022647 00000 n 
+0000022887 00000 n 
+0000023103 00000 n 
+0000023350 00000 n 
+0000023471 00000 n 
+0000023546 00000 n 
+0000023658 00000 n 
+0000023762 00000 n 
+0000023876 00000 n 
+0000023988 00000 n 
+0000024099 00000 n 
+0000024216 00000 n 
+0000024322 00000 n 
+0000024441 00000 n 
+0000024557 00000 n 
+0000024672 00000 n 
 trailer
-<< /Size 45 /Root 1 0 R /Info 5 0 R >>
+<< /Size 47 /Root 1 0 R /Info 5 0 R >>
 startxref
-24372
+24766
 %%EOF

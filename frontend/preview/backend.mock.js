@@ -20,10 +20,57 @@ const openQueue = [];
 export const queueOpen = (pathOrError) => openQueue.push(pathOrError);
 
 let docCounter = 0;
+const docs = new Map(); // id -> { path, work: [bytes], undone: [bytes], replaced: [bytes] }, like Go's working copies
 const register = (path) => {
   const fixture = fixtureFor(path);
-  return { id: `${fixture}-${++docCounter}`, path, fileName: basename(path), size: 25351, modTime: '2026-11-10T09:14:00Z' };
+  const id = `${fixture}-${++docCounter}`;
+  docs.set(id, { path, work: [], undone: [], replaced: [] });
+  return { id, path, fileName: basename(path), size: 25351, modTime: '2026-11-10T09:14:00Z' };
 };
+
+// Go's Document as the page operations return it.
+const docState = (id) => {
+  const { path, work, undone } = docs.get(id);
+  return {
+    id, path, fileName: basename(path), size: 25351, modTime: '2026-11-10T09:14:00Z',
+    modified: work.length > 0, undoSteps: work.length, redoSteps: undone.length,
+  };
+};
+
+// The page routes Go serves: /doc/<id> is the newest working copy, else the
+// fixture (from the dev server); a PUT with ?work=1 pushes a working copy,
+// one without saves (and so drops the copies), ?export= writes nothing.
+const fixtureFetch = window.fetch.bind(window);
+const docRoute = (input) => {
+  const url = new URL(input instanceof Request ? input.url : String(input), location.href);
+  const match = /^\/doc\/([\w-]+)$/.exec(url.pathname);
+  return match && docs.has(match[1]) ? { id: match[1], url } : null;
+};
+const json = (body) => new Response(JSON.stringify(body), { headers: { 'Content-Type': 'application/json' } });
+window.fetch = async (input, init = {}) => {
+  const route = docRoute(input);
+  if (!route) return fixtureFetch(input, init);
+  const doc = docs.get(route.id);
+  if ((init.method ?? 'GET') === 'GET') {
+    const bytes = doc.work.at(-1);
+    return bytes ? new Response(bytes, { headers: { 'Content-Type': 'application/pdf' } }) : fixtureFetch(input, init);
+  }
+  const bytes = new Uint8Array(await new Response(init.body).arrayBuffer());
+  if (route.url.searchParams.has('export')) return json({});
+  if (route.url.searchParams.has('work')) {
+    doc.work.push(bytes);
+    doc.replaced = doc.undone;
+    doc.undone = [];
+  } else {
+    doc.work = [];
+    doc.undone = [];
+    doc.replaced = [];
+  }
+  return json(docState(route.id));
+};
+
+/** The document's current bytes, for operations the mock can't really do. */
+const currentBytes = async (id) => docs.get(id).work.at(-1) ?? new Uint8Array(await (await fixtureFetch(`/doc/${id}`)).arrayBuffer());
 
 // Resolves once the app has finished its startup (TakeStartupFiles is its last step).
 let appReady;
@@ -155,8 +202,46 @@ export const PDFService = lenient({
     return register(next);
   },
   OpenPDFByPath: async (path) => register(path),
-  ClosePDF: async () => {},
+  ClosePDF: async (id) => { docs.delete(id); },
   ChooseSavePath: async (_id, name) => ({ path: `${HOME}/${name}`, exists: false }),
+  ChooseExportFolder: async () => `${HOME}/Contracts`,
+  OpenPDFs: async () => [register(`${HOME}/Meeting notes - kickoff.pdf`)],
+  // pdfcpu's rotate and blank page can't run here: they push the content unchanged, as an undo step.
+  RotatePages: async (id) => {
+    const doc = docs.get(id);
+    doc.work.push(await currentBytes(id));
+    doc.replaced = doc.undone;
+    doc.undone = [];
+    return docState(id);
+  },
+  InsertBlankPage: async (id) => PDFService.RotatePages(id),
+  SetMetadata: async (id) => PDFService.RotatePages(id),
+  RevertToSaved: async (id) => {
+    Object.assign(docs.get(id), { work: [], undone: [], replaced: [] });
+    return docState(id);
+  },
+  UndoPageOp: async (id) => {
+    const doc = docs.get(id);
+    if (!doc.work.length) throw new Error('nothing to undo');
+    doc.replaced = [];
+    doc.undone.push(doc.work.pop());
+    return docState(id);
+  },
+  DropPageOp: async (id) => {
+    const doc = docs.get(id);
+    if (!doc.work.length) throw new Error('nothing to drop');
+    doc.work.pop();
+    doc.undone = doc.replaced;
+    doc.replaced = [];
+    return docState(id);
+  },
+  RedoPageOp: async (id) => {
+    const doc = docs.get(id);
+    if (!doc.undone.length) throw new Error('nothing to redo');
+    doc.replaced = [];
+    doc.work.push(doc.undone.pop());
+    return docState(id);
+  },
 });
 
 export const RecentFilesService = lenient({
@@ -250,6 +335,7 @@ export const SignatureService = lenient({
   GetDefaultCertificateSources: async () => ({ system: ['/etc/ssl/certs'], user: ['/home/ferran/.pki/certs'] }),
   GetDefaultTokenLibraries: async () => ['/usr/lib/x86_64-linux-gnu/opensc-pkcs11.so'],
   VerifySignatures: async (path) => (fixtureFor(path) === 'contract' ? contractSignatures() : []),
+  VerifySignaturesOffline: async (path) => (fixtureFor(path) === 'contract' ? contractSignatures() : []),
 });
 
 export const ConfigService = lenient({

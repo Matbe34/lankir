@@ -53,6 +53,7 @@
   --tab-min-w: 140px; /* a tab narrower than this goes to "N more tabs" */
   --tab-max-w: 240px;
   --pill-h: 30px; /* the page pill: a small control plus the float's padding */
+  --toast-w: 350px; /* every toast: right-aligned, it clears the centred page pill in a 1024 px window */
   --dock-w: 296px; /* the sign panel in the canvas margin */
   --find-w: 300px;
   --page-gutter: var(--sp-4); /* canvas above the page the view is on */
@@ -114,8 +115,9 @@
   --selection: color-mix(in srgb, var(--accent) 26%, transparent);
 
   --danger: #BE2A3E;
-  --danger-fg: #FFFFFF; /* text on a solid danger button */
-  --danger-hover: color-mix(in oklab, var(--danger) 88%, #000000);
+  --danger-solid: var(--danger); /* a destructive confirm's fill, the danger twin of --accent */
+  --danger-solid-hover: color-mix(in oklab, var(--danger-solid) 88%, #000000);
+  --danger-fg: #FFFFFF; /* text on --danger-solid */
   --danger-subtle: color-mix(in srgb, var(--danger) 10%, transparent);
   --success: #1E7A47;
   --success-subtle: color-mix(in srgb, var(--success) 11%, transparent);
@@ -142,9 +144,11 @@
   --match: #FFEB8A;
   --match-current: #FF9A2E;
   --match-current-edge: #D9700B;
+  --lifted-opacity: .4; /* pages picked up and being dragged, left behind as a faint trace */
   --paper: #FFFFFF; /* blank page placeholders; pages keep their real colours */
   --ink: #1B1B1B;
   --mark-on-page: #1B1B1B26;
+  --signed-on-page: #1E7A47; /* a badge on the paper, white in both themes */
 
   /* Glyphs drawn by CSS (select chevron, checkbox tick), in the icon colour */
   --chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2345474E' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
@@ -199,8 +203,9 @@
   --selection: color-mix(in srgb, var(--accent) 45%, transparent);
 
   --danger: #F27B8A;
-  --danger-fg: #1B1C20;
-  --danger-hover: color-mix(in oklab, var(--danger) 88%, #FFFFFF);
+  /* --danger stays light for red text on dark surfaces; a solid fill is a deep red with white text, as the primary is. */
+  --danger-solid: #C7364B; /* 5.2:1 with white; its hover darkens, as in light, to stay above 4.5:1 */
+  --danger-fg: #FFFFFF;
   --danger-subtle: color-mix(in srgb, var(--danger) 16%, transparent);
   --success: #5CC98C;
   --success-subtle: color-mix(in srgb, var(--success) 16%, transparent);
@@ -208,10 +213,11 @@
   --warning-subtle: color-mix(in srgb, var(--warning) 16%, transparent);
 
   --hud: color-mix(in srgb, var(--chrome) 92%, transparent);
+  --lifted-opacity: .35; /* the page stays recognisable, clearly lifted, without going a flat grey block */
 
   --surface-overlay: color-mix(in oklab, var(--tint) var(--tint-mix), #2F3036);
   --segment-track: var(--fill);
-  --segment-on: color-mix(in oklab, var(--tint) var(--tint-mix), #4A4B53);
+  --segment-on: color-mix(in oklab, var(--tint) var(--tint-mix), #54555D); /* a clear step above its groove on the lighter dialog surface too */
   --switch-off: #7E8088; /* 3:1 against an overlay row */
   --switch-knob: #F2F3F5;
 

@@ -5,7 +5,9 @@ vi.mock('pdfjs-dist', () => ({
   GlobalWorkerOptions: {},
   AnnotationEditorType: { NONE: 0 },
   AnnotationEditorParamsType: {},
-  PasswordResponses: {}
+  AnnotationMode: {},
+  PasswordResponses: {},
+  PDFDateString: {}
 }));
 vi.mock('pdfjs-dist/build/pdf.worker.mjs?url', () => ({ default: 'worker.mjs' }));
 vi.mock('pdfjs-dist/web/pdf_viewer.mjs', () => ({

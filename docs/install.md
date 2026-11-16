@@ -178,11 +178,11 @@ file you added.
 
 Removing the program keeps your settings. To remove them too, delete
 `~/.config/lankir`, and `$XDG_CONFIG_HOME/lankir` if you set `XDG_CONFIG_HOME`
-(see below), and the web view's storage in
-`~/.local/share/com.lankir.Lankir` and `~/.cache/com.lankir.Lankir` (under
+(see below), the web view's storage in `~/.local/share/com.lankir.Lankir`
+and `~/.cache/com.lankir.Lankir`, and `~/.cache/lankir` (under
 `$XDG_DATA_HOME` and `$XDG_CACHE_HOME` if you set them). After upgrading from
-0.1.x you can also delete the old `~/.local/share/lankir` and `~/.cache/lankir`
-(likewise under `$XDG_DATA_HOME` and `$XDG_CACHE_HOME` if set).
+0.1.x you can also delete the old `~/.local/share/lankir` (likewise under
+`$XDG_DATA_HOME` if set).
 
 ## Files Lankir keeps
 
@@ -193,13 +193,15 @@ Removing the program keeps your settings. To remove them too, delete
 | `~/.config/lankir/recent.json` | Recent files. |
 | `~/.local/share/com.lankir.Lankir/` | The app's web view storage: keyboard shortcuts, the window tint and the side panel width. |
 | `~/.cache/com.lankir.Lankir/` | The web view's cache. |
+| `~/.cache/lankir/work/` | Unsaved page changes, readable only by you; removed when you save, close the tab or quit, and at the next start after a crash. |
 
 If `XDG_CONFIG_HOME` is set, the three `~/.config/lankir` entries are in
 `$XDG_CONFIG_HOME/lankir/` instead. Lankir 1.0 kept the profiles and recent
 files in `~/.config/lankir` even then; 1.0.1 copies them to
 `$XDG_CONFIG_HOME/lankir/` the first time it runs, when that folder has none
-yet, and leaves the old copies in place. The two web view folders follow
-`XDG_DATA_HOME` and `XDG_CACHE_HOME` when those are set.
+yet, and leaves the old copies in place. The two web view folders and
+`~/.cache/lankir` follow `XDG_DATA_HOME` and `XDG_CACHE_HOME` when those are
+set.
 
 `lankir config` reads and changes `config.json` from the command line
 ([Command line](cli.md#lankir-config)).

@@ -10,6 +10,7 @@ import { App } from './backend.js';
 import { initTabStrip } from './tabStrip.js';
 import { updatePageRoom } from './pageRoom.js';
 import { initPanelResize } from './panelResize.js';
+import { syncDocumentMenu } from './documentTools.js';
 
 const $ = (id) => document.getElementById(id);
 const on = (id, type, handler) => $(id)?.addEventListener(type, handler);
@@ -42,6 +43,7 @@ export function setupEventListeners() {
         bindMenu($('mainMenuBtn'), mainMenu, {
             onOpen: () => {
                 for (const item of mainMenu.querySelectorAll('[data-needs-doc]')) item.disabled = !getActivePDF();
+                syncDocumentMenu();
             }
         });
     }

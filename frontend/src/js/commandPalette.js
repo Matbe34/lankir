@@ -7,14 +7,17 @@ import { zoomIn, zoomOut, setZoom, goToPage } from './navigation.js';
 import { openFindBar } from './findBar.js';
 import { setSidePanel, switchTab } from './ui.js';
 import { setMarkupShown } from './annotationToolbar.js';
+import { toggleOrganize, leaveOrganize } from './organize.js';
 import { openSettings, getSetting, saveSetting } from './settings.js';
 import { RecentFilesService } from './backend.js';
 import { iconSvg } from './icons.js';
 import { keysFor, keycaps } from './shortcuts.js';
 import { rememberFocus } from './focusManager.js';
 import { closeOpenMenu } from './menus.js';
+import { documentCommands } from './documentTools.js';
+import { markScrollEdges } from './utils.js';
 
-const GROUPS = ['Document', 'View', 'Markup', 'Application'];
+const GROUPS = ['File', 'Document', 'Go', 'View', 'Markup', 'Application'];
 const ZOOM_PRESETS = [0.5, 0.75, 1, 1.25, 1.5, 2, 3, 4];
 const THEMES = [['light', 'sun', 'Use light theme'], ['dark', 'moon', 'Use dark theme'], ['auto', 'monitor', 'Use the system theme']];
 
@@ -22,6 +25,11 @@ const $ = (id) => document.getElementById(id);
 const loaded = () => Boolean(getActivePDF()?.view?.pdfViewer?.pdfDocument);
 const enabled = (id) => () => loaded() && $(id)?.disabled === false;
 const click = (id) => () => $(id)?.click();
+// For commands on what organizing hides (the page, its panels and tools): back to reading first, as their buttons do.
+const reading = (run) => () => {
+    leaveOrganize();
+    run();
+};
 
 let recent = [];
 let rows = [];      // the commands shown, in order
@@ -39,6 +47,7 @@ function showPanel(name) {
 }
 
 function useTool(tool) {
+    leaveOrganize();
     setMarkupShown(true);
     document.querySelector(`[data-tool="${tool}"]`)?.click();
 }
@@ -51,38 +60,49 @@ function commands(query) {
     const theme = getSetting('theme') || 'dark';
     const page = /^\d+$/.test(query.trim()) ? Number(query.trim()) : null;
     const pages = tab?.view?.pdfViewer?.pagesCount ?? 0;
+    // As in the ≡ menu: Revert and Print sit with Save under File, the other document tools under Document.
+    const tools = loaded() ? documentCommands(tab) : [];
+    const fileTools = tools.filter((c) => c.id === 'revert' || c.id === 'print').map((c) => ({ ...c, group: 'File' }));
 
     const list = [
-        page && page >= 1 && page <= pages && loaded()
-            && { group: 'Document', icon: 'hash', label: `Go to page ${page}`, pinned: true, run: () => goToPage(String(page)) },
-        { group: 'Document', icon: 'folder-open', label: 'Open file…', shortcut: 'openFile', run: () => openPDFFile() },
+        { group: 'File', icon: 'folder-open', label: 'Open file…', shortcut: 'openFile', run: () => openPDFFile() },
         ...recent.map((file) => ({
-            group: 'Document', icon: 'history', label: file.fileName, meta: folderOf(file.filePath), words: 'recent open',
+            group: 'File', icon: 'history', label: file.fileName, meta: folderOf(file.filePath), words: 'recent open',
             searchOnly: true, run: () => openRecentFile(file.filePath)
         })),
-        loaded() && { group: 'Document', icon: 'save', label: 'Save', keys: 'Ctrl S', run: () => saveTab(tab.id) },
-        loaded() && { group: 'Document', icon: 'save-as', label: 'Save as…', keys: 'Ctrl Shift S', words: 'copy export', run: () => saveTab(tab.id, { saveAs: true }) },
-        loaded() && { group: 'Document', icon: 'signature', label: 'Sign…', shortcut: 'sign', words: 'signature certificate', run: () => signPDF() },
-        loaded() && { group: 'Document', icon: 'search', label: 'Find in document', keys: 'Ctrl F', words: 'search text', run: () => openFindBar() },
-        loaded() && { group: 'Document', icon: 'hash', label: 'Go to page…', words: 'jump number', run: () => $('pageInput')?.focus() },
-        tab && { group: 'Document', icon: 'x', label: 'Close tab', keys: 'Ctrl W', words: 'document', run: () => closeTab(tab.id) },
-        state.openPDFs.size > 1 && { group: 'Document', icon: 'arrow-right-left', label: 'Next tab', shortcut: 'nextTab', words: 'switch document', run: () => switchToNextTab() },
-        tab && { group: 'Document', icon: 'house', label: 'Start page', words: 'home welcome recent', run: () => switchToHome() },
+        loaded() && { group: 'File', icon: 'save', label: 'Save', keys: 'Ctrl S', run: () => saveTab(tab.id) },
+        loaded() && { group: 'File', icon: 'save-as', label: 'Save as…', keys: 'Ctrl Shift S', words: 'copy export', run: () => saveTab(tab.id, { saveAs: true }) },
+        ...fileTools,
+        tab && { group: 'File', icon: 'x', label: 'Close tab', keys: 'Ctrl W', words: 'document', run: () => closeTab(tab.id) },
 
-        loaded() && { group: 'View', icon: 'panel-left', label: panelOpen ? 'Hide side panel' : 'Show side panel', words: 'toggle sidebar', run: () => setSidePanel(!panelOpen) },
-        loaded() && { group: 'View', icon: 'gallery-vertical-end', label: 'Show pages', words: 'thumbnails side panel', run: () => showPanel('pages') },
-        loaded() && tab.sidebar?.outline && { group: 'View', icon: 'list-tree', label: 'Show outline', words: 'bookmarks contents side panel', run: () => showPanel('index') },
-        loaded() && { group: 'View', icon: 'shield-check', label: 'Show signatures', words: 'properties certificates side panel', run: () => showPanel('signatures') },
-        loaded() && { group: 'View', icon: 'zoom-in', label: 'Zoom in', shortcut: 'zoomIn', words: 'bigger larger', run: () => zoomIn() },
-        loaded() && { group: 'View', icon: 'zoom-out', label: 'Zoom out', shortcut: 'zoomOut', words: 'smaller', run: () => zoomOut() },
-        loaded() && { group: 'View', icon: 'move-horizontal', label: 'Fit width', words: 'zoom', run: () => setZoom('page-width') },
-        loaded() && { group: 'View', icon: 'scan', label: 'Fit page', words: 'zoom whole', run: () => setZoom('page-fit') },
+        loaded() && { group: 'Document', icon: 'signature', label: 'Sign…', shortcut: 'sign', words: 'signature certificate', run: reading(() => signPDF()) },
+        loaded() && {
+            group: 'Document', icon: 'layout-grid', label: tab.organizing ? 'Back to reading' : 'Organize pages', shortcut: 'organizePages',
+            words: 'pages rotate reorder move delete duplicate extract insert thumbnails grid', run: () => toggleOrganize()
+        },
+        ...tools.filter((c) => c.id !== 'revert' && c.id !== 'print'),
+
+        page && page >= 1 && page <= pages && loaded()
+            && { group: 'Go', icon: 'hash', label: `Go to page ${page}`, pinned: true, run: reading(() => goToPage(String(page))) },
+        loaded() && { group: 'Go', icon: 'search', label: 'Find in document', keys: 'Ctrl F', words: 'search text', run: reading(() => openFindBar()) },
+        loaded() && { group: 'Go', icon: 'hash', label: 'Go to page…', words: 'jump number', run: reading(() => $('pageInput')?.focus()) },
+        state.openPDFs.size > 1 && { group: 'Go', icon: 'arrow-right-left', label: 'Next tab', shortcut: 'nextTab', words: 'switch document', run: () => switchToNextTab() },
+        tab && { group: 'Go', icon: 'house', label: 'Start page', words: 'home welcome recent', run: () => switchToHome() },
+
+        loaded() && { group: 'View', icon: 'panel-left', label: panelOpen ? 'Hide side panel' : 'Show side panel', words: 'toggle sidebar', run: panelOpen ? () => setSidePanel(false) : reading(() => setSidePanel(true)) },
+        loaded() && { group: 'View', icon: 'gallery-vertical-end', label: 'Show pages', words: 'thumbnails side panel', run: reading(() => showPanel('pages')) },
+        loaded() && tab.sidebar?.outline && { group: 'View', icon: 'list-tree', label: 'Show outline', words: 'bookmarks contents side panel', run: reading(() => showPanel('index')) },
+        loaded() && { group: 'View', icon: 'shield-check', label: 'Show signatures', words: 'properties certificates side panel', run: reading(() => showPanel('signatures')) },
+        loaded() && { group: 'View', icon: 'zoom-in', label: 'Zoom in', shortcut: 'zoomIn', words: 'bigger larger', run: reading(() => zoomIn()) },
+        loaded() && { group: 'View', icon: 'zoom-out', label: 'Zoom out', shortcut: 'zoomOut', words: 'smaller', run: reading(() => zoomOut()) },
+        loaded() && { group: 'View', icon: 'move-horizontal', label: 'Fit width', words: 'zoom', run: reading(() => setZoom('page-width')) },
+        loaded() && { group: 'View', icon: 'scan', label: 'Fit page', words: 'zoom whole', run: reading(() => setZoom('page-fit')) },
         ...(loaded() ? ZOOM_PRESETS : []).map((scale) => ({
             group: 'View', icon: 'zoom-in', label: `Zoom to ${scale * 100}%`, words: 'zoom percent actual size', searchOnly: true,
-            run: () => setZoom(String(scale))
+            run: reading(() => setZoom(String(scale)))
         })),
 
-        loaded() && { group: 'Markup', icon: 'pencil', label: markupShown ? 'Hide markup tools' : 'Show markup tools', words: 'annotate toolbar', run: () => setMarkupShown(!markupShown) },
+        loaded() && { group: 'Markup', icon: 'pencil', label: markupShown ? 'Hide markup tools' : 'Show markup tools', words: 'annotate toolbar', run: reading(() => setMarkupShown(!markupShown)) },
         loaded() && { group: 'Markup', icon: 'pointer', label: 'Select', words: 'text forms fill cursor', run: () => useTool('none') },
         loaded() && { group: 'Markup', icon: 'highlighter', label: 'Highlight', words: 'markup mark', run: () => useTool('highlight') },
         loaded() && { group: 'Markup', icon: 'type', label: 'Add text', words: 'markup free text', run: () => useTool('freetext') },
@@ -200,6 +220,7 @@ function render() {
         list.append(row);
     });
     select(selected);
+    markScrollEdges(list);
 }
 
 function select(index) {
@@ -308,4 +329,7 @@ export function initCommandPalette() {
     document.addEventListener('keydown', (e) => {
         if (e.target.closest?.('#commandPalette')) onKeyDown(e);
     }, true);
+    document.addEventListener('scroll', (e) => {
+        if (e.target.id === 'paletteList') markScrollEdges(e.target);
+    }, { capture: true, passive: true });
 }

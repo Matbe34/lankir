@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const { tabLabel, setTabName, initTabStrip, refreshTabStrip } = await import('../src/js/tabStrip.js');
+const { tabLabel, setTabName, headCut, initTabStrip, refreshTabStrip } = await import('../src/js/tabStrip.js');
 
 const $ = (sel) => document.querySelector(sel);
 
@@ -38,6 +38,26 @@ describe('tab label', () => {
     expect(tail('Scan_20261113_contract_final.pdf')).toBe('act_final');
     expect(tail('Notes.pdf')).toBe('Notes');
   });
+
+  // The browser's ellipsis leaves the rest of the head's box empty: a hole
+  // before the tail. A cut head instead ends after its last whole letter,
+  // and the tail ("…" first) closes up to it.
+  describe('a cut head', () => {
+    const mono = (n) => n * 7; // every letter 7px wide
+
+    it('ends after the last letter that fits, the ellipsis flush against the tail', () => {
+      expect(headCut('Master Services ', mono, 60)).toEqual({ end: 8, shown: 56 }); // "Master S"
+    });
+
+    it('never leaves a space or separator before the ellipsis', () => {
+      expect(headCut('Meeting notes - ', mono, 60)).toEqual({ end: 7, shown: 49 }); // "Meeting", not "Meeting "
+      expect(headCut('Lease agreement - Carrer ', mono, 125)).toEqual({ end: 15, shown: 105 }); // "Lease agreement", not "… - "
+    });
+
+    it('is null when the whole head fits', () => {
+      expect(headCut('Master Services ', mono, 112)).toBeNull();
+    });
+  });
 });
 
 // The strip is 500px wide and every shown tab 150px.
@@ -69,6 +89,24 @@ describe('tab overflow', () => {
       <div id="tabOverflowMenu" class="menu hidden"></div>`;
     onSelect.mockReset();
     initTabStrip({ onSelect });
+  });
+
+  it('stops following the names of closed tabs and of a refilled menu', () => {
+    const unobserve = vi.spyOn(ResizeObserver.prototype, 'unobserve');
+    layout(3);
+    refreshTabStrip();
+    const closed = document.querySelector('.pdf-tab .pdf-tab-name');
+    closed.closest('.pdf-tab').remove();
+    refreshTabStrip();
+    expect(unobserve).toHaveBeenCalledWith(closed);
+    expect(unobserve).toHaveBeenCalledTimes(1);
+
+    $('#tabOverflowBtn').click();
+    const label = $('#tabOverflowMenu .menu-label');
+    $('#tabOverflowBtn').click();
+    $('#tabOverflowBtn').click();
+    expect(unobserve).toHaveBeenCalledWith(label);
+    unobserve.mockRestore();
   });
 
   it('stays hidden while every tab fits', () => {

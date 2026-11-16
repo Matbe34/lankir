@@ -140,15 +140,15 @@ describe('shortcut capture', () => {
     expect(shown('shortcutCaptureModal')).toBe(true);
     expect(keycapText($('shortcutCaptureDisplay'))).toBe('Ctrl O');
 
-    press('p', { ctrlKey: true });
-    expect(keycapText($('shortcutCaptureDisplay'))).toBe('Ctrl P');
+    press('e', { ctrlKey: true });
+    expect(keycapText($('shortcutCaptureDisplay'))).toBe('Ctrl E');
     expect($('shortcutCaptureOk').disabled).toBe(false);
     $('shortcutCaptureOk').click();
     expect(shown('shortcutCaptureModal')).toBe(false);
-    expect(keycapText($('settingShortcutOpenFile'))).toBe('Ctrl P');
+    expect(keycapText($('settingShortcutOpenFile'))).toBe('Ctrl E');
 
     $('settingsSave').click();
-    await vi.waitFor(() => expect(getSetting('shortcuts').openFile).toBe('Control+p'));
+    await vi.waitFor(() => expect(getSetting('shortcuts').openFile).toBe('Control+e'));
   });
 
   it('warns about a shortcut another action uses and will not save it', () => {
@@ -159,18 +159,40 @@ describe('shortcut capture', () => {
     expect($('shortcutCaptureOk').disabled).toBe(true);
   });
 
+  it('keeps the keys organizing pages takes for itself', () => {
+    openSettings('shortcuts');
+    $('settingShortcutZoomIn').click();
+    // Enter first: once a key is caught, Enter confirms it.
+    for (const [key, mods, name] of [['Enter', {}, 'Open'], ['r', {}, 'Rotate'], ['R', { shiftKey: true }, 'Rotate'], ['Delete', {}, 'Delete pages'],
+      ['ArrowLeft', { shiftKey: true }, 'Move'], ['End', {}, 'Move'], ['z', { ctrlKey: true }, 'Undo'],
+      ['Z', { ctrlKey: true, shiftKey: true }, 'Redo']]) {
+      press(key, mods);
+      expect($('shortcutCaptureStatus').textContent, key).toMatch(new RegExp(`Kept for ${name}`));
+      expect($('shortcutCaptureOk').disabled, key).toBe(true);
+    }
+  });
+
   it('leaves Enter and Space to a focused button in the dialog', () => {
     openSettings('shortcuts');
     $('settingShortcutOpenFile').click();
-    press('p', { ctrlKey: true });
+    press('e', { ctrlKey: true });
     $('shortcutCaptureCancel').focus();
     for (const key of ['Enter', ' ']) {
       const ev = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true });
       $('shortcutCaptureCancel').dispatchEvent(ev);
       expect(ev.defaultPrevented).toBe(false);
     }
-    expect(keycapText($('shortcutCaptureDisplay'))).toBe('Ctrl P');
+    expect(keycapText($('shortcutCaptureDisplay'))).toBe('Ctrl E');
     expect(keycapText($('settingShortcutOpenFile'))).toBe('Ctrl O');
+  });
+
+  it('Print is Ctrl P and can be changed like the others', () => {
+    openSettings('shortcuts');
+    expect(keycapText($('settingShortcutPrint'))).toBe('Ctrl P');
+    $('settingShortcutOpenFile').click();
+    press('p', { ctrlKey: true });
+    expect($('shortcutCaptureStatus').textContent).toBe('Already used by Print');
+    expect($('shortcutCaptureOk').disabled).toBe(true);
   });
 
   it('warns about a shortcut the app reserves', () => {

@@ -14,7 +14,22 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
+import * as pdfops$0 from "../pdfops/models.js";
+
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
 import * as $models from "./models.js";
+
+/**
+ * ChooseExportFolder shows a folder dialog for files split from the
+ * document; ExportPDF then accepts new PDFs directly inside it. It returns ""
+ * when the user cancels.
+ * @param {string} id
+ * @returns {$CancellablePromise<string>}
+ */
+export function ChooseExportFolder(id) {
+    return $Call.ByID(2867050329, id);
+}
 
 /**
  * ChooseSavePath shows a Save As dialog next to the document, suggesting
@@ -41,6 +56,50 @@ export function ClosePDF(id) {
 }
 
 /**
+ * DropPageOp takes back the newest working copy as if it had never been
+ * pushed: it isn't kept for redo, and the redo steps it replaced come back.
+ * A page operation that fails calls it for the copy of unsaved edits it
+ * pushed to build on. A push that went past the undo bound already removed
+ * the oldest copy, which a drop doesn't bring back: undo then stops one step
+ * short.
+ * @param {string} id
+ * @returns {$CancellablePromise<$models.Document | null>}
+ */
+export function DropPageOp(id) {
+    return $Call.ByID(2938859275, id).then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType3($result);
+    }));
+}
+
+/**
+ * ExportPDF writes data to a new file without changing the document: path is
+ * the one ChooseSavePath last returned, or a .pdf directly inside the folder
+ * ChooseExportFolder returned. An existing file is only replaced with
+ * overwrite, and never one that is open. Save options set just before (see
+ * SetSaveOptions) apply to this write, e.g. to protect it with a password.
+ * @param {string} id
+ * @param {string} path
+ * @param {string} data
+ * @param {boolean} overwrite
+ * @returns {$CancellablePromise<void>}
+ */
+export function ExportPDF(id, path, data, overwrite) {
+    return $Call.ByID(3768093502, id, path, data, overwrite);
+}
+
+/**
+ * InsertBlankPage adds a blank page after page after (0 = at the front).
+ * @param {string} id
+ * @param {number} after
+ * @returns {$CancellablePromise<$models.Document | null>}
+ */
+export function InsertBlankPage(id, after) {
+    return $Call.ByID(891170812, id, after).then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType3($result);
+    }));
+}
+
+/**
  * OpenPDF shows a file dialog and registers the chosen PDF. It returns nil
  * when the user cancels.
  * @returns {$CancellablePromise<$models.Document | null>}
@@ -58,6 +117,70 @@ export function OpenPDF() {
  */
 export function OpenPDFByPath(path) {
     return $Call.ByID(1290055590, path).then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType3($result);
+    }));
+}
+
+/**
+ * OpenPDFs shows a multi-select file dialog and registers each chosen PDF,
+ * e.g. to insert its pages into another document. It returns an empty list
+ * when the user cancels.
+ * @returns {$CancellablePromise<($models.Document | null)[]>}
+ */
+export function OpenPDFs() {
+    return $Call.ByID(4195147217).then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType4($result);
+    }));
+}
+
+/**
+ * PushWorkingCopy makes data the document's content, as a new undo step.
+ * pdf.js builds data, and its page editor drops the document information
+ * (title, author…) of merged files and stamps its own creator and producer,
+ * so the current content's information is put back.
+ * @param {string} id
+ * @param {string} data
+ * @returns {$CancellablePromise<$models.Document | null>}
+ */
+export function PushWorkingCopy(id, data) {
+    return $Call.ByID(2282574632, id, data).then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType3($result);
+    }));
+}
+
+/**
+ * RedoPageOp brings back the working copy UndoPageOp last took back.
+ * @param {string} id
+ * @returns {$CancellablePromise<$models.Document | null>}
+ */
+export function RedoPageOp(id) {
+    return $Call.ByID(19080830, id).then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType3($result);
+    }));
+}
+
+/**
+ * RevertToSaved drops every working copy and pending save option, and takes
+ * the file as it is on disk now as the document's saved state.
+ * @param {string} id
+ * @returns {$CancellablePromise<$models.Document | null>}
+ */
+export function RevertToSaved(id) {
+    return $Call.ByID(4168073324, id).then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType3($result);
+    }));
+}
+
+/**
+ * RotatePages turns pages (1-based) of the current content clockwise by
+ * degrees, a multiple of 90.
+ * @param {string} id
+ * @param {number[]} pages
+ * @param {number} degrees
+ * @returns {$CancellablePromise<$models.Document | null>}
+ */
+export function RotatePages(id, pages, degrees) {
+    return $Call.ByID(2736134467, id, pages, degrees).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType3($result);
     }));
 }
@@ -92,8 +215,55 @@ export function SavePDFAs(id, path, data) {
     }));
 }
 
+/**
+ * SetMetadata replaces the document information entries (empty ones are removed).
+ * @param {string} id
+ * @param {pdfops$0.Metadata} m
+ * @returns {$CancellablePromise<$models.Document | null>}
+ */
+export function SetMetadata(id, m) {
+    return $Call.ByID(1208901815, id, m).then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType3($result);
+    }));
+}
+
+/**
+ * SetPassword tells Go the password the document was opened with, so pdfcpu
+ * operations and rewriting saves can decrypt it.
+ * @param {string} id
+ * @param {string} password
+ * @returns {$CancellablePromise<void>}
+ */
+export function SetPassword(id, password) {
+    return $Call.ByID(2253977167, id, password);
+}
+
+/**
+ * SetSaveOptions applies opts to the next SavePDF or SavePDFAs call of the
+ * document only, whether it succeeds or not.
+ * @param {string} id
+ * @param {$models.SaveOptions} opts
+ * @returns {$CancellablePromise<void>}
+ */
+export function SetSaveOptions(id, opts) {
+    return $Call.ByID(2900879403, id, opts);
+}
+
+/**
+ * UndoPageOp takes back the newest working copy; RedoPageOp can bring it back
+ * until the next operation.
+ * @param {string} id
+ * @returns {$CancellablePromise<$models.Document | null>}
+ */
+export function UndoPageOp(id) {
+    return $Call.ByID(1994708660, id).then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType3($result);
+    }));
+}
+
 // Private type creation functions
 const $$createType0 = $models.SaveTarget.createFrom;
 const $$createType1 = $Create.Nullable($$createType0);
 const $$createType2 = $models.Document.createFrom;
 const $$createType3 = $Create.Nullable($$createType2);
+const $$createType4 = $Create.Array($$createType3);

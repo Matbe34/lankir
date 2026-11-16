@@ -172,3 +172,19 @@ describe('Utils - Advanced Functions', () => {
     });
   });
 });
+
+describe('middleCut', async () => {
+  const { middleCut } = await import('../src/js/utils.js');
+
+  it('keeps a short file name whole', () => {
+    expect(middleCut('Master Services Agreement_signed.pdf')).toBe('Master Services Agreement_signed.pdf');
+  });
+
+  it('cuts a long one in the middle, so its end stays', () => {
+    const cut = middleCut('Acuerdo marco de prestacion de servicios profesionales Northwind Contoso 2026 v3 FINAL firmado_signed.pdf');
+    expect(cut).toHaveLength(44);
+    expect(cut.startsWith('Acuerdo marco de')).toBe(true);
+    expect(cut.endsWith('firmado_signed.pdf')).toBe(true);
+    expect(cut).toContain('…');
+  });
+});

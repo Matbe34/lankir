@@ -5,6 +5,7 @@
 // they close. Find and the markup tools float over the page's top; the
 // scroll padding keeps find hits clear of them.
 import { getActivePDF } from './state.js';
+import { placeToasts } from './toast.js';
 
 const GAP = 12; // the floats' inset from the canvas edges (--sp-3)
 const GUTTER = 16; // the least canvas between the page and a panel or the window (--page-gutter)
@@ -89,6 +90,7 @@ export function updatePageRoom() {
     if (!container) {
         workspace?.style.setProperty('--page-shift', '0px');
         workspace?.style.setProperty('--free-right', '0px');
+        placeToasts();
         return;
     }
     const panel = box('sidePanel');
@@ -116,4 +118,5 @@ export function updatePageRoom() {
     container.style.setProperty('--room-top', px(Math.max(0, ...tops)));
     workspace?.style.setProperty('--page-shift', `${Math.round(room?.shift ?? 0)}px`);
     workspace?.style.setProperty('--free-right', px(dock ? container.offsetWidth - dock.left + GAP : 0));
+    placeToasts();
 }

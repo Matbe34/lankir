@@ -50,7 +50,9 @@ function pageStream(blocks) {
 }
 
 /**
- * pages: [{ blocks, fields? }]; fields: [{ name, label, y, value }] drawn as text widgets.
+ * pages: [{ blocks, fields?, signature? }]; fields: [{ name, label, y, value }] drawn as text widgets;
+ * signature: an invisible signature field on the page, signed by that name (a placeholder value,
+ * the preview's mock backend reports the signature itself).
  * outline: [{ title, page }] (1-based).
  */
 function buildPdf({ title, pages, outline = [] }) {
@@ -76,6 +78,12 @@ function buildPdf({ title, pages, outline = [] }) {
       fieldNums.push(w);
       return w;
     });
+    if (p.signature) {
+      const v = add(`<< /Type /Sig /Filter /Adobe.PPKLite /SubFilter /adbe.pkcs7.detached /Name (${esc(p.signature)}) /M (D:20261109113200Z) /ByteRange [0 0 0 0] /Contents <${'0'.repeat(64)}> >>`);
+      const w = add(`<< /Type /Annot /Subtype /Widget /FT /Sig /T (signature_${fieldNums.length + 1}) /V ${v} 0 R /F 132 /Rect [0 0 0 0] /P ${pageNum} 0 R >>`);
+      fieldNums.push(w);
+      widgets.push(w);
+    }
     set(pageNum, `<< /Type /Page /Parent ${pagesRoot} 0 R /MediaBox [0 0 ${W} ${H}] /Resources << /Font << /F1 ${f1} 0 R /F2 ${f2} 0 R >> >> /Contents ${c} 0 R${widgets.length ? ` /Annots [${widgets.map((w) => `${w} 0 R`).join(' ')}]` : ''} >>`);
     pageNums.push(pageNum);
   }
@@ -92,8 +100,9 @@ function buildPdf({ title, pages, outline = [] }) {
     outlinesRef = ` /Outlines ${root} 0 R /PageMode /UseOutlines`;
   }
 
+  const signed = pages.some((p) => p.signature);
   const acro = fieldNums.length
-    ? ` /AcroForm << /Fields [${fieldNums.map((n) => `${n} 0 R`).join(' ')}] /NeedAppearances true /DA (/Helv 0 Tf 0 g) /DR << /Font << /Helv ${f1} 0 R >> >> >>`
+    ? ` /AcroForm << /Fields [${fieldNums.map((n) => `${n} 0 R`).join(' ')}] /NeedAppearances true${signed ? ' /SigFlags 3' : ''} /DA (/Helv 0 Tf 0 g) /DR << /Font << /Helv ${f1} 0 R >> >> >>`
     : '';
   set(catalog, `<< /Type /Catalog /Pages ${pagesRoot} 0 R${outlinesRef}${acro} >>`);
 
@@ -149,6 +158,7 @@ contractPages.push({
     { name: 'client_position', value: 'Chief Operating Officer', y: 566 },
     { name: 'signature_date', value: '', y: 492 },
   ],
+  signature: 'PUIG FERRER JORDI - 47110824K',
 });
 
 writeFileSync(join(here, 'contract.pdf'), buildPdf({

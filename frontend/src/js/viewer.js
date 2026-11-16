@@ -7,7 +7,7 @@ import 'pdfjs-dist/web/pdf_viewer.css';
 globalThis.pdfjsLib = pdfjsLib;
 pdfjsLib.GlobalWorkerOptions.workerSrc = workerSrc;
 
-export const { AnnotationEditorType, AnnotationEditorParamsType, PasswordResponses } = pdfjsLib;
+export const { AnnotationEditorType, AnnotationEditorParamsType, AnnotationMode, PasswordResponses, PDFDateString } = pdfjsLib;
 
 let viewerModule = null;
 const loadViewerModule = () => (viewerModule ||= import('pdfjs-dist/web/pdf_viewer.mjs'));
@@ -23,10 +23,14 @@ export const HIGHLIGHT_COLORS = {
 
 const assetUrl = (dir) => new URL(`/pdfjs/${dir}/`, location.href).href;
 
-/** Starts loading a PDF; destroy the returned task to release it. */
-export function loadDocument(url, onPassword) {
+/**
+ * Starts loading a PDF; destroy the returned task to release it. password is
+ * tried first; onPassword runs when it is missing or wrong.
+ */
+export function loadDocument(url, onPassword, password) {
     const task = pdfjsLib.getDocument({
         url,
+        password: password ?? undefined,
         cMapUrl: assetUrl('cmaps'),
         standardFontDataUrl: assetUrl('standard_fonts'),
         wasmUrl: assetUrl('wasm'),

@@ -12,10 +12,12 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"maps"
 	"math/rand/v2"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/pdfcpu/pdfcpu/pkg/api"
 	"github.com/pdfcpu/pdfcpu/pkg/pdfcpu"
@@ -37,10 +39,12 @@ var bg = context.Background()
 
 // newConf avoids pdfcpu's default configuration, which reads and writes a config dir under
 // the user's home, and uses relaxed validation so slightly broken real-world PDFs still load.
+// It keeps the info dictionary as it is: pdfcpu would otherwise stamp itself as Producer.
 func newConf() *model.Configuration {
 	conf := model.NewStatelessConfiguration()
 	conf.ValidationMode = model.ValidationRelaxed
 	conf.Offline = true
+	conf.PreserveInfoDict = true
 	return conf
 }
 
@@ -283,10 +287,7 @@ func GetMetadata(path string) (Metadata, error) {
 
 // SetMetadata replaces the six Metadata entries; an empty field removes its entry.
 func SetMetadata(in, out string, m Metadata) error {
-	conf := newConf()
-	// Without this pdfcpu overwrites Producer (and the dates) with its own on write.
-	conf.PreserveInfoDict = true
-	return transformWith(conf, in, out, model.ADDPROPERTIES, func(ctx *model.Context) (*model.Context, error) {
+	return transform(in, out, model.ADDPROPERTIES, func(ctx *model.Context) (*model.Context, error) {
 		entries := map[string]string{
 			"Title":    m.Title,
 			"Author":   m.Author,
@@ -339,12 +340,63 @@ func checkPages(pages []int, n int) error {
 // document, dropping the info dictionary (and outlines), so the info entries are copied over.
 func extract(ctx *model.Context, pages []int) (*model.Context, error) {
 	dest, err := pdfcpu.ExtractPages(bg, ctx, pages, false)
-	if err != nil || ctx.Info == nil {
+	if err != nil {
+		return nil, err
+	}
+	info, err := textInfo(ctx)
+	if err != nil || info == nil {
 		return dest, err
+	}
+	if dest.Info, err = dest.IndRefForNewObject(info); err != nil {
+		return nil, err
+	}
+	return dest, nil
+}
+
+// CopyInfo writes in to out with the info dictionary of from instead of its own: the entries
+// extract keeps, and ModDate set to now. When in has those entries already, it writes nothing.
+func CopyInfo(from, in, out string) error {
+	info, err := readInfo(from)
+	if err != nil {
+		return err
+	}
+	has, err := readInfo(in)
+	same := func(a, b types.Object) bool { return a.PDFString() == b.PDFString() }
+	if err != nil || maps.EqualFunc(has, info, same) {
+		return err
+	}
+	if info == nil {
+		info = types.NewDict()
+	}
+	info.Update("ModDate", types.StringLiteral(types.DateString(time.Now())))
+	return transform(in, out, model.ADDPROPERTIES, func(ctx *model.Context) (*model.Context, error) {
+		ctx.Info, err = ctx.IndRefForNewObject(info)
+		return ctx, err
+	})
+}
+
+func readInfo(path string) (types.Dict, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	conf := newConf()
+	conf.Cmd = model.LISTINFO
+	ctx, err := api.ReadAndValidate(bg, bytes.NewReader(data), conf)
+	if err != nil {
+		return nil, err
+	}
+	return textInfo(ctx)
+}
+
+// textInfo copies the text and name entries of ctx's info dictionary; nil when it has none.
+func textInfo(ctx *model.Context) (types.Dict, error) {
+	if ctx.Info == nil {
+		return nil, nil
 	}
 	src, err := ctx.DereferenceDict(*ctx.Info)
 	if err != nil || src == nil {
-		return dest, err
+		return nil, err
 	}
 	info := types.NewDict()
 	for k, v := range src {
@@ -357,10 +409,7 @@ func extract(ctx *model.Context, pages []int) (*model.Context, error) {
 			info.Insert(k, v)
 		}
 	}
-	if dest.Info, err = dest.IndRefForNewObject(info); err != nil {
-		return nil, err
-	}
-	return dest, nil
+	return info, nil
 }
 
 func readContext(data []byte, conf *model.Configuration, cmd model.CommandMode) (*model.Context, error) {
@@ -370,10 +419,7 @@ func readContext(data []byte, conf *model.Configuration, cmd model.CommandMode) 
 
 // transform reads in, applies op to its context and writes the context op returns to out.
 func transform(in, out string, cmd model.CommandMode, op func(*model.Context) (*model.Context, error)) error {
-	return transformWith(newConf(), in, out, cmd, op)
-}
-
-func transformWith(conf *model.Configuration, in, out string, cmd model.CommandMode, op func(*model.Context) (*model.Context, error)) error {
+	conf := newConf()
 	data, err := os.ReadFile(in)
 	if err != nil {
 		return err

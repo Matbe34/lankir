@@ -750,6 +750,14 @@ describe('signatures panel', () => {
     expect($('#signatureInfo').textContent).toContain('No signatures');
   });
 
+  it('keeps the signatures on the tab showing the file, for warnings about changing it', async () => {
+    const tab = state.openPDFs.get(1);
+    const signatures = [{ signerName: 'Alice', isValid: true, certificateValid: true }];
+    SignatureService.VerifySignatures.mockResolvedValueOnce(signatures);
+    await loadSignatureInfo('/docs/a.pdf');
+    expect(tab.signatures).toEqual(signatures);
+  });
+
   it('marks the Info segment while a signature needs attention', async () => {
     document.body.insertAdjacentHTML('beforeend', '<button class="tab-btn" data-tab="signatures">Info</button>');
     const info = $('.tab-btn[data-tab="signatures"]');

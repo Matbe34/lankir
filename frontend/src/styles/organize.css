@@ -1,0 +1,357 @@
+/*
+ * Organize pages (organize.js): a grid of the tab's pages over the reading
+ * view, the page tools floating in the markup bar's slot and the thumbnail
+ * size in the page pill's. Selection is the accent; the focus ring marks
+ * where the arrow keys go from.
+ */
+@layer components {
+  /* The reading view stays laid out underneath (pdf.js keeps its size), out
+     of sight; everything that floats over it goes. */
+  .is-organizing > #pdfViewer {
+    visibility: hidden;
+  }
+
+  .is-organizing > :is(.side-panel, .panel-resizer, .find-box, .sign-dock, #pagePill, #viewerToolbar, #zoomMenu) {
+    display: none !important;
+  }
+
+  .organize-view {
+    --organize-box: calc(var(--organize-thumb, 200px) * 1.414);
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    overflow: auto;
+    background: var(--canvas);
+    user-select: none;
+  }
+
+  .organize-view:focus {
+    outline: none;
+  }
+
+  /* The pages slide under a soft edge below the header: canvas over the gap
+     above the bar, fading out by the bar's foot. */
+  .organize-view::before {
+    --fade-h: calc(var(--sp-3) + var(--ctl-h));
+    content: "";
+    position: sticky;
+    z-index: 2;
+    top: 0;
+    display: block;
+    height: var(--fade-h);
+    margin-bottom: calc(var(--fade-h) * -1);
+    background: linear-gradient(var(--canvas) var(--sp-3), transparent);
+    pointer-events: none;
+  }
+
+  /* Clear of the bar above and the pill below; the pages scroll under both. */
+  .organize-grid {
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, var(--organize-thumb, 200px));
+    justify-content: center;
+    gap: var(--sp-5) var(--sp-6);
+    padding: calc(var(--sp-3) + var(--ctl-h) + var(--sp-8)) var(--sp-8) calc(var(--sp-3) + var(--pill-h) + var(--sp-8));
+  }
+
+  .organize-tile {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--sp-2);
+    margin: calc(var(--sp-2) * -1);
+    padding: var(--sp-2);
+    border-radius: var(--r-lg);
+    transition: background-color var(--dur-fast) var(--ease), opacity var(--dur-fast) var(--ease);
+  }
+
+  .organize-box {
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    width: var(--organize-thumb, 200px);
+    height: var(--organize-box);
+  }
+
+  /* As wide as the box, or as tall for a page taller than A4 (--fit-*). */
+  .organize-paper {
+    position: relative;
+    flex: none;
+    width: calc(var(--organize-thumb, 200px) * var(--fit-w, 1));
+    height: calc(var(--organize-thumb, 200px) * var(--fit-h, 1.414));
+    background: var(--paper);
+    box-shadow: var(--elev-page);
+    transition: box-shadow var(--dur-fast) var(--ease);
+  }
+
+  .organize-paper > canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  .organize-tile:hover .organize-paper {
+    box-shadow: var(--elev-2);
+  }
+
+  .organize-num {
+    min-width: var(--ctl-h-sm);
+    padding: 0 6px;
+    border-radius: var(--r-sm);
+    color: var(--text-muted);
+    font-size: var(--fs-small);
+    font-variant-numeric: tabular-nums;
+    line-height: 20px;
+    text-align: center;
+  }
+
+  /* Where the arrow keys go from: the focus ring, once they're in use. */
+  .organize-view:focus .is-keyboard > .organize-tile.is-cursor {
+    outline: var(--focus-w) solid var(--focus-ring);
+  }
+
+  .organize-tick {
+    position: absolute;
+    top: var(--sp-2);
+    right: var(--sp-2);
+    display: none;
+    place-items: center;
+    width: 20px;
+    height: 20px;
+    border-radius: var(--r-full);
+    background: var(--accent);
+    box-shadow: 0 0 0 var(--focus-w) var(--paper);
+    color: var(--accent-fg);
+  }
+
+  .organize-tick > .icon {
+    stroke-width: 3;
+  }
+
+  .organize-tile.is-selected .organize-paper {
+    outline: var(--focus-w) solid var(--accent);
+    outline-offset: 3px;
+  }
+
+  .organize-tile.is-selected .organize-tick {
+    display: grid;
+  }
+
+  .organize-tile.is-selected .organize-num {
+    background: var(--accent);
+    color: var(--accent-fg);
+    font-weight: var(--fw-semibold);
+  }
+
+  /* On the paper, so in its colours whatever the theme. */
+  .organize-sigs.pill {
+    position: absolute;
+    bottom: var(--sp-2);
+    left: var(--sp-2);
+    background: color-mix(in srgb, var(--signed-on-page) 12%, var(--paper));
+    color: var(--signed-on-page);
+  }
+
+  /* Dragging: the pages stay in place, dimmed; a line marks where they land. */
+  .organize-tile.is-dragging {
+    opacity: var(--lifted-opacity);
+  }
+
+  .organize-drop-line {
+    position: absolute;
+    z-index: 1;
+    width: var(--focus-w);
+    border-radius: var(--r-full);
+    background: var(--accent);
+    transform: translateX(-50%);
+    pointer-events: none;
+  }
+
+  .organize-drop-line::before,
+  .organize-drop-line::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    width: var(--sp-2);
+    height: var(--sp-2);
+    border-radius: var(--r-full);
+    background: var(--accent);
+    transform: translateX(-50%);
+  }
+
+  .organize-drop-line::before {
+    top: calc(var(--sp-1) * -1);
+  }
+
+  .organize-drop-line::after {
+    bottom: calc(var(--sp-1) * -1);
+  }
+
+  .organize-band {
+    position: absolute;
+    z-index: 2;
+    border-radius: var(--r-xs);
+    background: var(--accent-subtle);
+    box-shadow: inset 0 0 0 var(--border-w) var(--accent);
+    pointer-events: none;
+  }
+
+  /* The pages under the pointer: a small stack, the count on top. */
+  .organize-ghost {
+    position: fixed;
+    z-index: var(--z-menu);
+    top: 0;
+    left: 0;
+    width: calc(var(--organize-thumb, 200px) * .6);
+    height: calc(var(--organize-thumb, 200px) * .6 * 1.414);
+    margin: calc(var(--sp-6) * -1) 0 0 calc(var(--sp-6) * -1);
+    pointer-events: none;
+  }
+
+  .organize-ghost-sheet {
+    position: absolute;
+    inset: 0;
+    background: var(--paper);
+    box-shadow: var(--elev-2);
+    transform: translate(calc(var(--layer) * 4px), calc(var(--layer) * 4px)) rotate(calc(var(--layer) * 2deg));
+  }
+
+  .organize-ghost-sheet > canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  .organize-ghost-count {
+    position: absolute;
+    top: calc(var(--sp-2) * -1);
+    right: calc(var(--sp-2) * -1);
+    min-width: 22px;
+    height: 22px;
+    padding: 0 6px;
+    border-radius: var(--r-full);
+    background: var(--accent);
+    box-shadow: 0 0 0 var(--focus-w) var(--paper);
+    color: var(--accent-fg);
+    font-size: var(--fs-small);
+    font-weight: var(--fw-semibold);
+    font-variant-numeric: tabular-nums;
+    line-height: 22px;
+    text-align: center;
+  }
+
+  /* ---------- The bar ---------- */
+  .organize-bar {
+    z-index: calc(var(--z-float) + 1);
+  }
+
+  .organize-count {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-0);
+    padding-left: var(--sp-2);
+    color: var(--text);
+    font-weight: var(--fw-medium);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  .organize-count > .icon-btn[hidden] {
+    display: none;
+  }
+
+  /* Without a selection the slot names the bar, with the bar's height kept. */
+  .organize-count:has(> .icon-btn[hidden]) {
+    min-height: var(--ctl-h);
+    padding-right: var(--sp-1);
+  }
+
+  .organize-bar .btn {
+    height: var(--ctl-h);
+    padding: 0 var(--sp-2);
+  }
+
+  #organizeInsertBtn > .icon:last-child {
+    margin: 0 calc(var(--sp-1) * -1) 0 calc(var(--sp-1) * -0.5);
+  }
+
+  #organizeDone {
+    margin-left: var(--sp-0);
+    padding: 0 var(--sp-4);
+  }
+
+  /* ---------- The pill ---------- */
+  .organize-pill {
+    left: 50%;
+    z-index: calc(var(--z-float) + 1);
+  }
+
+  .organize-pill-normal,
+  .organize-pill-drag {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-0);
+  }
+
+  .organize-pill-drag,
+  .organize-pill.is-dragging .organize-pill-normal {
+    display: none;
+  }
+
+  .organize-pill.is-dragging .organize-pill-drag {
+    display: flex;
+    min-height: var(--ctl-h-sm);
+  }
+
+  .organize-size {
+    width: 104px;
+    margin: 0 var(--sp-1);
+  }
+
+  .pill-text {
+    padding: 0 var(--sp-2);
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  .pill-text[hidden] {
+    display: none;
+  }
+
+  .pill-muted {
+    padding: 0;
+    color: var(--text-muted);
+  }
+
+  .pill-muted .keys {
+    margin-right: var(--sp-1);
+  }
+
+  .pill-muted + .pill-muted {
+    padding-right: var(--sp-2);
+  }
+
+  /* Unsaved: the same dot the tab carries. */
+  .pill-dirty {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-2);
+    font-weight: var(--fw-medium);
+  }
+
+  .pill-dirty::before {
+    content: "";
+    width: 6px;
+    height: 6px;
+    border-radius: var(--r-full);
+    background: currentColor;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .organize-tile,
+    .organize-paper {
+      transition: none;
+    }
+  }
+}

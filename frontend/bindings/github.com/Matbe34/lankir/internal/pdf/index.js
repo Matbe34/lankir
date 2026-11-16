@@ -12,5 +12,6 @@ export {
 export {
     Document,
     RecentFile,
+    SaveOptions,
     SaveTarget
 } from "./models.js";

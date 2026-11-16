@@ -20,6 +20,12 @@
   words, text selection, zoom presets, light and dark themes.
 - **Fill in and mark up**: fill in PDF forms; highlight, add text, draw and
   place images; undo and redo; save or save as.
+- **Organize pages**: rotate, reorder by dragging, duplicate, delete and
+  extract pages, and insert pages from other PDFs, with undo and redo until
+  you save.
+- **Document tools**: split into files, set, change or remove the password,
+  edit the title, author, subject and keywords, save an optimized copy, and
+  print.
 - **Sign**: visible or invisible signatures with certificates from `.p12` and
   `.pfx` files, smart cards and USB tokens (PKCS#11, including the Spanish
   DNIe) and the NSS database. Reusable signature profiles, and optional
@@ -56,7 +62,8 @@ lankir contract.pdf
 
 Open more files with **Open**, from the recent list, or by dropping them on the
 window. The [user guide](docs/user-guide.md) covers reading, forms, markup,
-saving, settings and every keyboard shortcut.
+organizing pages, the document tools, saving, settings and every keyboard
+shortcut.
 
 ## Signing
 

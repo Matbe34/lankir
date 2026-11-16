@@ -48,14 +48,44 @@
                         <i data-icon="search"></i><span class="menu-label">All commands…</span><span class="keys" data-shortcut="commandPalette"></span>
                     </button>
                     <div class="menu-sep" role="separator"></div>
+                    <div class="menu-head" role="presentation">File</div>
                     <button id="saveBtn" class="menu-item" role="menuitem" data-needs-doc>
                         <i data-icon="save"></i><span class="menu-label">Save</span><span class="keys" data-keys="Ctrl S"></span>
                     </button>
                     <button id="saveAsBtn" class="menu-item" role="menuitem" data-needs-doc>
                         <i data-icon="save-as"></i><span class="menu-label">Save as…</span><span class="keys" data-keys="Ctrl Shift S"></span>
                     </button>
+                    <button id="revertBtn" class="menu-item" role="menuitem" data-doc-action="revert">
+                        <i data-icon="history"></i><span class="menu-label">Revert to saved…</span>
+                    </button>
+                    <button id="printBtn" class="menu-item" role="menuitem" data-doc-action="print">
+                        <i data-icon="printer"></i><span class="menu-label">Print…</span><span class="keys" data-shortcut="print"></span>
+                    </button>
                     <button id="closeTabBtn" class="menu-item" role="menuitem" data-needs-doc>
                         <i data-icon="x"></i><span class="menu-label">Close tab</span><span class="keys" data-keys="Ctrl W"></span>
+                    </button>
+                    <div class="menu-sep" role="separator"></div>
+                    <div class="menu-head" role="presentation">Document</div>
+                    <button id="organizeMenuItem" class="menu-item" role="menuitem" data-needs-doc>
+                        <i data-icon="layout-grid"></i><span class="menu-label">Organize pages</span><span class="keys" data-shortcut="organizePages"></span>
+                    </button>
+                    <button id="insertPagesBtn" class="menu-item" role="menuitem" data-doc-action="insert">
+                        <i data-icon="file-plus"></i><span class="menu-label">Insert pages from file…</span>
+                    </button>
+                    <button id="splitBtn" class="menu-item" role="menuitem" data-doc-action="split">
+                        <i data-icon="scissors"></i><span class="menu-label">Split into files…</span>
+                    </button>
+                    <button id="protectBtn" class="menu-item" role="menuitem" data-doc-action="protect">
+                        <i data-icon="lock"></i><span class="menu-label">Protect with password…</span>
+                    </button>
+                    <button id="removePasswordBtn" class="menu-item" role="menuitem" data-doc-action="unprotect">
+                        <i data-icon="lock-open"></i><span class="menu-label">Remove password…</span>
+                    </button>
+                    <button id="optimizeBtn" class="menu-item" role="menuitem" data-doc-action="optimize">
+                        <i data-icon="shrink"></i><span class="menu-label">Save optimized copy…</span>
+                    </button>
+                    <button id="propertiesBtn" class="menu-item" role="menuitem" data-doc-action="properties">
+                        <i data-icon="info"></i><span class="menu-label">Properties…</span>
                     </button>
                     <div class="menu-sep" role="separator"></div>
                     <button id="newWindowBtn" class="menu-item" role="menuitem">
@@ -106,7 +136,12 @@
                         <button class="segment tab-btn" role="tab" aria-selected="false" aria-controls="signaturesTab" data-tab="signatures">Info</button>
                     </div>
                 </div>
-                <div class="tab-content active" id="pagesTab" role="tabpanel">
+                <div class="tab-content pages-tab active" id="pagesTab" role="tabpanel">
+                    <div class="pages-tools">
+                        <button id="organizePagesBtn" class="btn btn-ghost btn-inline" data-tip="Rotate, move and delete pages" data-shortcut="organizePages">
+                            <i data-icon="layout-grid"></i>Organize pages
+                        </button>
+                    </div>
                     <div id="pageList" class="page-list">
                         <div class="empty-state"><p>No PDF loaded</p></div>
                     </div>
@@ -153,6 +188,48 @@
                 <button id="deleteAnnotationBtn" class="icon-btn" aria-label="Delete selected" data-tip="Delete selected" data-keys="Del"><i data-icon="trash"></i></button>
             </div>
 
+            <!-- Organize pages (organize.js): the page grid over the reading view, its bar, pill and menus -->
+            <section id="organizeView" class="organize-view hidden" aria-label="Organize pages"></section>
+            <div id="organizeBar" class="float markup-bar organize-bar hidden" role="toolbar" aria-label="Page tools">
+                <div class="organize-count">
+                    <span id="organizeCount" aria-live="polite">Organize pages</span>
+                    <button id="organizeClear" class="icon-btn sm" aria-label="Clear the selection" data-tip="Clear the selection" data-keys="Esc"><i data-icon="x" class="icon-sm"></i></button>
+                </div>
+                <span class="float-sep" aria-hidden="true"></span>
+                <button id="organizeRotateLeft" class="icon-btn" aria-label="Rotate left" data-tip="Rotate left" data-keys="Shift R"><i data-icon="rotate-ccw-square"></i></button>
+                <button id="organizeRotateRight" class="icon-btn" aria-label="Rotate right" data-tip="Rotate right" data-keys="R"><i data-icon="rotate-cw-square"></i></button>
+                <button id="organizeDuplicate" class="icon-btn" aria-label="Duplicate" data-tip="Duplicate" data-keys="Ctrl D"><i data-icon="copy"></i></button>
+                <button id="organizeExtract" class="btn btn-ghost" data-tip="Extract the selected pages to a new file"><i data-icon="file-output"></i>Extract…</button>
+                <button id="organizeDelete" class="icon-btn icon-btn-danger" aria-label="Delete" data-tip="Delete" data-keys="Del"><i data-icon="trash"></i></button>
+                <span class="float-sep" aria-hidden="true"></span>
+                <button id="organizeInsertBtn" class="btn btn-ghost" aria-haspopup="menu" aria-expanded="false" aria-controls="organizeInsertMenu"><i data-icon="file-plus"></i>Insert<i data-icon="chevron-down" class="icon-sm"></i></button>
+                <span class="float-sep" aria-hidden="true"></span>
+                <button id="organizeUndo" class="icon-btn" aria-label="Undo" data-tip="Undo" data-keys="Ctrl Z"><i data-icon="undo"></i></button>
+                <button id="organizeRedo" class="icon-btn" aria-label="Redo" data-tip="Redo" data-keys="Ctrl Shift Z"><i data-icon="redo"></i></button>
+                <span class="float-sep" aria-hidden="true"></span>
+                <button id="organizeDone" class="btn btn-primary" data-tip="Back to reading" data-keys="Esc">Done</button>
+            </div>
+            <div id="organizeInsertMenu" class="menu hidden" role="menu" aria-label="Insert">
+                <button id="organizeInsertBlank" class="menu-item" role="menuitem"><i data-icon="file"></i><span class="menu-label">Blank page after</span></button>
+                <button id="organizeInsertFile" class="menu-item" role="menuitem"><i data-icon="file-plus"></i><span class="menu-label">From file…</span></button>
+            </div>
+            <div id="organizeMenu" class="menu hidden" role="menu" aria-labelledby="organizeMenuTitle">
+                <div id="organizeMenuTitle" class="menu-head"></div>
+                <button class="menu-item" role="menuitem" data-op="rotate-left"><i data-icon="rotate-ccw-square"></i><span class="menu-label">Rotate left</span><span class="keys" data-keys="Shift R"></span></button>
+                <button class="menu-item" role="menuitem" data-op="rotate-right"><i data-icon="rotate-cw-square"></i><span class="menu-label">Rotate right</span><span class="keys" data-keys="R"></span></button>
+                <div class="menu-sep" role="separator"></div>
+                <button class="menu-item" role="menuitem" data-op="duplicate"><i data-icon="copy"></i><span class="menu-label">Duplicate</span><span class="keys" data-keys="Ctrl D"></span></button>
+                <button class="menu-item" role="menuitem" data-op="insert-blank"><i data-icon="file"></i><span class="menu-label">Insert blank page after</span></button>
+                <button class="menu-item" role="menuitem" data-op="insert-file"><i data-icon="file-plus"></i><span class="menu-label">Insert pages from file…</span></button>
+                <div class="menu-sep" role="separator"></div>
+                <button class="menu-item" role="menuitem" data-op="move-start"><i data-icon="arrow-up-to-line"></i><span class="menu-label">Move to start</span></button>
+                <button class="menu-item" role="menuitem" data-op="move-end"><i data-icon="arrow-down-to-line"></i><span class="menu-label">Move to end</span></button>
+                <div class="menu-sep" role="separator"></div>
+                <button class="menu-item" role="menuitem" data-op="extract"><i data-icon="file-output"></i><span class="menu-label">Extract…</span></button>
+                <div class="menu-sep" role="separator"></div>
+                <button class="menu-item menu-item-danger" role="menuitem" data-op="delete"><i data-icon="trash"></i><span class="menu-label">Delete</span><span class="keys" data-keys="Del"></span></button>
+            </div>
+
             <div id="findBar" class="find-box hidden" role="search">
                 <div class="find-row">
                     <div class="find-field">
@@ -187,6 +264,22 @@
                     <button id="zoomMenuBtn" class="icon-btn sm zoom-caret" aria-haspopup="menu" aria-expanded="false" aria-controls="zoomMenu" aria-label="Zoom presets" data-tip="Fit width, fit page and zoom levels"><i data-icon="chevron-down" class="icon-sm"></i></button>
                 </div>
                 <button id="zoomInBtn" class="icon-btn sm" aria-label="Zoom in" data-tip="Zoom in" data-shortcut="zoomIn"><i data-icon="plus"></i></button>
+            </div>
+            <div id="organizePill" class="float page-pill organize-pill hidden" role="toolbar" aria-label="Thumbnail size and page count">
+                <div class="organize-pill-normal">
+                    <button id="organizeSmaller" class="icon-btn sm" aria-label="Smaller thumbnails" data-tip="Smaller thumbnails"><i data-icon="minus"></i></button>
+                    <input id="organizeSize" type="range" class="range organize-size" min="120" max="320" step="20" value="200" aria-label="Thumbnail size">
+                    <button id="organizeLarger" class="icon-btn sm" aria-label="Larger thumbnails" data-tip="Larger thumbnails"><i data-icon="plus"></i></button>
+                    <span class="float-sep" aria-hidden="true"></span>
+                    <span id="organizePageCount" class="pill-text"></span>
+                    <span id="organizeChangesSep" class="float-sep" aria-hidden="true" hidden></span>
+                    <span id="organizeChanges" class="pill-text pill-dirty" hidden></span>
+                </div>
+                <div class="organize-pill-drag" aria-live="polite">
+                    <span id="organizeDragText" class="pill-text"></span>
+                    <span class="pill-text pill-muted">·</span>
+                    <span class="pill-text pill-muted"><span class="keys" data-keys="Esc"></span> cancels</span>
+                </div>
             </div>
             <div id="zoomMenu" class="menu menu-up hidden" role="menu" aria-label="Zoom">
                 <button class="menu-item" role="menuitemradio" data-zoom="page-width"><span class="menu-label">Fit width</span></button>
@@ -230,7 +323,7 @@
                 <input id="paletteInput" type="text" class="palette-input" placeholder="Type a command or a file name" aria-label="Command" role="combobox" aria-expanded="true" aria-controls="paletteList" aria-autocomplete="list" autocomplete="off" spellcheck="false">
                 <span class="keys" data-keys="Esc"></span>
             </div>
-            <div id="paletteList" class="palette-list" role="listbox" aria-label="Commands"></div>
+            <div id="paletteList" class="palette-list" role="listbox" aria-label="Commands" data-scroll-edges="foot"></div>
             <div class="palette-foot">
                 <span><span class="keys" data-keys="↑ ↓"></span>Move</span>
                 <span><span class="keys" data-keys="Enter"></span>Run</span>
@@ -258,7 +351,7 @@
                     <h3 id="settingsPageTitle" class="prefs-page-title">Appearance</h3>
                     <button class="icon-btn" id="settingsModalClose" aria-label="Close" data-tip="Close" data-keys="Esc"><i data-icon="x"></i></button>
                 </div>
-                <div class="prefs-body" data-scroll-edges>
+                <div class="prefs-body" data-scroll-edges="foot">
                     <!-- Appearance -->
                     <section class="settings-section active" id="appearanceSection" aria-labelledby="settingsPageTitle">
                         <div class="list-box">
@@ -486,6 +579,14 @@
                                 <label class="pref-label" for="settingShortcutCommandPalette">All commands</label>
                                 <button type="button" id="settingShortcutCommandPalette" class="shortcut-btn" value="Control+k"></button>
                             </div>
+                            <div class="pref-row">
+                                <label class="pref-label" for="settingShortcutPrint">Print</label>
+                                <button type="button" id="settingShortcutPrint" class="shortcut-btn" value="Control+p"></button>
+                            </div>
+                            <div class="pref-row">
+                                <label class="pref-label" for="settingShortcutOrganizePages">Organize pages</label>
+                                <button type="button" id="settingShortcutOrganizePages" class="shortcut-btn" value="Control+Shift+o"></button>
+                            </div>
                         </div>
                     </section>
 
@@ -528,7 +629,7 @@
                     <button class="icon-btn" id="profileEditorClose" aria-label="Back to signing" data-tip="Back" data-keys="Esc"><i data-icon="arrow-left"></i></button>
                     <h3 id="profileEditorTitle" class="prefs-page-title">New signature profile</h3>
                 </div>
-                <div class="prefs-body" data-scroll-edges>
+                <div class="prefs-body" data-scroll-edges="foot">
                     <div class="list-box">
                         <div class="pref-row">
                             <div class="pref-text">

@@ -95,3 +95,18 @@ export function formatFileSize(bytes) {
     const [value, unit] = bytes < 1024 * 1024 ? [bytes / 1024, 'KB'] : [bytes / (1024 * 1024), 'MB'];
     return `${value < 100 ? value.toFixed(1) : Math.round(value)} ${unit}`;
 }
+
+/**
+ * A file name for a toast or a message: one longer than max characters loses
+ * its middle, so its end ("…_signed.pdf") stays.
+ */
+export function middleCut(name, max = 44, tail = 18) {
+    if (name.length <= max) return name;
+    return `${name.slice(0, max - tail - 1).trimEnd()}…${name.slice(-tail)}`;
+}
+
+/** Marks the edges of a [data-scroll-edges] area that have more content beyond them (for the edge shadows). */
+export function markScrollEdges(area) {
+    area.toggleAttribute('data-more-above', area.scrollTop > 0);
+    area.toggleAttribute('data-more-below', area.scrollTop + area.clientHeight < area.scrollHeight - 1);
+}

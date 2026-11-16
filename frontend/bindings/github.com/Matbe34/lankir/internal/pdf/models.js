@@ -52,6 +52,30 @@ export class Document {
              */
             this["modTime"] = "0001-01-01T00:00:00.000Z";
         }
+        if (!("modified" in $$source)) {
+            /**
+             * Modified: page or document operations left a working copy that isn't saved.
+             * @member
+             * @type {boolean}
+             */
+            this["modified"] = false;
+        }
+        if (!("undoSteps" in $$source)) {
+            /**
+             * UndoSteps: how many of those operations UndoPageOp can still take back.
+             * @member
+             * @type {number}
+             */
+            this["undoSteps"] = 0;
+        }
+        if (!("redoSteps" in $$source)) {
+            /**
+             * RedoSteps: how many undone operations RedoPageOp can bring back.
+             * @member
+             * @type {number}
+             */
+            this["redoSteps"] = 0;
+        }
 
         Object.assign(this, $$source);
     }
@@ -116,6 +140,57 @@ export class RecentFile {
     static createFrom($$source = {}) {
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         return new RecentFile(/** @type {Partial<RecentFile>} */($$parsedSource));
+    }
+}
+
+/**
+ * SaveOptions change how the next save of a document is written.
+ */
+export class SaveOptions {
+    /**
+     * Creates a new SaveOptions instance.
+     * @param {Partial<SaveOptions>} [$$source = {}] - The source object to create the SaveOptions.
+     */
+    constructor($$source = {}) {
+        if (!("rewrite" in $$source)) {
+            /**
+             * Rewrite has Go rewrite the bytes instead of writing them as they are:
+             * decrypted with the document's password (see SetPassword) if they are
+             * encrypted, optimized if asked, then encrypted with Password if set.
+             * @member
+             * @type {boolean}
+             */
+            this["rewrite"] = false;
+        }
+        if (!("password" in $$source)) {
+            /**
+             * Password protects the rewritten file (AES-256) as both the user and
+             * owner password.
+             * @member
+             * @type {string}
+             */
+            this["password"] = "";
+        }
+        if (!("optimize" in $$source)) {
+            /**
+             * Optimize applies pdfcpu's size optimizations in the rewrite.
+             * @member
+             * @type {boolean}
+             */
+            this["optimize"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new SaveOptions instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {SaveOptions}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new SaveOptions(/** @type {Partial<SaveOptions>} */($$parsedSource));
     }
 }
 

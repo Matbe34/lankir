@@ -1,5 +1,5 @@
 import { state, getActivePDF } from './state.js';
-import { updateStatus, escapeHtml, sanitizeError } from './utils.js';
+import { updateStatus, escapeHtml, sanitizeError, middleCut } from './utils.js';
 import { openRecentFile, saveTab, closeTab, refreshDirty } from './documents.js';
 import { showConfirm, showChoice } from './messageDialog.js';
 import { getSetting, setSetting, openSettings } from './settings.js';
@@ -529,7 +529,7 @@ async function submit(saveAs) {
         current.busy = false;
         closeSignPanel();
         updateStatus(`Signed: ${signedPath}`);
-        showToast(`Signed and saved as ${signedPath.split(/[/\\]/).pop()}`, { tone: 'success' });
+        showToast(`Signed and saved as ${middleCut(signedPath.split(/[/\\]/).pop())}`, { tone: 'success' });
         // SignPDF saved the choice in Go; keep this window's copy in step.
         setSetting('lastCertificateFingerprint', cert.fingerprint);
         setSetting('lastSignatureProfileId', profile.id);
@@ -783,6 +783,8 @@ function onSignatureInfoClick(event) {
 
 function showSignatures(container, signatures, pdfPath) {
     const tab = [...state.openPDFs.values()].find((t) => t.filePath === pdfPath);
+    // Page operations name these signers before breaking their signatures.
+    if (tab) tab.signatures = signatures;
     openSignatures = tab ? (tab.openSignatures ??= new Set()) : new Set();
     container.innerHTML = renderSignatureList(signatures);
     container.querySelectorAll('.signature-more-btn').forEach((button) => {

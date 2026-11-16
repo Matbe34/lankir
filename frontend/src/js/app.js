@@ -20,6 +20,10 @@ import { hydrateIcons } from './icons.js';
 import { initTooltips } from './tooltip.js';
 import { renderShortcutHints } from './shortcuts.js';
 import { closeOpenMenu } from './menus.js';
+import { closeOpenDialog } from './documentDialog.js';
+import { printTab } from './print.js';
+import { initDocumentTools } from './documentTools.js';
+import { initOrganize, toggleOrganize, leaveOrganize, handleOrganizeKey, handlePageUndo, escapeOrganize, stepThumbSize } from './organize.js';
 
 /** In debug mode, copy console output and uncaught errors to the Go log. */
 function forwardConsoleToGo() {
@@ -80,6 +84,8 @@ function closeTopDialog() {
         return;
     }
     if (closeOpenMenu({ focusButton: true })) return;
+    // A document dialog takes its own Escape, but not once the focus has left it for the page.
+    if (closeOpenDialog()) return;
     const visible = (id) => {
         const el = document.getElementById(id);
         return el && !el.classList.contains('hidden') ? el : null;
@@ -98,14 +104,17 @@ function closeTopDialog() {
     }
     if (visible('findBar')) {
         closeFindBar();
+        return;
     }
+    escapeOrganize();
 }
 
 const isDialogOpen = () => document.querySelector('.modal-overlay:not(.hidden), #signPanel:not(.hidden)') !== null;
 
 async function onKeyDown(e) {
     const active = document.activeElement;
-    const isTyping = active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.tagName === 'SELECT' || active.isContentEditable);
+    // A slider or checkbox takes no text, so the shortcuts still work from it.
+    const isTyping = active && (active.matches('input:not([type="range"], [type="checkbox"]), textarea, select') || active.isContentEditable);
     const cfg = getSetting('shortcuts') || {};
     const tab = getActivePDF();
     const ctrl = e.ctrlKey && !e.altKey && !e.metaKey;
@@ -122,6 +131,7 @@ async function onKeyDown(e) {
         return;
     }
     if (isDialogOpen()) return;
+    if (handleOrganizeKey(e)) return;
 
     if (matchShortcut(e, cfg.nextTab || 'Control+Tab')) {
         e.preventDefault();
@@ -130,12 +140,12 @@ async function onKeyDown(e) {
     }
     if (!isTyping && matchShortcut(e, cfg.zoomIn || 'Control+Plus')) {
         e.preventDefault();
-        zoomIn();
+        if (!stepThumbSize(1)) zoomIn();
         return;
     }
     if (!isTyping && matchShortcut(e, cfg.zoomOut || 'Control+Minus')) {
         e.preventDefault();
-        zoomOut();
+        if (!stepThumbSize(-1)) zoomOut();
         return;
     }
     if (!isTyping && matchShortcut(e, cfg.openFile || 'Control+o')) {
@@ -150,13 +160,25 @@ async function onKeyDown(e) {
     }
     if (!isTyping && matchShortcut(e, cfg.sign || 'Alt+s')) {
         e.preventDefault();
+        leaveOrganize();
         signPDF();
         return;
     }
     if (!tab) return;
 
+    if (matchShortcut(e, cfg.print || 'Control+p')) {
+        e.preventDefault();
+        printTab(tab);
+        return;
+    }
+    if (!isTyping && matchShortcut(e, cfg.organizePages || 'Control+Shift+o')) {
+        e.preventDefault();
+        toggleOrganize();
+        return;
+    }
     if (ctrl && key === 'f') {
         e.preventDefault();
+        leaveOrganize();
         openFindBar();
         return;
     }
@@ -170,9 +192,19 @@ async function onKeyDown(e) {
         closeTab(tab.id);
         return;
     }
-    // A focused control that already used the key (e.g. arrows between panel segments) keeps it.
-    if (isTyping || e.defaultPrevented) return;
+    // A focused control that already used the key (e.g. arrows between panel segments, or on a slider) keeps it.
+    if (isTyping || active?.tagName === 'INPUT' || e.defaultPrevented || tab.organizing) return;
     if (handleNavigationKey(e)) e.preventDefault();
+}
+
+// Ctrl Z / Ctrl Shift Z from Go: text fields keep their own; page changes
+// take them while organizing, and in reading when pdf.js has nothing to undo.
+function onEditCommand(name) {
+    const active = document.activeElement;
+    const typing = active && (active.matches('input:not([type="range"], [type="checkbox"]), textarea') || active.isContentEditable);
+    const dialogOpen = isDialogOpen();
+    if (!typing && !dialogOpen && handlePageUndo(name)) return;
+    handleEditCommand(name, { dialogOpen });
 }
 
 // pdf.js' editor manager handles copy/cut/paste on the whole document and calls
@@ -198,6 +230,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     initCommandPalette();
     initFindBar();
     initAnnotationToolbar();
+    initDocumentTools();
+    initOrganize();
     document.addEventListener('settings-applied', () => renderShortcutHints());
     await initSettings();
     renderShortcutHints();
@@ -206,7 +240,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     loadRecentFilesWelcome();
 
     Events.On('close-requested', () => handleCloseRequested());
-    Events.On('edit-command', ({ data }) => handleEditCommand(data, { dialogOpen: isDialogOpen() }));
+    Events.On('edit-command', ({ data }) => onEditCommand(data));
     initFileOpening();
 
     document.addEventListener('keydown', (e) => {

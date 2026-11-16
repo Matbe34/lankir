@@ -16,6 +16,9 @@ function place(menu, anchor) {
     else menu.style.left = `${rect.left}px`;
 }
 
+/** True while a menu is open. */
+export const isMenuOpen = () => current !== null;
+
 /** Closes the open menu, if any. Returns true when one was open. */
 export function closeOpenMenu({ focusButton = false } = {}) {
     if (!current) return false;
@@ -58,6 +61,37 @@ export function bindMenu(button, menu, { onOpen, anchor = button, focusItem } = 
             open(true);
         }
     });
+    wireMenu(menu, close);
+}
+
+/**
+ * Opens menu at a point, as a context menu; Escape returns the focus to
+ * returnFocus. fromKeyboard focuses its first item.
+ */
+export function openMenuAt(menu, x, y, { returnFocus = null, fromKeyboard = false } = {}) {
+    if (!menu) return;
+    closeOpenMenu();
+    const close = (focusBack) => {
+        menu.classList.add('hidden');
+        if (current?.menu === menu) current = null;
+        if (focusBack) returnFocus?.focus();
+    };
+    current = { button: null, menu, close };
+    if (!menu.dataset.atPoint) {
+        menu.dataset.atPoint = '1';
+        wireMenu(menu, (focusBack) => current?.menu === menu && current.close(focusBack));
+    }
+    menu.classList.remove('hidden');
+    Object.assign(menu.style, { position: 'fixed', top: `${y}px`, left: `${x}px`, bottom: '', right: '' });
+    // Kept inside the window: it opens leftwards or upwards when there is no room.
+    const rect = menu.getBoundingClientRect();
+    if (rect.right > window.innerWidth - GAP) menu.style.left = `${Math.max(GAP, x - rect.width)}px`;
+    if (rect.bottom > window.innerHeight - GAP) menu.style.top = `${Math.max(GAP, y - rect.height)}px`;
+    if (fromKeyboard) items(menu)[0]?.focus();
+}
+
+// Picking an item closes the menu; arrows, Home and End move between items.
+function wireMenu(menu, close) {
     menu.addEventListener('click', (e) => {
         if (e.target.closest(ITEM)) close(false);
     });
@@ -95,7 +129,7 @@ export function bindMenu(button, menu, { onOpen, anchor = button, focusItem } = 
 
 document.addEventListener('pointerdown', (e) => {
     if (!current) return;
-    if (current.menu.contains(e.target) || current.button.contains(e.target)) return;
+    if (current.menu.contains(e.target) || current.button?.contains(e.target)) return;
     closeOpenMenu();
 }, true);
 window.addEventListener('resize', () => closeOpenMenu());

@@ -550,6 +550,24 @@
     display: block;
   }
 
+  /* Organize pages stays at the top while the thumbnails scroll. */
+  .pages-tab.active {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .pages-tools {
+    flex: none;
+    padding: 0 var(--sp-3) var(--sp-3);
+  }
+
+  .page-list {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+  }
+
   /* Page thumbnails */
   .page-grid {
     display: grid;

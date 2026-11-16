@@ -23,6 +23,16 @@ export function createPDFData(tabId, filePath, docId) {
         currentPage: 1,
         totalPages: 0,
         dirty: false,
+        // Go's working-copy state: unsaved page operations, how many undo can
+        // take back and how many undone ones redo can bring back.
+        modified: false,
+        undoSteps: 0,
+        redoSteps: 0,
+        // undefined: keep the file's protection; a string: protect with it ('' removes it) at save.
+        protect: undefined,
+        password: null,
+        selection: new Set(),
+        loadSeq: 0,
         loadingTask: null,
         pdfDocument: null,
         view: null, // { container, eventBus, linkService, findController, pdfViewer }

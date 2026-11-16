@@ -18,6 +18,10 @@ import {
 import { RotateCcw } from 'lucide';
 // A signature's certificate chain.
 import { Shield, ShieldAlert } from 'lucide';
+// Organize pages.
+import { ArrowDownToLine, ArrowUpToLine, Check, File, FileOutput, FilePlus, LayoutGrid, RotateCcwSquare, RotateCwSquare } from 'lucide';
+// Document tools: the menu's Document section and their dialogs.
+import { LockOpen, Printer, Scissors, Shrink } from 'lucide';
 
 const ICONS = {
     'app-window': AppWindow,
@@ -89,7 +93,22 @@ const ICONS = {
     'rotate-ccw': RotateCcw,
     // A signature's certificate chain.
     shield: Shield,
-    'shield-alert': ShieldAlert
+    'shield-alert': ShieldAlert,
+    // Organize pages.
+    'arrow-down-to-line': ArrowDownToLine,
+    'arrow-up-to-line': ArrowUpToLine,
+    check: Check,
+    file: File,
+    'file-output': FileOutput,
+    'file-plus': FilePlus,
+    'layout-grid': LayoutGrid,
+    'rotate-ccw-square': RotateCcwSquare,
+    'rotate-cw-square': RotateCwSquare,
+    // Document tools.
+    'lock-open': LockOpen,
+    printer: Printer,
+    scissors: Scissors,
+    shrink: Shrink
 };
 
 const escapeAttr = (value) => String(value).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');

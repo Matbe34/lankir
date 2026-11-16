@@ -1,3 +1,92 @@
+# Release v1.1.0
+
+**Release Date:** TBD
+
+---
+
+## Added
+
+- **Organize pages** shows the document's pages in a grid to rotate, move,
+  duplicate, delete and extract them, and to insert pages. Open it with
+  **Organize pages** at the top of the **Pages** panel, from ≡ › Document,
+  from Ctrl K, or with Ctrl Shift O (changeable in **Settings › Shortcuts**).
+- In **Organize pages**, click a page to select it, Shift click for a range,
+  Ctrl click to add or remove one, or drag a box around pages from an empty
+  spot. Drag the selected pages to move them; Esc cancels the drag.
+- The bar above the grid rotates (R, Shift R), duplicates (Ctrl D), extracts
+  the selection to a new file (**Extract…**), deletes (Delete) and inserts a
+  blank page or pages from another PDF. Right-clicking a page offers the
+  same, plus **Move to start** and **Move to end**. Ctrl A selects every
+  page, the arrow keys, Home and End move between pages (Shift extends the
+  selection), and Enter or a double click opens the page for reading.
+- The slider under the grid, or Ctrl + and Ctrl − while organizing, changes
+  the thumbnail size.
+- Page changes stay out of the file until you save: Ctrl Z and Ctrl Shift Z
+  (or **Undo** and **Redo** in the bar) take them back and bring them back,
+  up to 20 changes. **Done** goes back to reading, with a toast that says
+  "N unsaved changes" and offers **Undo** and **Save**.
+- Before the first change that breaks a signed document's signatures, to its
+  pages, properties or password, Lankir names the signers and asks, and
+  suggests **Save as…** to keep the signed file.
+- Page changes keep the document's title, author, creation date and the rest
+  of its document information.
+- A **Document** section in the ≡ menu and in Ctrl K: **Organize pages**,
+  **Insert pages from file…**, **Split into files…**, **Protect with
+  password…** (**Change password…** on a protected file), **Remove
+  password…**, **Save optimized copy…** and **Properties…**. **Revert to
+  saved…** and **Print…** are under File.
+- **Insert pages from file…** takes one or more PDFs, asks for the password
+  of a protected one, and puts their pages at the start, after the current
+  page or at the end.
+- **Split into files…** splits by page ranges (`1-3, 4-12`) or every N pages,
+  previews the files it will write, and writes them into a folder you choose.
+  The files from a protected document get its password unless you untick
+  **Protect the new files with the same password**.
+- Setting, changing or removing the password is applied the next time you
+  save.
+- **Save optimized copy…** saves a smaller copy under a new name; the toast
+  shows the size before and after.
+- **Properties…** shows the file's details (size, pages, PDF version,
+  producer, dates, protected, signed) and edits its title, author, subject
+  and keywords, as a change saved with the next save.
+- **Revert to saved…** drops every unsaved change, after saying what will be
+  lost, and reloads the file.
+- **Print…** (Ctrl P, changeable in **Settings › Shortcuts**) prints the
+  document with its form values and annotations. A toast shows how far
+  preparing the pages has got and has a **Cancel** button.
+- Pages extracted from a protected document keep its password.
+- Unsaved page changes are kept in a private folder that only your user can
+  read, removed when Lankir closes. After a crash, the next start removes
+  them, so a protected file's decrypted pages don't stay behind.
+
+## Changed
+
+- The ≡ menu is grouped into **File** and **Document**, and the command
+  palette into **File**, **Document**, **Go**, **View**, **Markup** and
+  **Application**.
+- Toasts are all one width at the bottom right, level with the page and zoom
+  pill, and move above it only when they would crowd it. Long file names in
+  toasts are cut in the middle, so their end shows.
+- A main button that can't be used yet, such as **Save** in **Change
+  shortcut**, looks disabled: plain and outlined instead of a faded colour.
+  In the dark theme, buttons for destructive actions, such as **Don't save**,
+  are deep red with white text.
+- Closing a document with unsaved changes asks **Save changes before
+  closing?** and names the document.
+- **Settings › Shortcuts** won't take the keys **Organize pages** uses: R,
+  Shift R, Delete, Enter, Ctrl A, Ctrl D, Ctrl Z, Ctrl Shift Z, the arrow
+  keys, Home and End.
+
+## Fixed
+
+- A long tab name cut in the middle no longer leaves a gap between the "…"
+  and the end of the name.
+- `lankir pdf rotate`, `delete`, `reorder`, `insert-blank`, `encrypt`,
+  `decrypt` and `optimize` keep the file's producer instead of writing
+  pdfcpu's.
+
+---
+
 # Release v1.0.1
 
 **Release Date:** 2026-11-14

@@ -33,7 +33,7 @@ export function formatRecentDate(iso, now = new Date()) {
  * A folder path that loses its middle first: the head ellipsizes, the last
  * folder always shows ("~/Documents/Cli…/Northwind").
  */
-function pathMarkup(folder) {
+export function pathMarkup(folder) {
     const cut = folder.lastIndexOf('/', folder.length - 2) + 1;
     return `<span class="path"><span class="path-head">${escapeHtml(folder.slice(0, cut))}</span>`
         + `<span class="path-tail">${escapeHtml(folder.slice(cut))}</span></span>`;

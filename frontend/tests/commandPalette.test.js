@@ -75,11 +75,56 @@ describe('command palette', () => {
     openCommandPalette();
     expect(isOpen()).toBe(true);
     const groups = [...document.querySelectorAll('#paletteList .palette-group')].map((g) => g.textContent);
-    expect(groups).toEqual(['Document', 'View', 'Markup', 'Application']);
+    expect(groups).toEqual(['File', 'Document', 'Go', 'View', 'Markup', 'Application']);
     expect(keysOf('Save')).toBe('Ctrl S');
     expect(keysOf('Open file…')).toBe('Ctrl O');
     expect(row('Save').querySelector('svg.icon')).not.toBeNull();
     expect(document.activeElement).toBe($('#paletteInput'));
+  });
+
+  it('groups commands as the ≡ menu does: File, then Document, then Go', () => {
+    openTab().totalPages = 12;
+    state.openPDFs.set(2, { id: 2 });
+    openCommandPalette();
+    const group = (name) => {
+      const head = [...document.querySelectorAll('#paletteList .palette-group')].find((g) => g.textContent === name);
+      const out = [];
+      for (let el = head.nextElementSibling; el && !el.classList.contains('palette-group'); el = el.nextElementSibling) {
+        out.push(el.querySelector('.palette-label').textContent);
+      }
+      return out;
+    };
+    expect(group('File')).toEqual(['Open file…', 'Save', 'Save as…', 'Print…', 'Close tab']);
+    expect(group('Document')).toEqual(['Sign…', 'Organize pages', 'Insert pages from file…', 'Split into files…', 'Protect with password…',
+      'Save optimized copy…', 'Properties…']);
+    expect(group('Go')).toEqual(['Find in document', 'Go to page…', 'Next tab', 'Start page']);
+    expect(keysOf('Print…')).toBe('Ctrl P');
+    settings.shortcuts = { print: 'Control+Shift+p' };
+    key('Escape');
+    openCommandPalette();
+    expect(keysOf('Print…')).toBe('Ctrl Shift P');
+  });
+
+  it('shades the list’s edge while more commands are below it', () => {
+    openTab();
+    const list = $('#paletteList');
+    Object.defineProperty(list, 'clientHeight', { configurable: true, get: () => 400 });
+    Object.defineProperty(list, 'scrollHeight', { configurable: true, get: () => 900 });
+    openCommandPalette();
+    expect(list.hasAttribute('data-scroll-edges')).toBe(true);
+    expect(list.hasAttribute('data-more-below')).toBe(true);
+    expect(list.hasAttribute('data-more-above')).toBe(false);
+    type('zzzz-nothing');
+    expect(list.hasAttribute('data-more-below')).toBe(true); // still the mocked 900; re-measured on each render
+    Object.defineProperty(list, 'scrollHeight', { configurable: true, get: () => 400 });
+    type('save');
+    expect(list.hasAttribute('data-more-below')).toBe(false);
+  });
+
+  it('heads the ≡ menu’s first group File, as the palette does', () => {
+    const heads = [...document.querySelectorAll('#mainMenu .menu-head')].map((h) => h.textContent);
+    expect(heads).toEqual(['File', 'Document']);
+    expect(document.querySelector('#mainMenu .menu-head').nextElementSibling.id).toBe('saveBtn');
   });
 
   it('shows the user’s own shortcuts', () => {
@@ -109,7 +154,7 @@ describe('command palette', () => {
   });
 
   it('keeps each group together, in their usual order, when two groups match equally well', async () => {
-    // A recent file named like a View command ties the Document and View groups.
+    // A recent file named like a View command ties the File and View groups.
     RecentFilesService.GetRecent.mockResolvedValue([{ filePath: '/docs/Fit page', fileName: 'Fit page' }]);
     openTab();
     openCommandPalette();
@@ -133,7 +178,7 @@ describe('command palette', () => {
       Array.prototype.sort = sort;
     }
     const groups = [...document.querySelectorAll('#paletteList .palette-group')].map((g) => g.textContent);
-    expect(groups.slice(0, 2)).toEqual(['Document', 'View']);
+    expect(groups.slice(0, 2)).toEqual(['File', 'View']);
     expect(groups).toEqual([...new Set(groups)]);
   });
 
@@ -161,6 +206,19 @@ describe('command palette', () => {
     key('ArrowUp');
     key('Enter');
     expect(isOpen()).toBe(false);
+    expect(openFindBar).toHaveBeenCalled();
+  });
+
+  it('goes back to reading for the commands that act on the reading view', async () => {
+    const { signPDF } = await import('../src/js/signature.js');
+    const tab = openTab();
+    for (const label of ['Sign…', 'Find in document', 'Go to page…', 'Show side panel', 'Show pages', 'Show markup tools', 'Fit width']) {
+      tab.organizing = true;
+      openCommandPalette();
+      row(label).click();
+      expect(tab.organizing, label).toBe(false);
+    }
+    expect(signPDF).toHaveBeenCalled();
     expect(openFindBar).toHaveBeenCalled();
   });
 

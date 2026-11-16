@@ -163,15 +163,9 @@
 
   /* Head and foot are solid. While content continues under one of them, a
      hairline marks the edge; under the foot the shared edge shadow adds a
-     soft lift, so a cut-off line reads as scrolling on, not clipped. */
+     soft lift (data-scroll-edges="foot"). */
   .prefs-body[data-scroll-edges]::before {
     content: none;
-  }
-
-  .prefs-body[data-scroll-edges]::after {
-    height: var(--sp-3);
-    margin-top: calc(var(--sp-3) * -1);
-    background: linear-gradient(transparent, color-mix(in srgb, var(--scrim) 70%, transparent));
   }
 
   /* Opaque, so the dialog's inner edge (--elev-3's inset ring) shows nowhere
@@ -674,5 +668,36 @@
     gap: var(--sp-2);
     padding: var(--sp-3) var(--sp-4);
     border-top: var(--border-w) solid var(--border);
+  }
+
+  /* ---------- Document tools: Split, Insert, Protect, Properties ---------- */
+  .split-preview {
+    margin-top: var(--sp-5);
+    transition: opacity var(--dur-fast) var(--ease);
+  }
+
+  .split-preview > .group-title {
+    margin-bottom: var(--sp-2);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* While the field holds a mistake, the last good preview stays, dimmed. */
+  .split-preview.is-stale {
+    opacity: .45;
+  }
+
+  .split-files {
+    max-height: 212px;
+    margin-top: var(--sp-2);
+    overflow-y: auto;
+  }
+
+  .insert-files .pill {
+    font-variant-numeric: tabular-nums;
+  }
+
+  .insert-files {
+    max-height: 212px;
+    overflow-y: auto;
   }
 }

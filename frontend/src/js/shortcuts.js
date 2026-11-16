@@ -9,7 +9,9 @@ const DEFAULTS = {
     zoomOut: 'Control+Minus',
     nextTab: 'Control+Tab',
     newWindow: 'Control+Shift+n',
-    commandPalette: 'Control+k'
+    commandPalette: 'Control+k',
+    print: 'Control+p',
+    organizePages: 'Control+Shift+o'
 };
 
 const NAMES = { control: 'Ctrl', ctrl: 'Ctrl', meta: 'Super', plus: '+', minus: '−', escape: 'Esc', space: 'Space' };

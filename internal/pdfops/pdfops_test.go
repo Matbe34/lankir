@@ -475,6 +475,34 @@ func TestPageOpsKeepMetadata(t *testing.T) {
 	}
 }
 
+// The GUI edits documents in place with these; they must not restamp the producer.
+func TestInPlaceEditsKeepProducer(t *testing.T) {
+	m := Metadata{Title: "Kept", Producer: "Original Producer"}
+	ops := map[string]func(in, out string) error{
+		"rotate":       func(in, out string) error { return Rotate(in, out, []int{1}, 90) },
+		"insert-blank": func(in, out string) error { return InsertBlankPage(in, out, 1) },
+		"optimize":     Optimize,
+	}
+	for name, op := range ops {
+		t.Run(name, func(t *testing.T) {
+			in := fixture(t, 2)
+			if err := SetMetadata(in, in, m); err != nil {
+				t.Fatal(err)
+			}
+			if err := op(in, in); err != nil {
+				t.Fatal(err)
+			}
+			got, err := GetMetadata(in)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got.Producer != m.Producer || got.Title != m.Title {
+				t.Fatalf("metadata = %+v, want %+v", got, m)
+			}
+		})
+	}
+}
+
 func TestOptimizeAndValidate(t *testing.T) {
 	in := fixture(t, 3)
 	out := filepath.Join(t.TempDir(), "out.pdf")

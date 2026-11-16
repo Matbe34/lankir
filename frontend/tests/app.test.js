@@ -13,6 +13,9 @@ vi.mock('../src/js/viewer.js', () => ({
   renderPageCanvas: vi.fn()
 }));
 
+const printTab = vi.hoisted(() => vi.fn(async () => true));
+vi.mock('../src/js/print.js', () => ({ printTab }));
+
 const page = fs.readFileSync(new URL('index.html', `file://${process.cwd()}/`), 'utf8');
 const body = page.slice(page.indexOf('<body'), page.lastIndexOf('</body>')).replace(/^<body[^>]*>/, '').replace(/<script[\s\S]*?<\/script>/g, '');
 
@@ -110,4 +113,34 @@ it('Escape closes the command palette before the panel behind it, even with focu
   document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
   expect(isCommandPaletteOpen()).toBe(false);
   expect(signPanel.classList.contains('hidden')).toBe(false);
+});
+
+it('Ctrl P prints the active document, and follows the shortcut setting', async () => {
+  document.body.innerHTML = body;
+  await boot();
+  const { state } = await import('../src/js/state.js');
+  const { setSetting } = await import('../src/js/settings.js');
+  const tab = { id: 7, fileName: 'a.pdf', pdfDocument: { numPages: 0 } };
+  state.openPDFs.set(tab.id, tab);
+  state.activeTabId = tab.id;
+  const press = (init) => {
+    const e = new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...init });
+    document.body.dispatchEvent(e);
+    return e;
+  };
+  try {
+    expect(press({ key: 'p', ctrlKey: true }).defaultPrevented).toBe(true);
+    expect(printTab).toHaveBeenCalledWith(tab);
+
+    printTab.mockClear();
+    setSetting('shortcuts', { print: 'Control+Shift+p' });
+    press({ key: 'p', ctrlKey: true });
+    expect(printTab).not.toHaveBeenCalled();
+    press({ key: 'P', ctrlKey: true, shiftKey: true });
+    expect(printTab).toHaveBeenCalledWith(tab);
+  } finally {
+    setSetting('shortcuts', {});
+    state.openPDFs.delete(tab.id);
+    state.activeTabId = null;
+  }
 });

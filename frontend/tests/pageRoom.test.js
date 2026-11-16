@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { state, createPDFData } from '../src/js/state.js';
 
 const { pageRoom, updatePageRoom } = await import('../src/js/pageRoom.js');
+const { showToast } = await import('../src/js/toast.js');
 
 // Widths are the page as drawn (pdf.js' 9px transparent border left out);
 // left is where the side panel ends, right how far the sign panel reaches in
@@ -99,6 +100,21 @@ describe('updatePageRoom', () => {
     expect(prop(container, '--room-left')).toBe('284px');
     expect(prop(container, '--room-right')).toBe('0px');
     expect(viewer.currentScale).toBeCloseTo(692 / 793);
+  });
+
+  it('places the toasts again for where the page pill goes', () => {
+    document.getElementById('workspace').insertAdjacentHTML('beforeend', '<div id="pagePill" class="page-pill"></div>');
+    document.body.insertAdjacentHTML('beforeend', '<div id="toastRegion"></div>');
+    const region = document.getElementById('toastRegion');
+    showToast('Saved');
+    expect(region.classList.contains('is-lifted')).toBe(false);
+    const pill = document.getElementById('pagePill');
+    pill.getClientRects = () => [{}];
+    pill.getBoundingClientRect = () => ({ left: 400, right: 800, top: 700, bottom: 740, width: 400, height: 40 });
+    region.getBoundingClientRect = () => ({ left: 648, right: 1008, top: 700, bottom: 740, width: 360, height: 40 });
+    show('sidePanel');
+    updatePageRoom();
+    expect(region.classList.contains('is-lifted')).toBe(true);
   });
 
   it('centres the page pill under the page', () => {
