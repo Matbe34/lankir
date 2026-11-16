@@ -58,6 +58,8 @@
 - Unsaved page changes are kept in a private folder that only your user can
   read, removed when Lankir closes. After a crash, the next start removes
   them, so a protected file's decrypted pages don't stay behind.
+- The package repositories also carry Linux Mint 21 and 22 and LMDE 6, so the
+  setup script works there too.
 
 ## Changed
 
@@ -84,6 +86,11 @@
 - `lankir pdf rotate`, `delete`, `reorder`, `insert-blank`, `encrypt`,
   `decrypt` and `optimize` keep the file's producer instead of writing
   pdfcpu's.
+- On GNOME (Ubuntu), Lankir had no icon in the dock, the app grid and the
+  window switcher: the 1.0 packages built an icon cache in `/usr/share/pixmaps`,
+  and GNOME Shell doesn't look for icons in a folder with a cache. The packages
+  now install the icon into the icon theme at the usual sizes and remove that
+  cache.
 
 ---
 

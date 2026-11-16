@@ -53,9 +53,38 @@ contents:
     file_info:
       mode: 0644
 
-  # Icon
-  - src: ./assets/lankir.png
-    dst: /usr/share/pixmaps/lankir.png
+  # Icons, at the sizes the hicolor theme looks for. One entry per file: a
+  # whole tree would give the shared hicolor folders the files' 0644 mode.
+  - src: ./packaging/icons/hicolor/16x16/apps/com.lankir.Lankir.png
+    dst: /usr/share/icons/hicolor/16x16/apps/com.lankir.Lankir.png
+    file_info:
+      mode: 0644
+  - src: ./packaging/icons/hicolor/24x24/apps/com.lankir.Lankir.png
+    dst: /usr/share/icons/hicolor/24x24/apps/com.lankir.Lankir.png
+    file_info:
+      mode: 0644
+  - src: ./packaging/icons/hicolor/32x32/apps/com.lankir.Lankir.png
+    dst: /usr/share/icons/hicolor/32x32/apps/com.lankir.Lankir.png
+    file_info:
+      mode: 0644
+  - src: ./packaging/icons/hicolor/48x48/apps/com.lankir.Lankir.png
+    dst: /usr/share/icons/hicolor/48x48/apps/com.lankir.Lankir.png
+    file_info:
+      mode: 0644
+  - src: ./packaging/icons/hicolor/64x64/apps/com.lankir.Lankir.png
+    dst: /usr/share/icons/hicolor/64x64/apps/com.lankir.Lankir.png
+    file_info:
+      mode: 0644
+  - src: ./packaging/icons/hicolor/128x128/apps/com.lankir.Lankir.png
+    dst: /usr/share/icons/hicolor/128x128/apps/com.lankir.Lankir.png
+    file_info:
+      mode: 0644
+  - src: ./packaging/icons/hicolor/256x256/apps/com.lankir.Lankir.png
+    dst: /usr/share/icons/hicolor/256x256/apps/com.lankir.Lankir.png
+    file_info:
+      mode: 0644
+  - src: ./packaging/icons/hicolor/512x512/apps/com.lankir.Lankir.png
+    dst: /usr/share/icons/hicolor/512x512/apps/com.lankir.Lankir.png
     file_info:
       mode: 0644
 

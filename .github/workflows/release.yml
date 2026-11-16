@@ -226,7 +226,10 @@ jobs:
           DEB="dist/lankir_${VERSION}_amd64.deb"
           RPM="dist/lankir-${VERSION}-1.x86_64.rpm"
           # Only distros that have glibc >= 2.35 (the build runner's) and webkit2gtk-4.1.
-          for dist in debian/trixie debian/bookworm ubuntu/resolute ubuntu/noble ubuntu/jammy; do
+          # Cloudsmith's setup script files Linux Mint 21.x under vanessa, vera and
+          # victoria, 22.x (zena included) under wilma, and LMDE 6 under bookworm.
+          for dist in debian/trixie debian/bookworm ubuntu/resolute ubuntu/noble ubuntu/jammy \
+            linuxmint/wilma linuxmint/victoria linuxmint/vera linuxmint/vanessa linuxmint/bookworm; do
             cloudsmith push deb "matbe34/lankir/${dist}" "$DEB"
           done
           for dist in fedora/45 fedora/44 fedora/43 fedora/40 fedora/39; do

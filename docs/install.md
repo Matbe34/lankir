@@ -66,8 +66,8 @@ sudo dnf install gtk3 webkit2gtk4.1 nss
 Each release's `.deb` and `.rpm` are also published to package repositories on
 Cloudsmith, so `apt` and `dnf` install updates along with the rest of the
 system. New releases go to exactly these distributions: Debian 12 (bookworm)
-and 13 (trixie), Ubuntu 22.04 (jammy), 24.04 (noble) and 26.04 (resolute), and
-Fedora 39, 40, 43, 44 and 45. Release
+and 13 (trixie), Ubuntu 22.04 (jammy), 24.04 (noble) and 26.04 (resolute),
+Linux Mint 21 and 22 and LMDE 6, and Fedora 39, 40, 43, 44 and 45. Release
 candidates are not published there. Older distributions that had 0.1.x
 packages (Debian 11, Ubuntu 20.04, RHEL/AlmaLinux/Rocky 8 and 9) keep 0.1.1,
 because 1.0 needs glibc 2.35. On other distributions and newer versions,
@@ -75,13 +75,23 @@ download the
 `.deb` or `.rpm` from the
 [releases page](https://github.com/Matbe34/lankir/releases) instead.
 
-Debian and Ubuntu:
+Debian, Ubuntu and Linux Mint:
 
 ```bash
 curl -1sLf 'https://dl.cloudsmith.io/public/matbe34/lankir/setup.deb.sh' | sudo -E bash
 sudo apt update
 sudo apt install lankir
 ```
+
+On another system based on Ubuntu or Debian, or one the script doesn't
+recognise (such as LMDE 7), name the Ubuntu or Debian release it is built on:
+
+```bash
+curl -1sLf 'https://dl.cloudsmith.io/public/matbe34/lankir/setup.deb.sh' | sudo -E distro=ubuntu codename=noble bash
+```
+
+(`codename=jammy` for Ubuntu 22.04 bases, `distro=debian codename=trixie` for
+Debian 13 bases.)
 
 Fedora:
 

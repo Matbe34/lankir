@@ -555,31 +555,9 @@ chmod +x "${APPDIR}/AppRun"
 # Note: WebKit processes, GIO modules, GLib schemas, and GDK pixbuf loaders
 # are now automatically handled by linuxdeploy-plugin-gtk above
 
-# Copy application icon
-if [ -f "assets/lankir.png" ]; then
-    cp "assets/lankir.png" "${APPDIR}/usr/share/icons/hicolor/256x256/apps/${APP_NAME}.png"
-
-    if command -v base64 &> /dev/null; then
-        png_b64=$(base64 -w0 assets/lankir.png)
-    else
-        png_b64=$(openssl base64 -A < assets/lankir.png)
-    fi
-
-    cat > "${APPDIR}/usr/share/icons/hicolor/256x256/apps/${APP_NAME}.svg" <<EOF
-<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
-  <image href="data:image/png;base64,${png_b64}" width="256" height="256" />
-</svg>
-EOF
-    echo "✓ Application logo copied"
-else
-    echo "Warning: Logo not found at assets/lankir.png, creating placeholder"
-    cat > "${APPDIR}/usr/share/icons/hicolor/256x256/apps/${APP_NAME}.svg" <<'EOF'
-<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
-  <rect width="256" height="256" fill="#e74c3c" rx="24"/>
-  <text x="128" y="180" font-family="Arial" font-size="120" font-weight="bold" fill="white" text-anchor="middle">PDF</text>
-</svg>
-EOF
-fi
+# Application icons, named as the desktop file's Icon= (the hicolor sizes the packages install)
+cp -r packaging/icons/hicolor/. "${APPDIR}/usr/share/icons/hicolor/"
+echo "✓ Application icons copied"
 
 # AppStream metadata, with this build's version as its release
 RELEASE_DATE=$(git log -1 --format=%cs 2>/dev/null || date +%F)
@@ -588,7 +566,8 @@ sed "s|</component>|  <releases>\n    <release version=\"${VERSION}\" date=\"${R
 
 # Create symlinks for AppImage
 ln -sf "usr/share/applications/${APP_ID}.desktop" "${APPDIR}/${APP_ID}.desktop"
-ln -sf "usr/share/icons/hicolor/256x256/apps/${APP_NAME}.svg" "${APPDIR}/${APP_NAME}.svg"
+ln -sf "usr/share/icons/hicolor/256x256/apps/${APP_ID}.png" "${APPDIR}/${APP_ID}.png"
+ln -sf "${APP_ID}.png" "${APPDIR}/.DirIcon"
 
 # Build AppImage
 OUTPUT_APPIMAGE="${BUILD_DIR}/${APP_NAME}-${VERSION}-x86_64.AppImage"

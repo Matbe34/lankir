@@ -2,7 +2,7 @@
 Name=Lankir
 Comment=Modern PDF Editor and Signer for Linux
 Exec=lankir %F
-Icon=lankir
+Icon=com.lankir.Lankir
 Terminal=false
 Type=Application
 Categories=Office;Viewer;
