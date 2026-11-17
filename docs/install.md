@@ -65,14 +65,12 @@ sudo dnf install gtk3 webkit2gtk4.1 nss
 
 Each release's `.deb` and `.rpm` are also published to package repositories on
 Cloudsmith, so `apt` and `dnf` install updates along with the rest of the
-system. New releases go to exactly these distributions: Debian 12 (bookworm)
-and 13 (trixie), Ubuntu 22.04 (jammy), 24.04 (noble) and 26.04 (resolute),
-Linux Mint 21 and 22 and LMDE 6, and Fedora 39, 40, 43, 44 and 45. Release
-candidates are not published there. Older distributions that had 0.1.x
-packages (Debian 11, Ubuntu 20.04, RHEL/AlmaLinux/Rocky 8 and 9) keep 0.1.1,
-because 1.0 needs glibc 2.35. On other distributions and newer versions,
-download the
-`.deb` or `.rpm` from the
+system. Each release is published once for all versions of Debian, Ubuntu,
+Linux Mint (LMDE included) and Fedora, and runs on those with glibc 2.35 and
+WebKitGTK 4.1: Debian 12, Ubuntu 22.04, Linux Mint 21, LMDE 6, Fedora 39 and
+later. On older versions `apt` and `dnf` refuse it for its dependencies.
+Release candidates are not published there. On other distributions, download
+the `.deb` or `.rpm` from the
 [releases page](https://github.com/Matbe34/lankir/releases) instead.
 
 Debian, Ubuntu and Linux Mint:

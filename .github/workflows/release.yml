@@ -225,16 +225,16 @@ jobs:
           pip install "cloudsmith-cli==${CLOUDSMITH_CLI_VERSION}"
           DEB="dist/lankir_${VERSION}_amd64.deb"
           RPM="dist/lankir-${VERSION}-1.x86_64.rpm"
-          # Only distros that have glibc >= 2.35 (the build runner's) and webkit2gtk-4.1.
-          # Cloudsmith's setup script files Linux Mint 21.x under vanessa, vera and
-          # victoria, 22.x (zena included) under wilma, and LMDE 6 under bookworm.
+          # One copy per distribution family: Cloudsmith stores every push separately,
+          # and any-version is served to every codename of the family (Mint's 21.x,
+          # 22.x and LMDE included). On releases too old to run it, apt and dnf
+          # refuse it for its Depends (glibc >= 2.35, webkit2gtk-4.1).
           # Pushed in parallel (each waits for Cloudsmith to sync); any failure fails the step.
           pids=() targets=()
-          for dist in debian/trixie debian/bookworm ubuntu/resolute ubuntu/noble ubuntu/jammy \
-            linuxmint/wilma linuxmint/victoria linuxmint/vera linuxmint/vanessa linuxmint/bookworm; do
+          for dist in debian/any-version ubuntu/any-version linuxmint/any-version; do
             cloudsmith push deb "matbe34/lankir/${dist}" "$DEB" & pids+=($!) targets+=("deb ${dist}")
           done
-          for dist in fedora/45 fedora/44 fedora/43 fedora/40 fedora/39; do
+          for dist in fedora/any-version; do
             cloudsmith push rpm "matbe34/lankir/${dist}" "$RPM" & pids+=($!) targets+=("rpm ${dist}")
           done
           failed=0
