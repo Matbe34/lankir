@@ -1,3 +1,18 @@
+# Release v1.1.1
+
+**Release Date:** TBD
+
+---
+
+## Fixed
+
+- The AppImage opened an empty window on systems whose WebKit is a different
+  version from the one it was built with, such as Linux Mint 22: its page
+  process loaded the system's WebKit add-on instead of its own and stopped. It
+  now loads its own.
+
+---
+
 # Release v1.1.0
 
 **Release Date:** 2026-11-16
