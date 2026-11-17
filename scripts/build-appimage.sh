@@ -58,6 +58,11 @@ CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
 # The AppImage wraps the portable binary.
+if ! command -v patchelf &> /dev/null; then
+    echo -e "${RED}✗ patchelf is needed to set the WebKit processes' library path${NC}"
+    exit 1
+fi
+
 echo "Steps 1-3: Building the portable binary..."
 ./scripts/build-static.sh
 
@@ -225,89 +230,73 @@ else
     rm "/tmp/webkit-launcher-$$.c" 2>/dev/null || true
 fi
 
-# Bundle dependencies with linuxdeploy + plugins
+# Bundle dependencies with linuxdeploy + plugins, in one run: each run rewrites
+# every binary already in the AppDir, so a run per extra piece cost minutes.
 echo "Bundling dependencies with linuxdeploy..."
 
-# Configure plugins
 export DEPLOY_GTK_VERSION=3
-
-# Run linuxdeploy with GTK and GStreamer plugins
-"$LINUXDEPLOY" \
-    --appdir "$APPDIR" \
-    --executable "${APPDIR}/usr/bin/${APP_NAME}" \
-    --plugin gtk \
-    --plugin gstreamer \
+deploy_args=(
+    --appdir "$APPDIR"
+    --executable "${APPDIR}/usr/bin/${APP_NAME}"
+    --plugin gtk
+    --plugin gstreamer
     --library /usr/lib/x86_64-linux-gnu/libwebkit2gtk-4.1.so.0
+)
 
-echo "✓ Dependencies bundled with linuxdeploy"
-
-# Bundle WebKit process executables
-echo "Bundling WebKit process executables..."
-
-# WebKitWebProcess and WebKitNetworkProcess
+# WebKitWebProcess and WebKitNetworkProcess, where WebKit looks for them
+WEBKIT_DIR="${APPDIR}/usr/lib/x86_64-linux-gnu/webkit2gtk-4.1"
+webkit_procs=()
 for webkit_proc in /usr/lib/x86_64-linux-gnu/webkit2gtk-4.1/WebKitWebProcess \
                    /usr/lib/x86_64-linux-gnu/webkit2gtk-4.1/WebKitNetworkProcess; do
     if [ -f "$webkit_proc" ]; then
-        target_dir="${APPDIR}/usr/lib/x86_64-linux-gnu/webkit2gtk-4.1"
-        mkdir -p "$target_dir"
-
-        # Copy and bundle dependencies
-        cp "$webkit_proc" "$target_dir/"
-        "$LINUXDEPLOY" --appdir "$APPDIR" --executable "$target_dir/$(basename $webkit_proc)"
-
-        # Patch RPATH for nested library resolution
-        if command -v patchelf &> /dev/null; then
-            patchelf --set-rpath '$ORIGIN/../..:$ORIGIN/../../..:$ORIGIN' \
-                "$target_dir/$(basename $webkit_proc)" 2>/dev/null || true
-        fi
+        mkdir -p "$WEBKIT_DIR"
+        cp "$webkit_proc" "$WEBKIT_DIR/"
+        webkit_procs+=("$WEBKIT_DIR/$(basename "$webkit_proc")")
+        deploy_args+=(--executable "$WEBKIT_DIR/$(basename "$webkit_proc")")
     fi
 done
 
 # WebKit injected bundle (critical for WebKit functionality)
 if [ -f "/usr/lib/x86_64-linux-gnu/webkit2gtk-4.1/injected-bundle/libwebkit2gtkinjectedbundle.so" ]; then
-    mkdir -p "${APPDIR}/usr/lib/x86_64-linux-gnu/webkit2gtk-4.1/injected-bundle"
+    mkdir -p "${WEBKIT_DIR}/injected-bundle"
     cp "/usr/lib/x86_64-linux-gnu/webkit2gtk-4.1/injected-bundle/libwebkit2gtkinjectedbundle.so" \
-        "${APPDIR}/usr/lib/x86_64-linux-gnu/webkit2gtk-4.1/injected-bundle/"
+        "${WEBKIT_DIR}/injected-bundle/"
 fi
 
-echo "✓ WebKit processes bundled"
-
-# Bundle X11 and Mesa libraries for maximum compatibility
-echo "Bundling X11 and Mesa libraries for compatibility..."
-
-# X11 client libraries (essential for maximum compatibility)
+# X11 client libraries (essential for maximum compatibility). libxcb.so.1 stays
+# the system's (AppImage excludelist): it has to match the host's Mesa drivers.
 X11_LIBS=(
     "libX11.so.6" "libXext.so.6" "libXrender.so.1" "libXrandr.so.2"
     "libXi.so.6" "libXfixes.so.3" "libXcursor.so.1" "libXdamage.so.1"
-    "libXcomposite.so.1" "libXinerama.so.1" "libxcb.so.1"
+    "libXcomposite.so.1" "libXinerama.so.1"
     "libxcb-shm.so.0" "libxcb-render.so.0" "libXau.so.6" "libXdmcp.so.6"
 )
-
 for lib in "${X11_LIBS[@]}"; do
     if [ -f "/usr/lib/x86_64-linux-gnu/$lib" ]; then
-        "$LINUXDEPLOY" --appdir "$APPDIR" \
-            --library "/usr/lib/x86_64-linux-gnu/$lib" &
+        deploy_args+=(--library "/usr/lib/x86_64-linux-gnu/$lib")
     fi
 done
-wait
 
-# Mesa DRI drivers for software rendering fallback
+# Mesa DRI drivers for software rendering fallback (work without GPU drivers)
 if [ -d "/usr/lib/x86_64-linux-gnu/dri" ]; then
     mkdir -p "${APPDIR}/usr/lib/dri"
-    # Bundle software renderers (work without GPU drivers)
     cp /usr/lib/x86_64-linux-gnu/dri/swrast_dri.so "${APPDIR}/usr/lib/dri/" 2>/dev/null || true
     cp /usr/lib/x86_64-linux-gnu/dri/kms_swrast_dri.so "${APPDIR}/usr/lib/dri/" 2>/dev/null || true
-
-    # Bundle dependencies of DRI drivers
     for dri_lib in "${APPDIR}/usr/lib/dri"/*.so; do
         if [ -f "$dri_lib" ]; then
-            "$LINUXDEPLOY" --appdir "$APPDIR" --library "$dri_lib" &
+            deploy_args+=(--library "$dri_lib")
         fi
     done
-    wait
 fi
 
-echo "✓ X11 and Mesa bundled"
+"$LINUXDEPLOY" "${deploy_args[@]}"
+
+# The WebKit processes find their libraries two and three levels up.
+for proc in "${webkit_procs[@]}"; do
+    patchelf --set-rpath '$ORIGIN/../..:$ORIGIN/../../..:$ORIGIN' "$proc"
+done
+
+echo "✓ Dependencies bundled with linuxdeploy"
 
 # Bundle fontconfig data and fonts
 echo "Bundling fontconfig data and fonts..."

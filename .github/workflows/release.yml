@@ -73,9 +73,9 @@ jobs:
       - name: Go tests
         run: go test -tags gtk3 ./...
 
+  # Runs alongside Test; Publish needs both, so nothing untested is published.
   build:
     name: Build
-    needs: test
     runs-on: ubuntu-22.04
 
     steps:
@@ -175,7 +175,7 @@ jobs:
 
   publish:
     name: Publish
-    needs: build
+    needs: [test, build]
     # Tag pushes publish. A manual run publishes only when started on a tag with dry_run off.
     if: startsWith(github.ref, 'refs/tags/v') && (github.event_name == 'push' || inputs.dry_run == false)
     runs-on: ubuntu-22.04
@@ -228,10 +228,17 @@ jobs:
           # Only distros that have glibc >= 2.35 (the build runner's) and webkit2gtk-4.1.
           # Cloudsmith's setup script files Linux Mint 21.x under vanessa, vera and
           # victoria, 22.x (zena included) under wilma, and LMDE 6 under bookworm.
+          # Pushed in parallel (each waits for Cloudsmith to sync); any failure fails the step.
+          pids=() targets=()
           for dist in debian/trixie debian/bookworm ubuntu/resolute ubuntu/noble ubuntu/jammy \
             linuxmint/wilma linuxmint/victoria linuxmint/vera linuxmint/vanessa linuxmint/bookworm; do
-            cloudsmith push deb "matbe34/lankir/${dist}" "$DEB"
+            cloudsmith push deb "matbe34/lankir/${dist}" "$DEB" & pids+=($!) targets+=("deb ${dist}")
           done
           for dist in fedora/45 fedora/44 fedora/43 fedora/40 fedora/39; do
-            cloudsmith push rpm "matbe34/lankir/${dist}" "$RPM"
+            cloudsmith push rpm "matbe34/lankir/${dist}" "$RPM" & pids+=($!) targets+=("rpm ${dist}")
           done
+          failed=0
+          for i in "${!pids[@]}"; do
+            wait "${pids[i]}" || { echo "::error::cloudsmith push ${targets[i]} failed"; failed=1; }
+          done
+          exit "$failed"

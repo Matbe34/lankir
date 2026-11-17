@@ -8,8 +8,13 @@ on:
 
 jobs:
   backend:
-    name: Backend Tests
-    runs-on: ubuntu-latest
+    name: Backend Tests (${{ matrix.os }})
+    # ubuntu-22.04 is the release runner (and shares its Go cache with tag runs);
+    # ubuntu-latest tests against a newer distro's system libraries.
+    strategy:
+      matrix:
+        os: [ubuntu-22.04, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
 
     steps:
       - name: Checkout code
