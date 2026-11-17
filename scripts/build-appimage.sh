@@ -161,10 +161,7 @@ cp "${BUILD_DIR}/${BINARY_NAME}" "${APPDIR}/usr/bin/${APP_NAME}"
 chmod +x "${APPDIR}/usr/bin/${APP_NAME}"
 echo -e "${GREEN}✓ Binary updated${NC}"
 
-# Skip dependency bundling if using cache
-if [ "$USE_CACHE" = false ]; then
-    echo -e "${CYAN}Bundling all dependencies...${NC}"
-
+# The launcher is built every time, so a cached AppDir never keeps an old one.
 # Build and copy the WebKit launcher LD_PRELOAD library
 echo "Building WebKit launcher library..."
 cat > "/tmp/webkit-launcher-$$.c" <<'LAUNCHER_EOF'
@@ -180,10 +177,49 @@ static int (*real_execve)(const char *, char *const[], char *const[]) = NULL;
 static int (*real_posix_spawn)(pid_t *, const char *, const posix_spawn_file_actions_t *,
                                const posix_spawnattr_t *, char *const[], char *const[]) = NULL;
 
+static void resolve_g_module_open(void);
 static void init() __attribute__((constructor));
 static void init() {
     real_execve = dlsym(RTLD_NEXT, "execve");
     real_posix_spawn = dlsym(RTLD_NEXT, "posix_spawn");
+    resolve_g_module_open();
+}
+
+/* The web process loads its injected bundle (through GModule) from the path
+ * WebKit was built with; the host's copy, from another WebKit version, aborts
+ * in WKBundleInitialize. Point it at the bundled one. */
+static const char* redirect_bundle(const char *file, char *newpath, size_t newpath_size) {
+    const char *marker = "/webkit2gtk-4.1/injected-bundle/";
+    const char *appdir = getenv("APPDIR");
+    const char *found = file ? strstr(file, marker) : NULL;
+    if (found && appdir) {
+        snprintf(newpath, newpath_size, "%s/usr/lib/x86_64-linux-gnu/webkit2gtk-4.1/injected-bundle/%s",
+                 appdir, found + strlen(marker));
+        return newpath;
+    }
+    return file;
+}
+
+static void *(*real_g_module_open)(const char *, int) = NULL;
+
+static void resolve_g_module_open(void) {
+    real_g_module_open = dlsym(RTLD_NEXT, "g_module_open");
+    if (!real_g_module_open) {
+        /* A child whose libgmodule came later, through dlopen: RTLD_NEXT
+         * only searches the libraries it started with. */
+        void *gmodule = dlopen("libgmodule-2.0.so.0", RTLD_LAZY | RTLD_NOLOAD);
+        if (gmodule)
+            real_g_module_open = dlsym(gmodule, "g_module_open");
+    }
+}
+
+void *g_module_open(const char *file, int flags) {
+    char newpath[4096];
+    if (!real_g_module_open)
+        resolve_g_module_open();
+    if (!real_g_module_open)
+        return NULL;
+    return real_g_module_open(redirect_bundle(file, newpath, sizeof(newpath)), flags);
 }
 
 static const char* redirect_webkit(const char *filename, char *newpath, size_t newpath_size) {
@@ -221,14 +257,48 @@ int posix_spawn(pid_t *pid, const char *path,
 }
 LAUNCHER_EOF
 
-gcc -shared -fPIC -o "${APPDIR}/usr/lib/webkit-launcher.so" "/tmp/webkit-launcher-$$.c" -ldl 2>/dev/null
-if [ $? -eq 0 ]; then
-    echo "✓ WebKit launcher built"
-    rm "/tmp/webkit-launcher-$$.c"
-else
-    echo "✗ Warning: Could not build webkit-launcher.so"
-    rm "/tmp/webkit-launcher-$$.c" 2>/dev/null || true
+mkdir -p "${APPDIR}/usr/lib"
+gcc -Wall -shared -fPIC -o "${APPDIR}/usr/lib/webkit-launcher.so" "/tmp/webkit-launcher-$$.c" -ldl
+rm "/tmp/webkit-launcher-$$.c"
+
+# A plugin loaded with dlopen asks GModule for an injected bundle with the
+# launcher preloaded: it must not crash, and must be sent into the AppDir.
+check_dir=$(mktemp -d)
+trap 'rm -rf "$check_dir"' EXIT
+cat > "$check_dir/plug.c" <<'CHECK_EOF'
+#include <gmodule.h>
+#include <stdio.h>
+void run(void) {
+    g_module_open("/usr/lib/x86_64-linux-gnu/webkit2gtk-4.1/injected-bundle/x.so", 0);
+    printf("%s\n", g_module_error());
+}
+CHECK_EOF
+cat > "$check_dir/main.c" <<'CHECK_EOF'
+#include <dlfcn.h>
+int main(int argc, char **argv) {
+    void *plug = dlopen(argv[1], RTLD_NOW);
+    if (!plug) return 2;
+    ((void (*)(void))dlsym(plug, "run"))();
+    return 0;
+}
+CHECK_EOF
+gcc -shared -fPIC -o "$check_dir/plug.so" "$check_dir/plug.c" $(pkg-config --cflags --libs gmodule-2.0)
+gcc -o "$check_dir/main" "$check_dir/main.c" -ldl
+launcher="${PWD}/${APPDIR}/usr/lib/webkit-launcher.so"
+[[ "$APPDIR" == /* ]] && launcher="${APPDIR}/usr/lib/webkit-launcher.so"
+if ! out=$(APPDIR=/appdir-check LD_PRELOAD="$launcher" "$check_dir/main" "$check_dir/plug.so") ||
+    [[ "$out" != */appdir-check/usr/lib/x86_64-linux-gnu/webkit2gtk-4.1/injected-bundle/x.so* ]]; then
+    echo -e "${RED}✗ webkit-launcher.so doesn't redirect the injected bundle safely: ${out}${NC}"
+    exit 1
 fi
+rm -rf "$check_dir"
+trap - EXIT
+echo "✓ WebKit launcher built and checked"
+
+# Skip dependency bundling if using cache
+if [ "$USE_CACHE" = false ]; then
+    echo -e "${CYAN}Bundling all dependencies...${NC}"
+
 
 # Bundle dependencies with linuxdeploy + plugins, in one run: each run rewrites
 # every binary already in the AppDir, so a run per extra piece cost minutes.
