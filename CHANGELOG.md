@@ -1,3 +1,17 @@
+# Release v1.1.2
+
+**Release Date:** TBD
+
+---
+
+## Fixed
+
+- Saving a PDF in a shared network folder (SMB, such as a Windows share or a
+  NAS) failed with a message saying you didn't have permission. It now saves.
+  Signing a PDF into such a folder failed the same way and now works too.
+
+---
+
 # Release v1.1.1
 
 **Release Date:** 2026-11-17
