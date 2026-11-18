@@ -444,8 +444,12 @@ func rewrite(in, out string, op func(io.ReadSeeker, io.Writer) error) error {
 	return writeAtomic(out, func(w io.Writer) error { return op(bytes.NewReader(data), w) })
 }
 
+// chmodFile is swapped in tests to act like a filesystem that refuses chmod.
+var chmodFile = (*os.File).Chmod
+
 // writeAtomic writes out through a temp file in the same directory, renamed into place on
-// success and removed on failure. An existing out keeps its permissions.
+// success and removed on failure. An existing out keeps its permissions where the
+// filesystem allows chmod.
 func writeAtomic(out string, write func(io.Writer) error) (err error) {
 	if out == "" {
 		return errors.New("output path is empty")
@@ -472,9 +476,8 @@ func writeAtomic(out string, write func(io.Writer) error) (err error) {
 		return err
 	}
 	if keepPerm != 0 {
-		if err = tmp.Chmod(keepPerm); err != nil {
-			return err
-		}
+		// Best effort: SMB shares refuse chmod but still take the write.
+		_ = chmodFile(tmp, keepPerm)
 	}
 	if err = tmp.Sync(); err != nil {
 		return err

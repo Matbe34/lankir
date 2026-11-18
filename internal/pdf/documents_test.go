@@ -168,6 +168,25 @@ func TestSavePDF_ReplacesFileAtomicallyKeepingPermissions(t *testing.T) {
 	}
 }
 
+// An SMB share refuses chmod (EPERM on a CIFS mount, ENOTSUP through GVFS)
+// while writing and renaming work, so a refused chmod must not fail the save.
+func TestSavePDF_SucceedsWhenChmodIsRefused(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "a.pdf")
+	writeFile(t, path, []byte("%PDF-old"), 0o644)
+	orig := chmodFile
+	chmodFile = func(*os.File, os.FileMode) error { return os.ErrPermission }
+	t.Cleanup(func() { chmodFile = orig })
+
+	s := NewPDFService()
+	doc, _ := s.OpenPDFByPath(path)
+	if _, err := s.SavePDF(doc.ID, []byte("%PDF-new"), false); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := os.ReadFile(path); string(got) != "%PDF-new" {
+		t.Errorf("file = %q", got)
+	}
+}
+
 func TestSavePDF_FailureLeavesOriginalIntact(t *testing.T) {
 	if os.Geteuid() == 0 {
 		t.Skip("root ignores directory permissions")

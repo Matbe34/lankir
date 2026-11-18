@@ -42,6 +42,28 @@ func TestSignedFilePermissions(t *testing.T) {
 	}
 }
 
+// An SMB share refuses chmod while writing and renaming work, so a refused
+// chmod must not fail signing over an existing file there.
+func TestSignOverExistingSucceedsWhenChmodIsRefused(t *testing.T) {
+	store := t.TempDir()
+	writeTestP12(t, store, "me.p12", "secret", x509.KeyUsageDigitalSignature)
+	s := newStoreService(t, store)
+	existing := filepath.Join(t.TempDir(), "existing.pdf")
+	if err := os.WriteFile(existing, []byte("old"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	orig := chmod
+	chmod = func(string, os.FileMode) error { return os.ErrPermission }
+	t.Cleanup(func() { chmod = orig })
+
+	if _, err := s.SignPDF(SignRequest{PDFPath: plainTestPDF(t), OutputPath: existing, CertFingerprint: onlyCert(t, s).Fingerprint, PIN: "secret", ProfileID: invisibleID}); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := os.ReadFile(existing); !strings.HasPrefix(string(got), "%PDF") {
+		t.Errorf("existing file not replaced by the signed PDF: %.20q", got)
+	}
+}
+
 func TestDefaultOutputSkipsDanglingSymlink(t *testing.T) {
 	store := t.TempDir()
 	writeTestP12(t, store, "me.p12", "secret", x509.KeyUsageDigitalSignature)

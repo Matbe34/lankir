@@ -266,7 +266,8 @@ const certificationRefused = "cannot add a certification"
 // signPDFWithSigner writes the signed copy of inputPath to outputPath. The
 // output is written beside the target and renamed into place, so a failure
 // never leaves a partial file or destroys a file the user chose to replace.
-// A replaced file keeps its permissions; a new one gets the umask's.
+// A replaced file keeps its permissions where the filesystem allows chmod; a
+// new one gets the umask's.
 func (s *SignatureService) signPDFWithSigner(inputPath, outputPath string, signer CertificateSigner, cert *types.Certificate, profile *SignatureProfile, location, tsaURL string) error {
 	signingTime := time.Now().Local()
 
@@ -312,9 +313,8 @@ func (s *SignatureService) signPDFWithSigner(inputPath, outputPath string, signe
 	}
 
 	if fi, err := os.Stat(outputPath); err == nil {
-		if err := os.Chmod(tmpPath, fi.Mode().Perm()); err != nil {
-			return err
-		}
+		// Best effort: SMB shares refuse chmod but still take the write.
+		_ = chmod(tmpPath, fi.Mode().Perm())
 	}
 	if err := os.Rename(tmpPath, outputPath); err != nil {
 		return fmt.Errorf("cannot write the signed file: %w", err)
@@ -331,6 +331,9 @@ func certificateChain(signer CertificateSigner) []*x509.Certificate {
 	}
 	return chain
 }
+
+// chmod is swapped in tests to act like a filesystem that refuses chmod.
+var chmod = os.Chmod
 
 // createTemp creates an empty hidden file in dir with the permissions of any
 // new file (0666 less the umask), unlike os.CreateTemp's 0600.

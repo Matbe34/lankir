@@ -670,3 +670,19 @@ func TestInPlaceThroughSymlink(t *testing.T) {
 		t.Fatalf("target widths = %v, want %v", got, want)
 	}
 }
+
+// An SMB share refuses chmod while writing and renaming work, so a refused
+// chmod must not fail replacing a file there.
+func TestReplaceSucceedsWhenChmodIsRefused(t *testing.T) {
+	in := fixture(t, 3)
+	orig := chmodFile
+	chmodFile = func(*os.File, os.FileMode) error { return os.ErrPermission }
+	t.Cleanup(func() { chmodFile = orig })
+
+	if err := DeletePages(in, in, []int{2}); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := widths(t, in), []float64{100, 120}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("widths = %v, want %v", got, want)
+	}
+}

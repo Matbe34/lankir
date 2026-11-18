@@ -361,10 +361,14 @@ func newID() (string, error) {
 	return hex.EncodeToString(b), nil
 }
 
+// chmodFile is swapped in tests to act like a filesystem that refuses chmod.
+var chmodFile = (*os.File).Chmod
+
 // writeFileAtomic writes data to a temp file next to path, syncs it and
 // renames it over path, so a failure never leaves a half-written PDF. A
-// symlink is written through, an existing file keeps its permissions and a
-// new one gets the umask's. A read-only file is refused, not replaced.
+// symlink is written through, an existing file keeps its permissions where
+// the filesystem allows chmod and a new one gets the umask's. A read-only
+// file is refused, not replaced.
 func writeFileAtomic(path string, data []byte) (err error) {
 	if resolved, evalErr := filepath.EvalSymlinks(path); evalErr == nil {
 		path = resolved
@@ -392,9 +396,8 @@ func writeFileAtomic(path string, data []byte) (err error) {
 		return err
 	}
 	if statErr == nil {
-		if err = tmp.Chmod(info.Mode().Perm()); err != nil {
-			return err
-		}
+		// Best effort: SMB shares refuse chmod but still take the write.
+		_ = chmodFile(tmp, info.Mode().Perm())
 	}
 	if err = tmp.Sync(); err != nil {
 		return err
